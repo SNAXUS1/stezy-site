@@ -6,6 +6,15 @@
 <title>STEZY</title>
 <meta name="description" content="Games, apps and tools made by STEZY.">
 <meta name="theme-color" content="#050509">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="STEZY">
+<meta property="og:title" content="STEZY: games, apps and remixes">
+<meta property="og:description" content="Games, apps and game remixes made by STEZY. Download them and play.">
+<meta property="og:url" content="https://stezy.lt/">
+<meta property="og:image" content="https://stezy.lt/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%238FA2FF'/%3E%3Cstop offset='1' stop-color='%23C58CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='15' fill='%2306060C'/%3E%3Cpath d='M43 20c-4-5-21-6-21 4s22 7 22 18-18 10-23 4' fill='none' stroke='url(%23g)' stroke-width='7' stroke-linecap='round'/%3E%3Cpath d='M50 9l1.6 4.4L56 15l-4.4 1.6L50 21l-1.6-4.4L44 15l4.4-1.6z' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -291,11 +300,11 @@
     transition: color 0.3s ease;
   }
   .rail button::after {
-    content: ""; width: 8px; height: 1.5px; background: currentColor; border-radius: 2px;
-    transform-origin: right; transition: transform 0.35s var(--ease-out);
+    content: ""; width: 24px; height: 1.5px; background: currentColor; border-radius: 2px;
+    transform: scaleX(0.34); transform-origin: right; transition: transform 0.35s var(--ease-out);
   }
   .rail button[aria-current="true"] { color: var(--chrome); }
-  .rail button[aria-current="true"]::after { transform: scaleX(3); }
+  .rail button[aria-current="true"]::after { transform: scaleX(1); }
   @media (hover: hover) and (pointer: fine) { .rail button:hover { color: var(--chrome); } }
 
   /* Scenes */
@@ -557,7 +566,7 @@
     .info.at-center .desc { margin-left: 0; }
     .rail { right: 10px; gap: 2px; }
     .rail button { font-size: 0; letter-spacing: 0; padding: 7px 0; }
-    .rail button::after { width: 6px; }
+    .rail button::after { width: 18px; }
     .scene-linkfuse { align-items: center; text-align: center; }
     .t-chrome { margin-right: 0; font-size: 19vw; }
     .t-smoke { font-size: 21vw; }
@@ -695,7 +704,7 @@
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
     },
     {
-      slug: 'phantom', legacy: true, pendingDownload: 'https://github.com/SNAXUS1/stezy-site/releases/download/phantom-v0.1.0/Phantom-0.1.0.zip', name: 'Phantom', cat: 'apps', kind: 'App', platform: 'Windows', style: 'melt', ratio: '3 / 4',
+      slug: 'phantom', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/phantom-v0.1.0/Phantom-0.1.0.zip', name: 'Phantom', cat: 'apps', kind: 'App', platform: 'Windows', style: 'melt', ratio: '3 / 4',
       title: 't-melt', layout: 'at-left', page: '#040822', accent: '#A9C0FF',
       font: "'Bagel Fat One', sans-serif",
       blurb: "Finds the disk space Windows can't account for, and indexes a full drive in seconds.",
@@ -706,7 +715,7 @@
       sparks: [[18, 26, 22, '3.6s', '0s'], [78, 22, 28, '4.4s', '1.2s'], [70, 64, 18, '3.2s', '2s'], [28, 62, 14, '5s', '.6s'], [50, 16, 12, '4s', '2.6s']]
     },
     {
-      slug: 'linkfuse', legacy: true, pendingDownload: 'https://github.com/SNAXUS1/stezy-site/releases/download/linkfuse-v3.0.0/LinkFuse-3.0.0.zip', name: 'LinkFuse', cat: 'apps', kind: 'App', platform: 'Windows', style: 'chrome', ratio: '4 / 5',
+      slug: 'linkfuse', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/linkfuse-v3.0.0/LinkFuse-3.0.0.zip', name: 'LinkFuse', cat: 'apps', kind: 'App', platform: 'Windows', style: 'chrome', ratio: '4 / 5',
       title: 't-chrome', layout: 'at-left', page: '#07070C', accent: '#E3E8F4',
       font: "'Pinyon Script', cursive", titleCss: 'font-size:clamp(48px,5.4vw,78px);',
       note: 'Every connection you have, working as one.',
