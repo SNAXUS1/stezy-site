@@ -30,6 +30,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&text=LinkFuse&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&text=Poltergeist&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&text=Undertow&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Italiana&text=VEILVeil&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
 <script>
@@ -546,6 +547,22 @@
   }
   @keyframes swell { from { translate: 0 -0.025em; } to { translate: 0 0.035em; } }
 
+  /* Veil: thin, widely spaced capitals behind frosted glass */
+  .scene-veil { color: #EEEAFF; align-items: flex-end; text-align: right; --accent: #DCD2FF; }
+  .t-veil {
+    font-family: 'Italiana', serif; font-size: clamp(90px, 13vw, 250px); line-height: 1; letter-spacing: 0.2em; text-transform: uppercase; margin-right: clamp(210px, 19vw, 320px);
+    text-shadow: 0 0 0.25em rgba(190, 170, 255, 0.45);
+  }
+  /* Unveil: each letter starts frosted and out of focus, then the veil slides off it */
+  .scene.is-active .enter-unveil .ch {
+    animation: unveil 1.5s var(--ease-out) calc(0.15s + var(--i) * 160ms) both;
+  }
+  @keyframes unveil {
+    from { opacity: 0; filter: blur(0.12em); transform: translateY(-0.14em) scale(1.08); }
+    30% { opacity: 0.6; }
+    to { opacity: 1; filter: none; transform: none; }
+  }
+
   /* Static: glitch and TV noise */
   .scene-static { color: #F5F5FF; --accent: #FF7CBE; }
   @keyframes tear { 0%, 84%, 100% { opacity: 0; transform: translateY(20vh); } 86% { opacity: 0.8; transform: translateY(44vh) translateX(-2vw); } 89% { opacity: 0.6; transform: translateY(62vh) translateX(1.5vw); } 91% { opacity: 0; } }
@@ -605,6 +622,9 @@
   .cv-chrome { background: radial-gradient(38% 30% at 18% 74%, rgba(150,170,235,.38), transparent 70%), radial-gradient(30% 40% at 84% 18%, rgba(200,205,255,.2), transparent 70%), #08080D; color: #DCE3F2; }
   .cv-chrome .small { color: rgba(220,227,242,.6); }
   .art-chrome { font-family: 'Pinyon Script', cursive; font-size: 23cqi; line-height: 1.35; background: linear-gradient(180deg, #FFFFFF 0%, #DCE4F4 30%, #6B7894 50%, #EEF3FC 60%, #9AA6C0 82%, #F4F7FF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0.5cqi 1.2cqi rgba(0,0,0,.75)); }
+  .cv-veil { background: radial-gradient(60% 50% at 50% 60%, rgba(90,80,220,.4), transparent 70%), radial-gradient(45% 40% at 90% 5%, rgba(200,110,210,.3), transparent 70%), #0A0910; color: #EEEAFF; }
+  .cv-veil .small { color: rgba(238,234,255,.6); }
+  .art-veil { font-family: 'Italiana', serif; text-transform: uppercase; font-size: 18cqi; line-height: 1; letter-spacing: 0.18em; margin-right: -0.18em; text-shadow: 0 0 4cqi rgba(190,170,255,.5); }
   .cv-tide { background: radial-gradient(70% 40% at 30% 100%, rgba(30,111,217,.55), transparent 70%), radial-gradient(50% 40% at 90% 0%, rgba(75,59,196,.4), transparent 70%), #04101C; color: #E6F3FF; }
   .cv-tide .small { color: rgba(230,243,255,.6); }
   .art-tide { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 21cqi; line-height: 1; background: linear-gradient(180deg, #fff 10%, #BFE3FF 46%, #3E8FE0 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -714,6 +734,8 @@
     .t-ink { font-size: 22vw; }
     .t-melt { font-size: 18vw; }
     .t-float { font-size: 12.5vw; }
+    .t-veil { margin-right: 0; font-size: 17vw; }
+    .t-tide { font-size: 22vw; }
     .t-glitch { font-size: 15vw; }
     .t-halo { font-size: 30vw; }
     .tagline { top: calc(46% + 16.5vw * 0.42 + 24px); }
@@ -856,7 +878,18 @@
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
     },
     {
-      slug: 'undertow', enter: 'wave', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/undertow-v1.0.0/Undertow-1.0.0.zip', sha: '24bb8cc369d63a31f81fe09acbdf568c13c3ac33bfb38e083a4e440d6ff80461', name: 'Undertow', cat: 'apps', kind: 'App', platform: 'Windows', style: 'tide', ratio: '4 / 5',
+      slug: 'veil', enter: 'unveil', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/veil-v1.0.0/Veil-1.0.0.zip', sha: '00d1496a2965b17544458e79bd538d7f186ef257ef433531739892bbaba0c05e', name: 'Veil', cat: 'apps', kind: 'App', platform: 'Windows', style: 'veil', ratio: '4 / 5',
+      title: 't-veil', layout: 'at-right', page: '#0A0910', accent: '#DCD2FF',
+      font: "'Italiana', serif", titleCss: 'letter-spacing:0.2em;',
+      blurb: 'Ctrl + Alt + V drops a calm curtain over every screen. Press it again to lift it.',
+      lede: "For streams, screen shares and the moment someone walks past your desk. One shortcut covers every monitor with a dark, quiet veil that says whatever you like (\"Be right back\" by default), and the same shortcut lifts it. Clean desktop hides your icons, swaps in a plain wallpaper and can tuck the taskbar away, then puts everything back exactly as it was, even if Veil gets closed in between.",
+      how: ["Download the zip, unzip it somewhere you'll keep it and open Veil.exe.", 'Press Ctrl + Alt + V from anywhere to draw the veil, and again to lift it.', 'Before a screen share, press Tidy my desktop. Put it all back when you are done.'],
+      shots: ['img/veil/main.webp', 'img/veil/veil.webp'],
+      version: '1.0.0', size: '0.3 MB', updated: '9 Oct 2026', web: false,
+      sparks: [[30, 24, 12, '5s', '1s'], [18, 70, 16, '4.2s', '2.6s']]
+    },
+    {
+      slug: 'undertow', enter: 'wave', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/undertow-v1.0.0/Undertow-1.0.0.zip', sha: '91f2b79fdd23d928bc1f65832bcadabeff7ac451416a33879ef71feb079bbeab', name: 'Undertow', cat: 'apps', kind: 'App', platform: 'Windows', style: 'tide', ratio: '4 / 5',
       title: 't-tide', layout: 'at-left', page: '#04101C', accent: '#A9DCFF',
       font: "'Instrument Serif', serif", titleCss: 'font-style:italic;font-weight:400;',
       blurb: 'Pulls loose files out of your Downloads and onto their own shelves. Every sort can be undone.',
@@ -1378,7 +1411,7 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', undertow: 'current', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
@@ -1386,6 +1419,7 @@
       linkfuse: [[226, 231, 246], [140, 155, 215]],
       poltergeist: [[232, 236, 255], [150, 165, 255]],
       undertow: [[200, 232, 255], [70, 150, 240]],
+      veil: [[236, 230, 255], [190, 160, 255]],
       static: [[255, 90, 175], [90, 120, 255]],
       halo: [[220, 230, 255], [80, 120, 255]],
       'schedule-steve': [[214, 246, 205], [110, 200, 90]],
@@ -1626,6 +1660,8 @@
             case 'float': { const gust = Math.pow(Math.max(0, Math.sin(t * 0.0007)), 10) * 2.4; ax = Math.sin(t * 0.0006 + d.ph) * 0.12 + gust; ay = -0.1 - d.s * 0.25; break; }
             // Water pulling back out to sea, in slow ribbons
             case 'current': ax = -(0.3 + d.s * 0.9); ay = Math.sin(d.x * 0.008 + t * 0.0012 + d.ph) * 0.35; break;
+            // Long, slow folds of fabric settling downwards
+            case 'drape': ax = Math.sin(d.y * 0.004 + t * 0.0005 + d.ph * 0.3) * 0.18; ay = 0.12 + d.s * 0.18; break;
             case 'glitch': ax = 0.12; ay = 0; if (Math.random() < 0.004) d.x += (Math.random() - 0.5) * 60; break;
             default: ax = Math.cos(flow) * d.s * 0.6; ay = Math.sin(flow) * d.s * 0.6 - 0.03;
           }
