@@ -29,6 +29,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&text=Phantom&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&text=LinkFuse&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@1&text=afterimageA&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poiret+One&text=wispW&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&text=Poltergeist&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&text=Undertow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Italiana&text=VEILVeil&display=swap" rel="stylesheet">
@@ -587,6 +588,20 @@
     to { opacity: 1; transform: none; text-shadow: 0.05em 0.03em 0 rgba(255, 143, 184, 0.45), 0.1em 0.06em 0 rgba(255, 195, 143, 0.25); }
   }
 
+  /* Wisp: thin, airy letters with a cool glow */
+  .scene-wisp { color: #E8FFF8; align-items: center; text-align: center; --accent: #9FFFE6; }
+  .t-wisp {
+    font-family: 'Poiret One', sans-serif; text-transform: lowercase; font-size: clamp(120px, 20vw, 360px); line-height: 1;
+    text-shadow: 0 0 0.12em rgba(127, 255, 224, 0.7), 0 0 0.4em rgba(127, 184, 255, 0.35);
+  }
+  /* Gather: each letter drifts in from somewhere different and settles */
+  .scene.is-active .enter-gather .ch { animation: gather 1.8s var(--ease-out) calc(var(--r) * 400ms) both; }
+  @keyframes gather {
+    from { opacity: 0; transform: translate(calc((var(--r) - 0.5) * 1.6em), calc((0.5 - var(--r)) * 0.9em)) scale(0.6); filter: blur(0.08em); }
+    50% { opacity: 1; }
+    to { opacity: 1; transform: none; filter: none; }
+  }
+
   /* Static: glitch and TV noise */
   .scene-static { color: #F5F5FF; --accent: #FF7CBE; }
   @keyframes tear { 0%, 84%, 100% { opacity: 0; transform: translateY(20vh); } 86% { opacity: 0.8; transform: translateY(44vh) translateX(-2vw); } 89% { opacity: 0.6; transform: translateY(62vh) translateX(1.5vw); } 91% { opacity: 0; } }
@@ -655,6 +670,9 @@
   .cv-echo { background: linear-gradient(115deg, rgba(255,111,160,.35), rgba(255,163,111,.12) 30%, transparent 55%), #0C0809; color: #FFF3F5; }
   .cv-echo .small { color: rgba(255,243,245,.6); }
   .art-echo { font-family: 'DM Serif Display', serif; font-style: italic; text-transform: lowercase; font-size: 15cqi; line-height: 1; text-shadow: 0.6cqi 0.4cqi 0 rgba(255,143,184,.5), 1.2cqi 0.8cqi 0 rgba(255,195,143,.3); }
+  .cv-wisp { background: radial-gradient(55% 50% at 50% 55%, rgba(14,58,62,.9), transparent 70%), #040A0C; color: #E8FFF8; }
+  .cv-wisp .small { color: rgba(232,255,248,.6); }
+  .art-wisp { font-family: 'Poiret One', sans-serif; text-transform: lowercase; font-size: 30cqi; line-height: 1; text-shadow: 0 0 2cqi rgba(127,255,224,.7), 0 0 6cqi rgba(127,184,255,.4); }
   .cv-float { background: radial-gradient(60% 45% at 50% 56%, rgba(120,140,255,.3), transparent 70%), radial-gradient(45% 30% at 50% 100%, rgba(165,123,255,.25), transparent 70%), #06060B; color: #EEF0FF; }
   .cv-float::before { content: ""; position: absolute; inset: -50%; z-index: 0; background-image: var(--static); opacity: .14; animation: grain 0.5s steps(4) infinite; }
   .cv-float .small { color: rgba(238,240,255,.6); }
@@ -763,6 +781,7 @@
     .t-float { font-size: 12.5vw; }
     .t-veil { margin-right: 0; font-size: 17vw; }
     .t-echo { font-size: 14.5vw; }
+    .t-wisp { font-size: 30vw; }
     .t-tide { font-size: 22vw; }
     .t-glitch { font-size: 15vw; }
     .t-halo { font-size: 30vw; }
@@ -904,6 +923,17 @@
       how: ['Download the zip, unzip it and open Shadow.exe. No installer needed.', 'Name a runner and press Start to train it.', "Race it on the Race tab, or send its file to a friend."],
       shots: ['img/shadow/intro.webp', 'img/shadow/race.webp'],
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
+    },
+    {
+      slug: 'wisp', enter: 'gather', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/wisp-v1.0.0/Wisp-1.0.0.zip', sha: 'b0d4035ef6e2d624e4b06f07263cd8c0dd7b7884fc2089faa97214c022252148', name: 'Wisp', cat: 'apps', kind: 'App', platform: 'Windows', style: 'wisp', ratio: '1 / 1',
+      title: 't-wisp', layout: 'at-center', page: '#040A0C', accent: '#9FFFE6',
+      font: "'Poiret One', sans-serif", titleCss: 'text-transform:lowercase;',
+      blurb: 'See which apps are talking to the internet right now, drawn as lights around you.',
+      lede: "Your connection feels slow, or you just wonder what's going on in the background. Wisp shows every app with an open internet connection as a light drifting around you (bigger means busier), with your live download and upload speed and a one-minute graph. It flags apps that just came online and counts home-network devices separately. It only looks, never blocks or sends anything, and needs no admin rights.",
+      how: ["Download the zip, unzip it somewhere you'll keep it and open Wisp.exe.", 'Watch the lights: each one is an app that is online right now.', 'Hover over an app in the list to see where it is connected.'],
+      shots: ['img/wisp/main.webp'],
+      version: '1.0.0', size: '0.3 MB', updated: '9 Oct 2026', web: false,
+      sparks: [[30, 30, 10, '4.2s', '.8s'], [70, 62, 12, '5s', '2.6s'], [60, 22, 8, '3.6s', '1.4s']]
     },
     {
       slug: 'afterimage', enter: 'echo', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/afterimage-v1.0.0/Afterimage-1.0.0.zip', sha: 'e4710ddcd78c84b9fbc4c1c0a0827ca258257e747d3c389e1a95f0abe2dc2c21', name: 'Afterimage', cat: 'apps', kind: 'App', platform: 'Windows', style: 'echo', ratio: '4 / 5',
@@ -1461,13 +1491,14 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
       phantom: [[244, 247, 255], [140, 170, 255]],
       linkfuse: [[226, 231, 246], [140, 155, 215]],
       poltergeist: [[232, 236, 255], [150, 165, 255]],
+      'wisp': [[220, 255, 245], [127, 255, 224]],
       'afterimage': [[255, 236, 240], [255, 150, 185]],
       undertow: [[200, 232, 255], [70, 150, 240]],
       veil: [[236, 230, 255], [190, 160, 255]],
@@ -1715,6 +1746,8 @@
             case 'drape': ax = Math.sin(d.y * 0.004 + t * 0.0005 + d.ph * 0.3) * 0.18; ay = 0.12 + d.s * 0.18; break;
             // Grain sliding past like film through a projector
             case 'film': ax = 0.55 + d.s * 0.5; ay = Math.sin(t * 0.0009 + d.ph) * 0.04; break;
+            // Little lights wandering on their own paths
+            case 'wander': ax = Math.sin(t * 0.0004 + d.ph) * 0.35; ay = Math.cos(t * 0.00033 + d.ph * 1.7) * 0.25 - 0.03; break;
             case 'glitch': ax = 0.12; ay = 0; if (Math.random() < 0.004) d.x += (Math.random() - 0.5) * 60; break;
             default: ax = Math.cos(flow) * d.s * 0.6; ay = Math.sin(flow) * d.s * 0.6 - 0.03;
           }
