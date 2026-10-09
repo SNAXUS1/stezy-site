@@ -491,10 +491,10 @@
   @keyframes d-out { to { opacity: 0; transform: translateY(8px) scale(0.98); } }
   @keyframes fade { from { opacity: 0; } }
   .d { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); max-height: calc(100dvh - 48px); }
-  .d-media { padding: 20px; overflow: auto; }
+  .d-media { padding: 20px; overflow: auto; max-height: calc(100dvh - 48px); }
   .shots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
   .shot { width: 100%; object-fit: cover; display: block; aspect-ratio: 16 / 10; border-radius: 12px; display: grid; place-items: center; font-size: 13px; color: var(--muted); background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--line); }
-  .d-info { padding: 44px 44px 36px 20px; overflow: auto; }
+  .d-info { padding: 44px 44px 36px 20px; overflow: auto; max-height: calc(100dvh - 48px); overscroll-behavior: contain; }
   .shot-btn { padding: 0; border: 0; background: none; cursor: zoom-in; border-radius: 12px; transition: transform 0.16s var(--ease-out); }
   .shot-btn:active { transform: scale(0.97); }
   .lightbox { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: 64px 76px; background: rgba(5, 5, 10, 0.95); animation: fade 0.2s var(--ease-out); }
@@ -675,55 +675,55 @@
   // ---------- Projects: one entry each ----------
   const projects = [
     {
-      slug: 'ghost-line', legacy: true, name: 'Ghost Line', cat: 'games', kind: 'Game', platform: 'Windows', style: 'smoke', ratio: '4 / 5',
+      slug: 'ghost-line', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/ghost-line-v6.0.0/GhostLine-6.0.0.zip', name: 'Ghost Line', cat: 'games', kind: 'Game', platform: 'Windows', style: 'smoke', ratio: '4 / 5',
       title: 't-smoke', layout: 'at-center', page: '#04050A', accent: '#D6E0FF',
       font: "'Anton', sans-serif", titleCss: 'text-transform:uppercase;',
       blurb: "Draw a track, evolve an AI driver on it, then race it against a friend's.",
       lede: "A racing game where you don't drive. You draw a circuit, a population of neural-network drivers learns it lap by lap, and the best one is saved as a tiny file. Send it to a friend and race your drivers head to head, with the same result on every computer.",
-      how: ['Download Ghost Line and open it. No installer needed.', 'Draw a track, then press Train and watch the drivers learn it.', "Race your best driver, or import a friend's and race them."],
+      how: ['Download the zip, unzip it and open Ghost Line.exe. No installer needed.', 'Draw a track, then press Train and watch the drivers learn it.', "Race your best driver, or import a friend's and race them."],
       shots: ['img/ghost-line/race.png', 'img/ghost-line/paddock.png', 'img/ghost-line/train.png'],
       version: '6.0.0', size: '88 MB', updated: '1 Sep 2026', web: false
     },
     {
-      slug: 'shadow', legacy: true, name: 'Shadow', cat: 'games', kind: 'Game', platform: 'Windows', style: 'ink', ratio: '1 / 1',
+      slug: 'shadow', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/shadow-v0.6.0/Shadow-0.6.0.zip', name: 'Shadow', cat: 'games', kind: 'Game', platform: 'Windows', style: 'ink', ratio: '1 / 1',
       title: 't-ink', layout: 'at-right', page: '#EFB3D4', accent: '#FF9BD0',
       font: "'Grenze Gotisch', serif", titleCss: 'font-weight:900;',
       blurb: 'A skeleton teaches itself to run 100 metres. Nothing is animated.',
       lede: "One human skeleton with real joint limits and no animation at all. A population of tiny brains learns to move it, and over thousands of generations a falling pile of limbs becomes a runner. Train your own athlete, then race it against a friend's.",
-      how: ['Download Shadow and open it. No installer needed.', 'Name a runner and press Start to train it.', "Race it on the Race tab, or send its file to a friend."],
+      how: ['Download the zip, unzip it and open Shadow.exe. No installer needed.', 'Name a runner and press Start to train it.', "Race it on the Race tab, or send its file to a friend."],
       shots: ['img/shadow/intro.png', 'img/shadow/race.png'],
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
     },
     {
-      slug: 'phantom', legacy: true, name: 'Phantom', cat: 'apps', kind: 'App', platform: 'Windows', style: 'melt', ratio: '3 / 4',
+      slug: 'phantom', legacy: true, pendingDownload: 'https://github.com/SNAXUS1/stezy-site/releases/download/phantom-v0.1.0/Phantom-0.1.0.zip', name: 'Phantom', cat: 'apps', kind: 'App', platform: 'Windows', style: 'melt', ratio: '3 / 4',
       title: 't-melt', layout: 'at-left', page: '#040822', accent: '#A9C0FF',
       font: "'Bagel Fat One', sans-serif",
       blurb: "Finds the disk space Windows can't account for, and indexes a full drive in seconds.",
       lede: "Your drive says it's full, but your folders don't add up. Phantom reads the drive's file table directly, indexes a million files in about two seconds, and shows where the space really went, including the hidden 'phantom' storage other tools miss. Nothing is deleted until you've reviewed it.",
-      how: ['Download Phantom and open it. No installer needed.', 'Allow administrator access for the fast scan, or continue without it.', 'Explore your drive, add what you want gone to the cart, then review it.'],
+      how: ['Download the zip, unzip it and open Phantom.exe. No installer needed.', 'Allow administrator access for the fast scan, or continue without it.', 'Explore your drive, add what you want gone to the cart, then review it.'],
       shots: ['img/phantom/orbital.png', 'img/phantom/start.png'],
-      version: '0.1.0', size: '65 MB', updated: '12 Sep 2026', web: false,
+      version: '0.1.0', size: '60 MB', updated: '12 Sep 2026', web: false,
       sparks: [[18, 26, 22, '3.6s', '0s'], [78, 22, 28, '4.4s', '1.2s'], [70, 64, 18, '3.2s', '2s'], [28, 62, 14, '5s', '.6s'], [50, 16, 12, '4s', '2.6s']]
     },
     {
-      slug: 'linkfuse', legacy: true, name: 'LinkFuse', cat: 'apps', kind: 'App', platform: 'Windows', style: 'chrome', ratio: '4 / 5',
+      slug: 'linkfuse', legacy: true, pendingDownload: 'https://github.com/SNAXUS1/stezy-site/releases/download/linkfuse-v3.0.0/LinkFuse-3.0.0.zip', name: 'LinkFuse', cat: 'apps', kind: 'App', platform: 'Windows', style: 'chrome', ratio: '4 / 5',
       title: 't-chrome', layout: 'at-left', page: '#07070C', accent: '#E3E8F4',
       font: "'Pinyon Script', cursive", titleCss: 'font-size:clamp(48px,5.4vw,78px);',
       note: 'Every connection you have, working as one.',
       blurb: 'Merges your Ethernet, Wi-Fi and phone tethering into one faster connection.',
       lede: 'LinkFuse pools every internet connection on your PC and spreads your traffic across all of them, with instant failover if one drops. Parallel downloads, streams and browser tabs add up to the combined speed. Fully local: no accounts and no relay servers.',
-      how: ['Download LinkFuse and open it.', 'Choose which connections to pool.', 'Press Merge. Browsers use it straight away; other apps can use its built-in proxy.'],
+      how: ['Download the zip, unzip it and open LinkFuse.exe.', 'Choose which connections to pool.', 'Press Merge. Browsers use it straight away; other apps can use its built-in proxy.'],
       shots: ['img/linkfuse/dashboard.png'],
-      version: '3.0.0', size: '174 MB', updated: '29 Jul 2026', web: false,
+      version: '3.0.0', size: '70 MB', updated: '29 Jul 2026', web: false,
       sparks: [[64, 30, 26, '3.8s', '.4s'], [86, 52, 16, '4.6s', '1.8s'], [40, 40, 12, '5.2s', '3s']]
     },
     {
-      slug: 'minecraft-merge', name: 'Minecraft Merge', cat: 'remixes', kind: 'Mod', platform: 'Schedule I', legacy: true,
+      slug: 'schedule-steve', name: 'Schedule Steve', cat: 'remixes', kind: 'Mod', platform: 'Schedule I', legacy: true,
       download: 'https://github.com/SNAXUS1/stezy-site/releases/download/minecraft-merge-v0.3/MinecraftMerge_v0.3.zip',
       game: 'Schedule I + Minecraft: Java Edition 1.21.10', by: 'STEZY', style: 'vinyl', ratio: '1 / 1',
       title: 't-remix', layout: 'at-left', page: '#06080A', accent: '#9BE38F', label: '#3E8E32',
       font: "'Unbounded', sans-serif", titleCss: 'font-weight:800;',
-      blurb: 'Play Schedule I as Minecraft Steve, with blocks, tools, mobs and the Minecraft HUD.',
+      blurb: 'The Steve mod for Schedule I: blocks, tools, mobs and the whole Minecraft HUD.',
       lede: "Turns Schedule I into Minecraft. You play as Steve with the hotbar, hearts, hunger, inventory, chat and F3 screen, and you can break and place blocks, use tools, TNT and bows, and fight mobs that hunt the town at night. You can even build golems and the Wither. You need to own both games.",
       how: ['Play Minecraft: Java Edition once from the launcher, so its files are on your PC.', 'Close Schedule I, unzip the mod and double-click INSTALL.bat. It finds the game through Steam and copies the Minecraft textures and sounds from your own Minecraft.', 'Start Schedule I. The first launch takes a minute or two.'],
       version: '0.3', size: '20 MB', updated: '9 Oct 2026', web: false
@@ -933,6 +933,7 @@
       : p.web
       ? `<a class="btn primary" href="#" data-demo><i class="ph ph-play" aria-hidden="true"></i>${p.webLabel || 'Play in browser'}</a>
          <a class="btn ghost" href="#" data-demo><i class="ph ph-download-simple" aria-hidden="true"></i>Download</a>`
+      : p.download ? `<a class="btn primary" href="${p.download}" download><i class="ph ph-download-simple" aria-hidden="true"></i>Download for Windows</a>`
       : `<a class="btn primary" href="#" data-demo><i class="ph ph-download-simple" aria-hidden="true"></i>Download for Windows</a>`;
     const note = remix
       ? `<p class="note"><i class="ph ph-info" aria-hidden="true"></i>Back up your saves first. This download contains no Minecraft files: the installer copies them from your own Minecraft. Fan mod, not affiliated with Mojang, Microsoft or the game's makers.</p>`
@@ -1136,7 +1137,7 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'minecraft-merge': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
@@ -1144,7 +1145,7 @@
       linkfuse: [[226, 231, 246], [140, 155, 215]],
       static: [[255, 90, 175], [90, 120, 255]],
       halo: [[220, 230, 255], [80, 120, 255]],
-      'minecraft-merge': [[214, 246, 205], [110, 200, 90]],
+      'schedule-steve': [[214, 246, 205], [110, 200, 90]],
       'midnight-pack': [[214, 224, 255], [120, 140, 255]],
       afterglow: [[255, 214, 236], [255, 120, 190]]
     };
