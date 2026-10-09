@@ -863,6 +863,39 @@
   .demo-bar > span { color: #B9B6D3; margin-right: 6px; }
   .demo-bar button { border: 0; border-radius: 999px; padding: 8px 12px; background: transparent; color: #F2F0FF; font: 600 12px/1 'Hanken Grotesk', sans-serif; cursor: pointer; }
   .demo-bar button[aria-pressed="true"] { background: #F2F0FF; color: #0E0B26; }
+  /* See everything: every project's cover in one searchable wall */
+  .index {
+    position: fixed; inset: 0; z-index: 70; overflow-y: auto; overscroll-behavior: contain;
+    padding: 28px clamp(20px, 5vw, 64px) 60px;
+    background: color-mix(in srgb, var(--base) 88%, transparent); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+    animation: fade 0.22s var(--ease-out);
+  }
+  .index[hidden] { display: none; }
+  .index-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; position: sticky; top: -28px; padding: 6px 0 12px; z-index: 2; }
+  .index-search { flex: 1 1 280px; display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 18px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 8%, transparent); box-shadow: inset 0 0 0 1px var(--line); }
+  .index-search i { font-size: 20px; color: var(--muted); }
+  .index-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--ink); font: 500 17px 'Hanken Grotesk', sans-serif; }
+  .index-search input::placeholder { color: var(--muted); }
+  .index-search:focus-within { box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .index-filters { display: flex; gap: 6px; }
+  .index-filters button { height: 40px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 14px 'Hanken Grotesk', sans-serif; cursor: pointer; box-shadow: inset 0 0 0 1px var(--line); }
+  .index-filters button[aria-pressed="true"] { background: var(--ink); color: var(--base); box-shadow: none; }
+  .index-count { margin: 6px 0 18px; color: var(--muted); font-size: 14px; }
+  .index-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 22px 18px; }
+  .index-card { display: block; text-align: left; border: 0; padding: 0; background: none; color: var(--ink); cursor: pointer; font: inherit; }
+  .index-card .cover { border-radius: 18px; transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out); }
+  .index-card .cover { --r: 1 !important; }
+  .index-card strong { display: block; margin-top: 10px; font-size: 16px; }
+  .index-card span.meta { display: block; margin-top: 3px; font-size: 13px; color: var(--muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  @media (hover: hover) and (pointer: fine) { .index-card:hover .cover { transform: translateY(-4px); box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.8); } }
+  .index-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 6px; border-radius: 18px; }
+  @media (max-width: 700px) {
+    .index { padding: 18px 14px 40px; }
+    .index-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; }
+    .index-card strong { font-size: 14px; }
+    .index-filters { order: 3; width: 100%; overflow-x: auto; }
+  }
+  .index-empty { grid-column: 1 / -1; color: var(--muted); padding: 40px 0; text-align: center; }
   .toast {
     position: fixed; left: 50%; bottom: 70px; z-index: 60; transform: translate(-50%, 8px);
     padding: 12px 18px; border-radius: 14px; background: #F2F0FF; color: #0E0B26; font-weight: 600; font-size: 14px;
@@ -964,6 +997,7 @@
     <div class="top-right">
       <span class="sound-hint" id="sound-hint" aria-hidden="true">Click anywhere for sound</span>
       <button class="icon-btn sound" id="sound" type="button" aria-pressed="false" aria-label="Turn music on"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span></button>
+      <button class="icon-btn" id="index-btn" type="button" aria-label="See everything (press /)" title="See everything ( / )"><i class="ph ph-squares-four" aria-hidden="true"></i></button>
       <button class="icon-btn" id="theme" type="button" aria-label="Switch to light mode"><i class="ph ph-sun"></i></button>
     </div>
   </header>
@@ -1011,6 +1045,18 @@
     <button type="button" data-palette-set="pink">Violet + pink</button>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="index" id="index" role="dialog" aria-modal="true" aria-label="Everything on STEZY" hidden data-lenis-prevent>
+    <div class="index-top">
+      <div class="index-search">
+        <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+        <input id="index-q" type="search" placeholder="Search everything" autocomplete="off" spellcheck="false" aria-label="Search projects">
+      </div>
+      <div class="index-filters" id="index-filters"></div>
+      <button class="icon-btn index-close" id="index-close" type="button" aria-label="Close"><i class="ph ph-x" aria-hidden="true"></i></button>
+    </div>
+    <p class="index-count" id="index-count"></p>
+    <div class="index-grid" id="index-grid"></div>
+  </div>
 
 <script>
 (() => {
@@ -1576,7 +1622,7 @@
   addEventListener('hashchange', () => route(false));
 
   document.addEventListener('keydown', e => {
-    if (dlg.open || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (dlg.open || !document.getElementById('index').hidden || e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
     const list = scenes.filter(s => !s.hidden);
     const at = Math.max(0, list.findIndex(s => s.dataset.scene === body.dataset.scene));
@@ -1588,6 +1634,63 @@
     if (to < 0) return;
     e.preventDefault();
     goTo(list[to].dataset.scene);
+  });
+
+  // ---------- See everything ----------
+  const indexEl = document.getElementById('index');
+  const indexQ = document.getElementById('index-q');
+  const indexGrid = document.getElementById('index-grid');
+  const indexFilters = document.getElementById('index-filters');
+  let indexCat = 'all', indexReturn = null;
+  indexFilters.innerHTML = ['all', ...usedTabs].map(c => `<button type="button" data-cat="${c}" aria-pressed="${c === 'all'}">${c === 'all' ? 'All' : TAB_LABEL[c]}</button>`).join('');
+  function fillIndex() {
+    const q = indexQ.value.trim().toLowerCase();
+    const list = projects.filter(p => (indexCat === 'all' || p.cat === indexCat) &&
+      (!q || [p.name, p.blurb, p.kind, p.platform, p.game || ''].join(' ').toLowerCase().includes(q)));
+    document.getElementById('index-count').textContent = list.length === 1 ? '1 thing' : `${list.length} things`;
+    indexGrid.innerHTML = list.length ? list.map(p => `<button class="index-card" type="button" data-index-open="${p.slug}">
+        ${cover(p)}<strong>${p.name}${p.fresh ? ' \u00B7 new' : ''}</strong><span class="meta">${p.blurb}</span></button>`).join('')
+      : '<p class="index-empty">Nothing matches that. Try another word.</p>';
+  }
+  function openIndex() {
+    if (!indexEl.hidden) return;
+    indexReturn = document.activeElement;
+    fillIndex();
+    indexEl.hidden = false;
+    root.style.overflow = 'hidden';
+    if (scroller) scroller.pause();
+    setTimeout(() => indexQ.focus(), 30);
+  }
+  function closeIndex(keepLock) {
+    if (indexEl.hidden) return;
+    indexEl.hidden = true;
+    if (!keepLock) { root.style.overflow = ''; if (scroller) scroller.resume(); }
+    if (indexReturn && indexReturn.focus) indexReturn.focus();
+  }
+  document.getElementById('index-btn').addEventListener('click', openIndex);
+  document.getElementById('index-close').addEventListener('click', () => closeIndex());
+  indexQ.addEventListener('input', fillIndex);
+  indexFilters.addEventListener('click', e => {
+    const b = e.target.closest('[data-cat]');
+    if (!b) return;
+    indexCat = b.dataset.cat;
+    indexFilters.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    fillIndex();
+  });
+  indexGrid.addEventListener('click', e => {
+    const b = e.target.closest('[data-index-open]');
+    if (!b) return;
+    closeIndex(true);
+    root.style.overflow = '';
+    if (scroller) scroller.resume();
+    location.hash = b.dataset.indexOpen;
+  });
+  indexEl.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); closeIndex(); } });
+  document.addEventListener('keydown', e => {
+    if (e.key !== '/' || dlg.open || !indexEl.hidden) return;
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
+    e.preventDefault();
+    openIndex();
   });
 
   let toastTimer;
