@@ -533,6 +533,12 @@
   .facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 20px; margin: 20px 0 0; }
   .facts dt { font-size: 13px; color: var(--muted); }
   .facts dd { margin: 4px 0 0; font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .sha { margin: 18px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+  .sha summary { cursor: pointer; width: fit-content; }
+  .sha summary:hover { color: var(--ink); }
+  .sha code { display: block; margin: 8px 0 6px; padding: 10px 12px; border-radius: 10px; font: 12px/1.5 ui-monospace, Consolas, monospace; word-break: break-all; user-select: all; box-shadow: inset 0 0 0 1px var(--line); }
+  .sha p { margin: 0; }
+  .sha p code { display: inline; margin: 0; padding: 0 4px; box-shadow: none; user-select: text; word-break: normal; white-space: nowrap; }
   .note { display: flex; gap: 10px; margin: 18px 0 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
   .note i { font-size: 18px; flex: none; margin-top: 1px; }
   .close { position: absolute; top: 14px; right: 14px; z-index: 2; background: var(--panel); color: var(--ink); }
@@ -560,6 +566,7 @@
     .d-media, .d-info { overflow: visible; }
     .d-info { padding: 8px 20px 48px; }
     .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .d-media .cover { max-height: 44vh; max-height: 44dvh; margin-inline: auto; }
   }
   @media (max-width: 700px) {
     .scene { padding: 88px 20px 240px; }
@@ -567,6 +574,7 @@
     .info .actions { justify-content: flex-start; }
     .info.at-center .desc { margin-left: 0; }
     .rail { right: 10px; gap: 2px; }
+    .credits .sample-tag { display: table; margin: 10px 0 0; }
     .rail button { font-size: 0; letter-spacing: 0; padding: 7px 0; }
     .rail button::after { width: 18px; }
     .scene-linkfuse { align-items: center; text-align: center; }
@@ -686,7 +694,7 @@
   // ---------- Projects: one entry each ----------
   const projects = [
     {
-      slug: 'ghost-line', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/ghost-line-v6.0.0/GhostLine-6.0.0.zip', name: 'Ghost Line', cat: 'games', kind: 'Game', platform: 'Windows', style: 'smoke', ratio: '4 / 5',
+      slug: 'ghost-line', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/ghost-line-v6.0.0/GhostLine-6.0.0.zip', sha: 'bb0e35c419d3af4cdd03fa8607072aa9f46c4379a276b97fe07cb06a08533a18', name: 'Ghost Line', cat: 'games', kind: 'Game', platform: 'Windows', style: 'smoke', ratio: '4 / 5',
       title: 't-smoke', layout: 'at-center', page: '#04050A', accent: '#D6E0FF',
       font: "'Anton', sans-serif", titleCss: 'text-transform:uppercase;',
       blurb: "Draw a track, evolve an AI driver on it, then race it against a friend's.",
@@ -696,7 +704,7 @@
       version: '6.0.0', size: '88 MB', updated: '1 Sep 2026', web: false
     },
     {
-      slug: 'shadow', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/shadow-v0.6.0/Shadow-0.6.0.zip', name: 'Shadow', cat: 'games', kind: 'Game', platform: 'Windows', style: 'ink', ratio: '1 / 1',
+      slug: 'shadow', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/shadow-v0.6.0/Shadow-0.6.0.zip', sha: '9b4566af8ac32d004455bd2d3fb43c6911d3ef54f3391c3ed407166e9224efce', name: 'Shadow', cat: 'games', kind: 'Game', platform: 'Windows', style: 'ink', ratio: '1 / 1',
       title: 't-ink', layout: 'at-right', page: '#EFB3D4', accent: '#FF9BD0',
       font: "'Grenze Gotisch', serif", titleCss: 'font-weight:900;',
       blurb: 'A skeleton teaches itself to run 100 metres. Nothing is animated.',
@@ -706,7 +714,7 @@
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
     },
     {
-      slug: 'phantom', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/phantom-v0.1.0/Phantom-0.1.0.zip', name: 'Phantom', cat: 'apps', kind: 'App', platform: 'Windows', style: 'melt', ratio: '3 / 4',
+      slug: 'phantom', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/phantom-v0.1.0/Phantom-0.1.0.zip', sha: '71db282a41ccb2c5dd69f4f36607b32d4fe8a6626e79bce4ddbe4718e49de240', name: 'Phantom', cat: 'apps', kind: 'App', platform: 'Windows', style: 'melt', ratio: '3 / 4',
       title: 't-melt', layout: 'at-left', page: '#040822', accent: '#A9C0FF',
       font: "'Bagel Fat One', sans-serif",
       blurb: "Finds the disk space Windows can't account for, and indexes a full drive in seconds.",
@@ -717,7 +725,7 @@
       sparks: [[18, 26, 22, '3.6s', '0s'], [78, 22, 28, '4.4s', '1.2s'], [70, 64, 18, '3.2s', '2s'], [28, 62, 14, '5s', '.6s'], [50, 16, 12, '4s', '2.6s']]
     },
     {
-      slug: 'linkfuse', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/linkfuse-v3.0.0/LinkFuse-3.0.0.zip', name: 'LinkFuse', cat: 'apps', kind: 'App', platform: 'Windows', style: 'chrome', ratio: '4 / 5',
+      slug: 'linkfuse', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/linkfuse-v3.0.0/LinkFuse-3.0.0.zip', sha: 'd2f9cbc93def264bfd3bceb6e5b0ce03131465ffbe5f96c345c3148a65a065a3', name: 'LinkFuse', cat: 'apps', kind: 'App', platform: 'Windows', style: 'chrome', ratio: '4 / 5',
       title: 't-chrome', layout: 'at-left', page: '#07070C', accent: '#E3E8F4',
       font: "'Pinyon Script', cursive", titleCss: 'font-size:clamp(48px,5.4vw,78px);',
       note: 'Every connection you have, working as one.',
@@ -730,7 +738,7 @@
     },
     {
       slug: 'schedule-steve', name: 'Schedule Steve', cat: 'remixes', kind: 'Mod', platform: 'Schedule I', legacy: true,
-      download: 'https://github.com/SNAXUS1/stezy-site/releases/download/minecraft-merge-v0.3/MinecraftMerge_v0.3.zip',
+      download: 'https://github.com/SNAXUS1/stezy-site/releases/download/minecraft-merge-v0.3/MinecraftMerge_v0.3.zip', sha: '8a9f386dee515cfd861da21aaed136eaeb0fb313625a533de0d0a45368f8e8a6',
       game: 'Schedule I + Minecraft: Java Edition 1.21.10', by: 'STEZY', style: 'vinyl', ratio: '1 / 1',
       title: 't-remix', layout: 'at-left', page: '#06080A', accent: '#9BE38F', label: '#3E8E32',
       font: "'Unbounded', sans-serif", titleCss: 'font-weight:800;',
@@ -939,8 +947,10 @@
       <span class="small bottom">${bottom}</span>
     </div>`;
   }
+  const onPhone = matchMedia('(pointer: coarse)').matches && !/Windows NT|Macintosh|CrOS|Linux x86/.test(navigator.userAgent);
   function detail(p) {
     const remix = p.cat === 'remixes';
+    const phoneNote = onPhone && !p.noDownload ? `<p class="note phone-note"><i class="ph ph-device-mobile" aria-hidden="true"></i>This one runs on a Windows PC. On your phone? Share the link to yourself and grab it later.</p>` : '';
     const buttons = remix
       ? (p.download ? `<a class="btn primary" href="${p.download}" download><i class="ph ph-download-simple" aria-hidden="true"></i>Download the mod</a>` : `<a class="btn primary" href="#" data-demo><i class="ph ph-download-simple" aria-hidden="true"></i>Download the mod</a>`)
       : p.web
@@ -972,13 +982,15 @@
         <ol>${p.how.map(s => `<li>${s}</li>`).join('')}</ol>
         ${p.legacy ? `<p class="legacy-note"><i class="ph ph-hourglass-medium" aria-hidden="true"></i>Made before this site existed. It works, but expect a few small bugs, and it may not get more updates.</p>` : ''}
         <div class="dl" id="dl">
-          <div class="dl-actions">${p.noDownload ? '<p class="dl-soon">Download coming soon.</p>' : buttons}<button class="btn ghost" type="button" data-copy="${p.slug}"><i class="ph ph-link-simple" aria-hidden="true"></i>Copy link</button></div>
+          <div class="dl-actions">${p.noDownload ? '<p class="dl-soon">Download coming soon.</p>' : buttons}<button class="btn ghost" type="button" data-copy="${p.slug}"><i class="ph ph-${onPhone ? 'share-network' : 'link-simple'}" aria-hidden="true"></i>${onPhone ? 'Share link' : 'Copy link'}</button></div>
+          ${phoneNote}
           <dl class="facts">
             <div><dt>Version</dt><dd>${p.version}</dd></div>
             <div><dt>Size</dt><dd>${p.size}</dd></div>
             <div><dt>Updated</dt><dd>${p.updated}</dd></div>
             <div><dt>${remix ? 'Works with' : 'Works on'}</dt><dd>${remix ? p.game : p.platform}</dd></div>
           </dl>
+          ${p.sha && !p.noDownload ? `<details class="sha"><summary>File checksum (SHA-256)</summary><code>${p.sha}</code><p>Optional. To check your download, open PowerShell in the folder and run <code>Get-FileHash</code> followed by the zip's name. The long code it prints should match this one.</p></details>` : ''}
           ${note}
         </div>
       </div>
