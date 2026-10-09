@@ -33,6 +33,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&text=tetherT0123456789%3A&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&text=prismP&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Young+Serif&text=lullL&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Michroma&text=SPECTRspectr&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&text=Poltergeist&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&text=Undertow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Italiana&text=VEILVeil&display=swap" rel="stylesheet">
@@ -645,6 +646,20 @@
   @keyframes breathe-in { from { opacity: 0; transform: scale(0.85); filter: blur(0.05em); } to { opacity: 1; transform: none; filter: none; } }
   @keyframes breathe { 0%, 100% { scale: 1; } 50% { scale: 1.04; } }
 
+  /* Specter: wide, cold capitals floating on panes of glass */
+  .scene-specter { color: #E8F0FF; --accent: #CFE0FF; }
+  .t-specter {
+    font-family: 'Michroma', sans-serif; text-transform: uppercase; font-size: clamp(56px, 8.6vw, 170px); line-height: 1.1; letter-spacing: 0.04em;
+    text-shadow: 0.06em 0.06em 0 rgba(159, 194, 255, 0.22), 0 0 0.35em rgba(159, 194, 255, 0.45);
+  }
+  /* Phase: each letter slides in through a pane of glass, ghosted at first, then solid */
+  .scene.is-active .enter-phase .ch { animation: phase-in 1.4s var(--ease-out) calc(0.1s + var(--i) * 90ms) both; }
+  @keyframes phase-in {
+    from { opacity: 0; transform: translate(0.35em, -0.25em); text-shadow: 0.3em 0.3em 0 rgba(159, 194, 255, 0.4), 0 0 0 rgba(159, 194, 255, 0); }
+    40% { opacity: 0.45; }
+    to { opacity: 1; transform: none; text-shadow: 0.06em 0.06em 0 rgba(159, 194, 255, 0.22), 0 0 0.35em rgba(159, 194, 255, 0.45); }
+  }
+
   /* Static: glitch and TV noise */
   .scene-static { color: #F5F5FF; --accent: #FF7CBE; }
   @keyframes tear { 0%, 84%, 100% { opacity: 0; transform: translateY(20vh); } 86% { opacity: 0.8; transform: translateY(44vh) translateX(-2vw); } 89% { opacity: 0.6; transform: translateY(62vh) translateX(1.5vw); } 91% { opacity: 0; } }
@@ -725,6 +740,9 @@
   .cv-lull { background: radial-gradient(45% 45% at 50% 48%, rgba(127,200,175,.35), transparent 70%), linear-gradient(180deg, #0B1A1A, #22162A); color: #ECF8F2; }
   .cv-lull .small { color: rgba(236,248,242,.6); }
   .art-lull { font-family: 'Young Serif', serif; text-transform: lowercase; font-size: 32cqi; line-height: 1; text-shadow: 0 0 4cqi rgba(159,227,201,.5); }
+  .cv-specter { background: linear-gradient(135deg, rgba(22,34,58,.95), #070A10 60%, #0E1424); color: #E8F0FF; }
+  .cv-specter .small { color: rgba(232,240,255,.6); }
+  .art-specter { font-family: 'Michroma', sans-serif; text-transform: uppercase; font-size: 11cqi; line-height: 1; text-shadow: 0.7cqi 0.7cqi 0 rgba(159,194,255,.25), 0 0 4cqi rgba(159,194,255,.5); }
   .cv-float { background: radial-gradient(60% 45% at 50% 56%, rgba(120,140,255,.3), transparent 70%), radial-gradient(45% 30% at 50% 100%, rgba(165,123,255,.25), transparent 70%), #06060B; color: #EEF0FF; }
   .cv-float::before { content: ""; position: absolute; inset: -50%; z-index: 0; background-image: var(--static); opacity: .14; animation: grain 0.5s steps(4) infinite; }
   .cv-float .small { color: rgba(238,240,255,.6); }
@@ -837,6 +855,7 @@
     .scene .t-tether { margin-right: 0; font-size: 16vw; }
     .t-prism { font-size: 24vw; }
     .t-lull { font-size: 30vw; }
+    .t-specter { font-size: 12vw; }
     .t-tide { font-size: 22vw; }
     .t-glitch { font-size: 15vw; }
     .t-halo { font-size: 30vw; }
@@ -978,6 +997,17 @@
       how: ['Download the zip, unzip it and open Shadow.exe. No installer needed.', 'Name a runner and press Start to train it.', "Race it on the Race tab, or send its file to a friend."],
       shots: ['img/shadow/intro.webp', 'img/shadow/race.webp'],
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
+    },
+    {
+      slug: 'specter', enter: 'phase', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/specter-v1.0.0/Specter-1.0.0.zip', sha: '1eb359d81e03a6bf3151547ae895d2de664dec182dd3f019e29de8908e5d63a5', name: 'Specter', cat: 'apps', kind: 'App', platform: 'Windows', style: 'specter', ratio: '4 / 5',
+      title: 't-specter', layout: 'at-left', page: '#070A10', accent: '#CFE0FF',
+      font: "'Michroma', sans-serif", titleCss: 'text-transform:uppercase;',
+      blurb: 'Pin any window on top, or let it fade until you can see right through it.',
+      lede: "Keep notes, a video, a chat or a calculator floating above everything else with Ctrl + Alt + T, and turn any window see-through in steps with Ctrl + Alt + Up and Down. Specter's window shows a little map of your screens and every window on them; click one to pin it. Quitting puts every window back exactly as it was.",
+      how: ["Download the zip, unzip it somewhere you'll keep it and open Specter.exe.", 'Click into any window and press Ctrl + Alt + T to keep it on top.', 'Ctrl + Alt + Down makes it more see-through, Ctrl + Alt + Up less.'],
+      shots: ['img/specter/main.webp'],
+      version: '1.0.0', size: '0.3 MB', updated: '9 Oct 2026', web: false,
+      sparks: [[70, 24, 12, '4.6s', '.8s'], [86, 58, 9, '3.8s', '2.2s']]
     },
     {
       slug: 'lull', enter: 'breathe', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/lull-v1.0.0/Lull-1.0.0.zip', sha: 'da1b986c4328431ab6385ea4a5582cad50d200014117d69013939fec3ef08cab', name: 'Lull', cat: 'apps', kind: 'App', platform: 'Windows', style: 'lull', ratio: '1 / 1',
@@ -1579,13 +1609,14 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'specter': 'stars', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
       phantom: [[244, 247, 255], [140, 170, 255]],
       linkfuse: [[226, 231, 246], [140, 155, 215]],
       poltergeist: [[232, 236, 255], [150, 165, 255]],
+      'specter': [[232, 240, 255], [159, 194, 255]],
       'lull': [[230, 250, 242], [159, 227, 201]],
       'prism': [[255, 95, 143], [79, 179, 255]],
       'tether': [[255, 226, 190], [255, 154, 92]],
