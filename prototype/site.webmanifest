@@ -1,0 +1,13 @@
+{
+  "name": "STEZY",
+  "short_name": "STEZY",
+  "description": "Games, apps and game remixes made by STEZY.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050509",
+  "theme_color": "#050509",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512" }
+  ]
+}
