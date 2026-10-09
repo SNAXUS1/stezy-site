@@ -640,8 +640,8 @@
       <button type="button" data-tab="remixes" aria-pressed="false">Remixes</button>
     </nav>
     <div class="top-right">
-      <span class="sound-hint" id="sound-hint" aria-hidden="true" hidden>Click anywhere for sound</span>
-      <button class="icon-btn sound" id="sound" type="button" hidden aria-pressed="false" aria-label="Turn music on"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span></button>
+      <span class="sound-hint" id="sound-hint" aria-hidden="true">Click anywhere for sound</span>
+      <button class="icon-btn sound" id="sound" type="button" aria-pressed="false" aria-label="Turn music on"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span></button>
       <button class="icon-btn" id="theme" type="button" aria-label="Switch to light mode"><i class="ph ph-sun"></i></button>
     </div>
   </header>
@@ -1611,7 +1611,7 @@
     // Music is off on the public site until there is a track we're allowed to use
     if (btn.hidden) return { showHint() {} };
     const SRC = 'audio/loop.mp3';
-    const VOLUME = 0.025; // the track is mastered very loud, so keep this low: quiet background level
+    const VOLUME = 0.018; // the track is mastered very loud, so keep this low: quiet background level
     let ctx = null, gain = null, source = null, buffer = null, el = null, mode = null, loading = null;
     let on = false, started = false, resumeOnShow = false, suspendTimer, rafId, hintTimer;
     let wanted = store.get('stezy-sound') !== 'off';

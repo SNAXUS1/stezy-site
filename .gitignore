@@ -1,6 +1,5 @@
-# Local-only: notes, tool state, and the music we don't have rights to publish
+# Local-only: notes and tool state
 CLAUDE.md
 PRODUCT.md
 .impeccable/
 .claude/
-prototype/audio/
