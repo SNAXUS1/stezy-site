@@ -31,6 +31,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&text=Poltergeist&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&text=Undertow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Italiana&text=VEILVeil&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Caveat+Brush&text=haloH&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
 <script>
@@ -563,6 +564,14 @@
     to { opacity: 1; filter: none; transform: none; }
   }
 
+  /* Ignite: each brush stroke catches light, flares, then settles into a steady glow */
+  .scene.is-active .enter-ignite .ch { animation: ignite 1.3s var(--ease-out) calc(0.15s + var(--i) * 180ms) both; }
+  @keyframes ignite {
+    from { opacity: 0; filter: brightness(0.3) blur(0.04em); transform: scale(0.92); }
+    35% { opacity: 1; filter: brightness(1.8) blur(0); transform: scale(1.04); }
+    to { opacity: 1; filter: none; transform: none; }
+  }
+
   /* Static: glitch and TV noise */
   .scene-static { color: #F5F5FF; --accent: #FF7CBE; }
   @keyframes tear { 0%, 84%, 100% { opacity: 0; transform: translateY(20vh); } 86% { opacity: 0.8; transform: translateY(44vh) translateX(-2vw); } 89% { opacity: 0.6; transform: translateY(62vh) translateX(1.5vw); } 91% { opacity: 0; } }
@@ -582,7 +591,7 @@
   /* Halo: glowing brush inside a ring of light */
   .scene-halo { color: #EEF3FF; align-items: center; text-align: center; --accent: #9FB8FF; }
   .t-halo {
-    font-family: 'Caveat Brush', cursive; font-size: clamp(130px, 22vw, 380px); line-height: 1;
+    font-family: 'Caveat Brush', cursive; font-size: clamp(130px, 22vw, 380px); line-height: 1; text-transform: lowercase;
     text-shadow: 0 0 0.02em #fff, 0 0 0.08em #4D7BFF, 0 0 0.2em #2447FF, 0 0 0.45em rgba(36, 71, 255, 0.55);
     filter: url(#f-sketch-lg);
   }
@@ -638,7 +647,7 @@
   .art-glitch { font-family: 'Archivo', sans-serif; font-weight: 900; font-stretch: 125%; font-size: 15cqi; line-height: 1; text-transform: uppercase; text-shadow: -0.6cqi 0 #3D5AFE, 0.6cqi 0 #FF3D9A; }
   .cv-halo { background: radial-gradient(55% 40% at 50% 52%, rgba(40,70,255,.18), transparent 70%), #030308; color: #EEF3FF; }
   .cv-halo .small { color: rgba(200,215,255,.6); }
-  .art-halo { font-family: 'Caveat Brush', cursive; font-size: 34cqi; line-height: 1; text-shadow: 0 0 0.8cqi #fff, 0 0 3cqi #4D7BFF, 0 0 7cqi #2447FF, 0 0 15cqi rgba(36,71,255,.6); filter: url(#f-sketch); }
+  .art-halo { font-family: 'Caveat Brush', cursive; text-transform: lowercase; font-size: 34cqi; line-height: 1; text-shadow: 0 0 0.8cqi #fff, 0 0 3cqi #4D7BFF, 0 0 7cqi #2447FF, 0 0 15cqi rgba(36,71,255,.6); filter: url(#f-sketch); }
 
   /* Detail view */
   dialog.detail {
@@ -876,6 +885,17 @@
       how: ['Download the zip, unzip it and open Shadow.exe. No installer needed.', 'Name a runner and press Start to train it.', "Race it on the Race tab, or send its file to a friend."],
       shots: ['img/shadow/intro.webp', 'img/shadow/race.webp'],
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
+    },
+    {
+      slug: 'halo', enter: 'ignite', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/halo-v1.0.0/Halo-1.0.0.zip', sha: '203a08a8e5822b83b3490bf624da2f0cbfec5375d55779c6b3ad9cf004c9d614', name: 'Halo', cat: 'apps', kind: 'App', platform: 'Windows', style: 'halo', ratio: '1 / 1',
+      title: 't-halo', layout: 'at-center', page: '#030308', accent: '#AFC4FF',
+      font: "'Caveat Brush', cursive", titleCss: 'text-transform:lowercase;',
+      blurb: 'A soft ring of light follows your mouse, every click ripples, and your shortcuts show on screen.',
+      lede: "Made for screen recordings, tutorials, streams and presentations, so people can always see what you're doing. A glowing ring follows the pointer without ever getting in the way, each click sends out a ripple, and shortcuts like Ctrl + C appear at the bottom of the screen. Plain typing never shows, and nothing is stored. Ctrl + Alt + H turns it on and off from anywhere.",
+      how: ["Download the zip, unzip it somewhere you'll keep it and open Halo.exe.", 'Pick a colour and a size.', 'Ctrl + Alt + H turns the halo on and off whenever you start or stop recording.'],
+      shots: ['img/halo/main.webp'],
+      version: '1.0.0', size: '0.5 MB', updated: '9 Oct 2026', web: false,
+      sparks: [[26, 30, 14, '4.6s', '.4s'], [74, 68, 18, '5.2s', '2s'], [80, 24, 10, '3.8s', '1.2s']]
     },
     {
       slug: 'veil', enter: 'unveil', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/veil-v1.0.0/Veil-1.0.0.zip', sha: '00d1496a2965b17544458e79bd538d7f186ef257ef433531739892bbaba0c05e', name: 'Veil', cat: 'apps', kind: 'App', platform: 'Windows', style: 'veil', ratio: '4 / 5',
