@@ -30,6 +30,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&text=LinkFuse&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@1&text=afterimageA&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poiret+One&text=wispW&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&text=tetherT0123456789%3A&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&text=Poltergeist&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&text=Undertow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Italiana&text=VEILVeil&display=swap" rel="stylesheet">
@@ -552,7 +553,7 @@
 
   /* Veil: thin, widely spaced capitals behind frosted glass */
   .scene-veil { color: #EEEAFF; align-items: flex-end; text-align: right; --accent: #DCD2FF; }
-  .t-veil {
+  .scene .t-veil {
     font-family: 'Italiana', serif; font-size: clamp(90px, 13vw, 250px); line-height: 1; letter-spacing: 0.2em; text-transform: uppercase; margin-right: clamp(210px, 19vw, 320px);
     text-shadow: 0 0 0.25em rgba(190, 170, 255, 0.45);
   }
@@ -601,6 +602,16 @@
     50% { opacity: 1; }
     to { opacity: 1; transform: none; filter: none; }
   }
+
+  /* Tether: monospaced lettering in warm lamp light, ticking like a clock */
+  .scene-tether { color: #FFF4E8; align-items: flex-end; text-align: right; --accent: #FFD9B0; }
+  .scene .t-tether {
+    font-family: 'Major Mono Display', monospace; text-transform: lowercase; font-size: clamp(80px, 12vw, 230px); line-height: 1;
+    margin-right: clamp(170px, 16vw, 260px); color: #FFE3C4; text-shadow: 0 0 0.3em rgba(255, 154, 92, 0.55);
+  }
+  /* Tick: letters snap on one at a time, like the seconds of a clock */
+  .scene.is-active .enter-tick .ch { animation: tick-in 0.5s steps(2, end) calc(0.2s + var(--i) * 230ms) both; }
+  @keyframes tick-in { from { opacity: 0; transform: translateY(-0.12em); } to { opacity: 1; transform: none; } }
 
   /* Static: glitch and TV noise */
   .scene-static { color: #F5F5FF; --accent: #FF7CBE; }
@@ -673,6 +684,9 @@
   .cv-wisp { background: radial-gradient(55% 50% at 50% 55%, rgba(14,58,62,.9), transparent 70%), #040A0C; color: #E8FFF8; }
   .cv-wisp .small { color: rgba(232,255,248,.6); }
   .art-wisp { font-family: 'Poiret One', sans-serif; text-transform: lowercase; font-size: 30cqi; line-height: 1; text-shadow: 0 0 2cqi rgba(127,255,224,.7), 0 0 6cqi rgba(127,184,255,.4); }
+  .cv-tether { background: radial-gradient(55% 50% at 50% 50%, rgba(74,44,18,.9), transparent 70%), #0D0A07; color: #FFF4E8; }
+  .cv-tether .small { color: rgba(255,244,232,.6); }
+  .art-tether { font-family: 'Major Mono Display', monospace; text-transform: lowercase; font-size: 14cqi; line-height: 1; color: #FFE3C4; text-shadow: 0 0 3cqi rgba(255,154,92,.6); }
   .cv-float { background: radial-gradient(60% 45% at 50% 56%, rgba(120,140,255,.3), transparent 70%), radial-gradient(45% 30% at 50% 100%, rgba(165,123,255,.25), transparent 70%), #06060B; color: #EEF0FF; }
   .cv-float::before { content: ""; position: absolute; inset: -50%; z-index: 0; background-image: var(--static); opacity: .14; animation: grain 0.5s steps(4) infinite; }
   .cv-float .small { color: rgba(238,240,255,.6); }
@@ -779,9 +793,10 @@
     .t-ink { font-size: 22vw; }
     .t-melt { font-size: 18vw; }
     .t-float { font-size: 12.5vw; }
-    .t-veil { margin-right: 0; font-size: 17vw; }
+    .scene .t-veil { margin-right: 0; font-size: 17vw; }
     .t-echo { font-size: 14.5vw; }
     .t-wisp { font-size: 30vw; }
+    .scene .t-tether { margin-right: 0; font-size: 16vw; }
     .t-tide { font-size: 22vw; }
     .t-glitch { font-size: 15vw; }
     .t-halo { font-size: 30vw; }
@@ -923,6 +938,17 @@
       how: ['Download the zip, unzip it and open Shadow.exe. No installer needed.', 'Name a runner and press Start to train it.', "Race it on the Race tab, or send its file to a friend."],
       shots: ['img/shadow/intro.webp', 'img/shadow/race.webp'],
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
+    },
+    {
+      slug: 'tether', enter: 'tick', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/tether-v1.0.0/Tether-1.0.0.zip', sha: 'dd2018102d233b40e46dc62425ce03c8c06e8ea7a342927f3656f888de8fea86', name: 'Tether', cat: 'apps', kind: 'App', platform: 'Windows', style: 'tether', ratio: '1 / 1',
+      title: 't-tether', layout: 'at-right', page: '#0D0A07', accent: '#FFD9B0',
+      font: "'Major Mono Display', monospace", titleCss: 'text-transform:lowercase;',
+      blurb: 'Keeps your PC awake for exactly as long as you need, then lets it sleep.',
+      lede: "Downloads that fail when the PC dozes off, renders that stop halfway, a presentation that goes dark. Tether holds sleep off for a set time, until a chosen app closes, or until your downloads finish (it lets go after three quiet minutes), with an option to keep the screen on too. The tray icon glows while it's holding on, and quitting always lets your PC sleep again.",
+      how: ["Download the zip, unzip it somewhere you'll keep it and open Tether.exe.", 'Pick a time, an app to wait for, or Until downloads finish.', 'Press Let it sleep when you are done, or just let the timer run out.'],
+      shots: ['img/tether/main.webp'],
+      version: '1.0.0', size: '0.3 MB', updated: '9 Oct 2026', web: false,
+      sparks: [[20, 30, 10, '4.8s', '1s'], [34, 70, 14, '5.4s', '2.8s']]
     },
     {
       slug: 'wisp', enter: 'gather', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/wisp-v1.0.0/Wisp-1.0.0.zip', sha: 'b0d4035ef6e2d624e4b06f07263cd8c0dd7b7884fc2089faa97214c022252148', name: 'Wisp', cat: 'apps', kind: 'App', platform: 'Windows', style: 'wisp', ratio: '1 / 1',
@@ -1491,13 +1517,14 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
       phantom: [[244, 247, 255], [140, 170, 255]],
       linkfuse: [[226, 231, 246], [140, 155, 215]],
       poltergeist: [[232, 236, 255], [150, 165, 255]],
+      'tether': [[255, 226, 190], [255, 154, 92]],
       'wisp': [[220, 255, 245], [127, 255, 224]],
       'afterimage': [[255, 236, 240], [255, 150, 185]],
       undertow: [[200, 232, 255], [70, 150, 240]],
@@ -1748,6 +1775,8 @@
             case 'film': ax = 0.55 + d.s * 0.5; ay = Math.sin(t * 0.0009 + d.ph) * 0.04; break;
             // Little lights wandering on their own paths
             case 'wander': ax = Math.sin(t * 0.0004 + d.ph) * 0.35; ay = Math.cos(t * 0.00033 + d.ph * 1.7) * 0.25 - 0.03; break;
+            // Warm embers rising slowly from a lamp
+            case 'embers': ax = Math.sin(t * 0.0007 + d.ph) * 0.1; ay = -0.12 - d.s * 0.3; break;
             case 'glitch': ax = 0.12; ay = 0; if (Math.random() < 0.004) d.x += (Math.random() - 0.5) * 60; break;
             default: ax = Math.cos(flow) * d.s * 0.6; ay = Math.sin(flow) * d.s * 0.6 - 0.03;
           }
