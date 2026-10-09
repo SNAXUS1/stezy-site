@@ -28,6 +28,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@700..900&text=Shadow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&text=Phantom&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&text=LinkFuse&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@1&text=afterimageA&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&text=Poltergeist&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&text=Undertow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Italiana&text=VEILVeil&display=swap" rel="stylesheet">
@@ -572,6 +573,20 @@
     to { opacity: 1; filter: none; transform: none; }
   }
 
+  /* Afterimage: a warm serif that leaves ghost copies of itself, like a bright light behind closed eyes */
+  .scene-afterimage { color: #FFF3F5; --accent: #FFC9DA; }
+  .t-echo {
+    font-family: 'DM Serif Display', serif; font-style: italic; text-transform: lowercase; font-size: clamp(76px, 11.5vw, 220px); line-height: 1.05;
+    text-shadow: 0.05em 0.03em 0 rgba(255, 143, 184, 0.45), 0.1em 0.06em 0 rgba(255, 195, 143, 0.25);
+  }
+  /* Echo: each letter arrives trailing copies of itself, and the copies catch up */
+  .scene.is-active .enter-echo .ch { animation: echo-in 1.3s var(--ease-out) calc(0.1s + var(--i) * 60ms) both; }
+  @keyframes echo-in {
+    from { opacity: 0; transform: translateX(-0.4em); text-shadow: 0.5em 0.2em 0 rgba(255, 143, 184, 0), 1em 0.4em 0 rgba(255, 195, 143, 0); }
+    30% { opacity: 1; text-shadow: 0.3em 0.12em 0 rgba(255, 143, 184, 0.6), 0.6em 0.24em 0 rgba(255, 195, 143, 0.4); }
+    to { opacity: 1; transform: none; text-shadow: 0.05em 0.03em 0 rgba(255, 143, 184, 0.45), 0.1em 0.06em 0 rgba(255, 195, 143, 0.25); }
+  }
+
   /* Static: glitch and TV noise */
   .scene-static { color: #F5F5FF; --accent: #FF7CBE; }
   @keyframes tear { 0%, 84%, 100% { opacity: 0; transform: translateY(20vh); } 86% { opacity: 0.8; transform: translateY(44vh) translateX(-2vw); } 89% { opacity: 0.6; transform: translateY(62vh) translateX(1.5vw); } 91% { opacity: 0; } }
@@ -637,6 +652,9 @@
   .cv-tide { background: radial-gradient(70% 40% at 30% 100%, rgba(30,111,217,.55), transparent 70%), radial-gradient(50% 40% at 90% 0%, rgba(75,59,196,.4), transparent 70%), #04101C; color: #E6F3FF; }
   .cv-tide .small { color: rgba(230,243,255,.6); }
   .art-tide { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 21cqi; line-height: 1; background: linear-gradient(180deg, #fff 10%, #BFE3FF 46%, #3E8FE0 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .cv-echo { background: linear-gradient(115deg, rgba(255,111,160,.35), rgba(255,163,111,.12) 30%, transparent 55%), #0C0809; color: #FFF3F5; }
+  .cv-echo .small { color: rgba(255,243,245,.6); }
+  .art-echo { font-family: 'DM Serif Display', serif; font-style: italic; text-transform: lowercase; font-size: 15cqi; line-height: 1; text-shadow: 0.6cqi 0.4cqi 0 rgba(255,143,184,.5), 1.2cqi 0.8cqi 0 rgba(255,195,143,.3); }
   .cv-float { background: radial-gradient(60% 45% at 50% 56%, rgba(120,140,255,.3), transparent 70%), radial-gradient(45% 30% at 50% 100%, rgba(165,123,255,.25), transparent 70%), #06060B; color: #EEF0FF; }
   .cv-float::before { content: ""; position: absolute; inset: -50%; z-index: 0; background-image: var(--static); opacity: .14; animation: grain 0.5s steps(4) infinite; }
   .cv-float .small { color: rgba(238,240,255,.6); }
@@ -744,6 +762,7 @@
     .t-melt { font-size: 18vw; }
     .t-float { font-size: 12.5vw; }
     .t-veil { margin-right: 0; font-size: 17vw; }
+    .t-echo { font-size: 14.5vw; }
     .t-tide { font-size: 22vw; }
     .t-glitch { font-size: 15vw; }
     .t-halo { font-size: 30vw; }
@@ -885,6 +904,17 @@
       how: ['Download the zip, unzip it and open Shadow.exe. No installer needed.', 'Name a runner and press Start to train it.', "Race it on the Race tab, or send its file to a friend."],
       shots: ['img/shadow/intro.webp', 'img/shadow/race.webp'],
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
+    },
+    {
+      slug: 'afterimage', enter: 'echo', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/afterimage-v1.0.0/Afterimage-1.0.0.zip', sha: 'e4710ddcd78c84b9fbc4c1c0a0827ca258257e747d3c389e1a95f0abe2dc2c21', name: 'Afterimage', cat: 'apps', kind: 'App', platform: 'Windows', style: 'echo', ratio: '4 / 5',
+      title: 't-echo', layout: 'at-left', page: '#0C0809', accent: '#FFC9DA',
+      font: "'DM Serif Display', serif", titleCss: 'font-style:italic;text-transform:lowercase;',
+      blurb: 'Remembers everything you copy. Ctrl + Shift + V brings any of it back.',
+      lede: "Copied something an hour ago and lost it? Afterimage keeps text, links, images and files you copy, on a film strip you can scroll and search, even after a restart. Ctrl + Shift + V opens a quick picker anywhere: type a few letters, press Enter, and it pastes straight into what you were using. Star the things you reuse. Copies that password managers mark as private are never kept.",
+      how: ["Download the zip, unzip it somewhere you'll keep it and open Afterimage.exe.", 'Copy things as usual. Everything lands on the film strip.', 'Press Ctrl + Shift + V anywhere, type to search and press Enter to paste.'],
+      shots: ['img/afterimage/main.webp', 'img/afterimage/picker.webp'],
+      version: '1.0.0', size: '0.3 MB', updated: '9 Oct 2026', web: false,
+      sparks: [[62, 26, 12, '4.4s', '.6s'], [84, 64, 16, '5.6s', '2.2s']]
     },
     {
       slug: 'halo', enter: 'ignite', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/halo-v1.0.0/Halo-1.0.0.zip', sha: '203a08a8e5822b83b3490bf624da2f0cbfec5375d55779c6b3ad9cf004c9d614', name: 'Halo', cat: 'apps', kind: 'App', platform: 'Windows', style: 'halo', ratio: '1 / 1',
@@ -1431,13 +1461,14 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
       phantom: [[244, 247, 255], [140, 170, 255]],
       linkfuse: [[226, 231, 246], [140, 155, 215]],
       poltergeist: [[232, 236, 255], [150, 165, 255]],
+      'afterimage': [[255, 236, 240], [255, 150, 185]],
       undertow: [[200, 232, 255], [70, 150, 240]],
       veil: [[236, 230, 255], [190, 160, 255]],
       static: [[255, 90, 175], [90, 120, 255]],
@@ -1682,6 +1713,8 @@
             case 'current': ax = -(0.3 + d.s * 0.9); ay = Math.sin(d.x * 0.008 + t * 0.0012 + d.ph) * 0.35; break;
             // Long, slow folds of fabric settling downwards
             case 'drape': ax = Math.sin(d.y * 0.004 + t * 0.0005 + d.ph * 0.3) * 0.18; ay = 0.12 + d.s * 0.18; break;
+            // Grain sliding past like film through a projector
+            case 'film': ax = 0.55 + d.s * 0.5; ay = Math.sin(t * 0.0009 + d.ph) * 0.04; break;
             case 'glitch': ax = 0.12; ay = 0; if (Math.random() < 0.004) d.x += (Math.random() - 0.5) * 60; break;
             default: ax = Math.cos(flow) * d.s * 0.6; ay = Math.sin(flow) * d.s * 0.6 - 0.03;
           }
