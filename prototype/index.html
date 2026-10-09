@@ -35,6 +35,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Young+Serif&text=lullL&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Michroma&text=SPECTRspectr&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Gloock&text=nocturNe&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&text=HUSHhush&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&text=Poltergeist&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&text=Undertow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Italiana&text=VEILVeil&display=swap" rel="stylesheet">
@@ -679,6 +680,24 @@
     to { opacity: 1; color: #FBE3BD; text-shadow: 0 0 0.3em rgba(246, 194, 122, 0.4); transform: none; }
   }
 
+  /* Hush: an ON AIR sign, red neon in a dark room */
+  .scene-hush { color: #FFEDEA; align-items: center; text-align: center; --accent: #FFD6D2; }
+  .t-hush {
+    font-family: 'Bungee', sans-serif; text-transform: uppercase; font-size: clamp(110px, 18vw, 330px); line-height: 1; color: #FFD6D2;
+    padding: 0.08em 0.3em; border: 0.04em solid #FF4D5E; border-radius: 0.18em;
+    text-shadow: 0 0 0.12em #FF4D5E, 0 0 0.4em rgba(255, 77, 94, 0.7); box-shadow: 0 0 0.3em rgba(255, 77, 94, 0.55), inset 0 0 0.25em rgba(255, 77, 94, 0.4);
+  }
+  /* On air: the sign hums, stutters once, then lights for good */
+  .scene.is-active .enter-onair { animation: onair 1.6s steps(1, end) 0.2s both; }
+  @keyframes onair {
+    0% { opacity: 0.12; filter: saturate(0.2); }
+    18% { opacity: 1; filter: none; }
+    24% { opacity: 0.2; filter: saturate(0.2); }
+    32% { opacity: 1; filter: none; }
+    100% { opacity: 1; filter: none; }
+  }
+  .scene.is-active .enter-onair .ch { animation: none; }
+
   /* Static: glitch and TV noise */
   .scene-static { color: #F5F5FF; --accent: #FF7CBE; }
   @keyframes tear { 0%, 84%, 100% { opacity: 0; transform: translateY(20vh); } 86% { opacity: 0.8; transform: translateY(44vh) translateX(-2vw); } 89% { opacity: 0.6; transform: translateY(62vh) translateX(1.5vw); } 91% { opacity: 0; } }
@@ -765,6 +784,9 @@
   .cv-nocturne { background: radial-gradient(40% 35% at 75% 20%, rgba(246,194,122,.3), transparent 70%), linear-gradient(180deg, #151033, #0A0814 70%, #1A0F10); color: #F7E6C8; }
   .cv-nocturne .small { color: rgba(247,230,200,.6); }
   .art-nocturne { font-family: 'Gloock', serif; text-transform: lowercase; font-size: 17cqi; line-height: 1; color: #FBE3BD; text-shadow: 0 0 3cqi rgba(246,194,122,.45); }
+  .cv-hush { background: radial-gradient(50% 45% at 50% 50%, rgba(255,77,94,.25), transparent 70%), #0C0707; color: #FFEDEA; }
+  .cv-hush .small { color: rgba(255,237,234,.6); }
+  .art-hush { font-family: 'Bungee', sans-serif; text-transform: uppercase; font-size: 20cqi; line-height: 1; color: #FFD6D2; padding: 1.5cqi 5cqi; border: 0.8cqi solid #FF4D5E; border-radius: 3cqi; text-shadow: 0 0 2cqi #FF4D5E; box-shadow: 0 0 5cqi rgba(255,77,94,.5); }
   .cv-float { background: radial-gradient(60% 45% at 50% 56%, rgba(120,140,255,.3), transparent 70%), radial-gradient(45% 30% at 50% 100%, rgba(165,123,255,.25), transparent 70%), #06060B; color: #EEF0FF; }
   .cv-float::before { content: ""; position: absolute; inset: -50%; z-index: 0; background-image: var(--static); opacity: .14; animation: grain 0.5s steps(4) infinite; }
   .cv-float .small { color: rgba(238,240,255,.6); }
@@ -878,6 +900,7 @@
     .t-prism { font-size: 24vw; }
     .t-lull { font-size: 30vw; }
     .t-specter { font-size: 12vw; }
+    .t-hush { font-size: 22vw; }
     .scene .t-nocturne { margin-right: 0; font-size: 18vw; }
     .t-tide { font-size: 22vw; }
     .t-glitch { font-size: 15vw; }
@@ -1020,6 +1043,17 @@
       how: ['Download the zip, unzip it and open Shadow.exe. No installer needed.', 'Name a runner and press Start to train it.', "Race it on the Race tab, or send its file to a friend."],
       shots: ['img/shadow/intro.webp', 'img/shadow/race.webp'],
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
+    },
+    {
+      slug: 'hush', enter: 'onair', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/hush-v1.0.0/Hush-1.0.0.zip', sha: 'c7bf763900e9076dfa2fd7eabda4490ca318f1e1e9955b98e23dd5eaf1c8f156', name: 'Hush', cat: 'apps', kind: 'App', platform: 'Windows', style: 'hush', ratio: '1 / 1',
+      title: 't-hush', layout: 'at-center', page: '#0C0707', accent: '#FFD6D2',
+      font: "'Bungee', sans-serif", titleCss: 'text-transform:uppercase;',
+      blurb: 'One shortcut mutes every microphone at once, and a little sign tells you you are muted.',
+      lede: "Never wonder again if they can hear you. Ctrl + Alt + M mutes every microphone on your PC in one go, in Windows itself, so Discord, Teams, games and browsers all go quiet together. A small MIC OFF sign sits in the corner of your screen while you're muted, a soft chime confirms each switch, and the window shows a live level meter for every mic. Nothing is ever recorded.",
+      how: ["Download the zip, unzip it somewhere you'll keep it and open Hush.exe.", 'Press Ctrl + Alt + M anywhere to mute or unmute every microphone.', 'Pick a corner for the little MIC OFF sign, or click the tray icon to toggle.'],
+      shots: ['img/hush/live.webp', 'img/hush/muted.webp'],
+      version: '1.0.0', size: '0.3 MB', updated: '9 Oct 2026', web: false,
+      sparks: []
     },
     {
       slug: 'nocturne', enter: 'dusk', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/nocturne-v1.0.0/Nocturne-1.0.0.zip', sha: '0f40759bc9d3877c351046903a59246ef1c1dd10f929e7b963448888b5fa19ef', name: 'Nocturne', cat: 'apps', kind: 'App', platform: 'Windows', style: 'nocturne', ratio: '4 / 5',
@@ -1651,13 +1685,14 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'nocturne': 'fireflies', 'specter': 'stars', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'hush': 'bokeh', 'nocturne': 'fireflies', 'specter': 'stars', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
       phantom: [[244, 247, 255], [140, 170, 255]],
       linkfuse: [[226, 231, 246], [140, 155, 215]],
       poltergeist: [[232, 236, 255], [150, 165, 255]],
+      'hush': [[255, 214, 210], [255, 77, 94]],
       'nocturne': [[251, 227, 189], [142, 123, 255]],
       'specter': [[232, 240, 255], [159, 194, 255]],
       'lull': [[230, 250, 242], [159, 227, 201]],
