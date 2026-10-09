@@ -699,6 +699,12 @@
   .scene.is-active .enter-onair .ch { animation: none; }
 
   /* Static: glitch and TV noise */
+  /* Tune: letters come in like a channel being found, jumping sideways through the noise */
+  .scene.is-active .enter-tune .ch { animation: tune-in 0.9s steps(1, end) calc(0.1s + var(--r) * 400ms) both; }
+  @keyframes tune-in {
+    0% { opacity: 0; } 15% { opacity: 1; transform: translateX(-0.18em); } 30% { opacity: 0.2; transform: translateX(0.12em); }
+    45% { opacity: 1; transform: translateX(-0.05em); } 60% { opacity: 0.6; transform: none; } 75%, 100% { opacity: 1; transform: none; }
+  }
   .scene-static { color: #F5F5FF; --accent: #FF7CBE; }
   @keyframes tear { 0%, 84%, 100% { opacity: 0; transform: translateY(20vh); } 86% { opacity: 0.8; transform: translateY(44vh) translateX(-2vw); } 89% { opacity: 0.6; transform: translateY(62vh) translateX(1.5vw); } 91% { opacity: 0; } }
   .t-glitch {
@@ -1089,6 +1095,17 @@
       how: ['Download the zip, unzip it and open Shadow.exe. No installer needed.', 'Name a runner and press Start to train it.', "Race it on the Race tab, or send its file to a friend."],
       shots: ['img/shadow/intro.webp', 'img/shadow/race.webp'],
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
+    },
+    {
+      slug: 'static', enter: 'tune', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/static-v1.0.0/Static-1.0.0.zip', sha: 'c3ca1ffbfdfa85d2ba715f6b7bff316036c342390a78ce8fb6ee74abf4bbd15a', name: 'Static', cat: 'apps', kind: 'App', platform: 'Windows', style: 'glitch', ratio: '16 / 10',
+      title: 't-glitch', layout: 'at-left', page: '#050407', accent: '#FF7CBE',
+      font: "'Archivo', sans-serif", titleCss: 'font-weight:900;font-stretch:125%;text-transform:uppercase;',
+      blurb: 'Rain, waves, brown noise, a fan, a fire: mix your own background sound and let it play.',
+      lede: "Some people focus best with a little noise. Static mixes six endless sounds (soft rain, the sea, deep brown noise, airy pink noise, a desk fan, a crackling fire), each with its own volume, and shows them on little TV screens. A sleep timer fades it all out when you're done. Every sound is made live, sample by sample, so nothing loops or repeats, and the whole app is smaller than one song.",
+      how: ["Download the zip, unzip it somewhere you'll keep it and open Static.exe.", 'Click the screens you want and drag their bars to mix them.', 'Press Play. Set Stop after if you want it to fade out by itself.'],
+      shots: ['img/static/main.webp'],
+      version: '1.0.0', size: '0.2 MB', updated: '9 Oct 2026', web: false,
+      sparks: []
     },
     {
       slug: 'hush', enter: 'onair', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/hush-v1.0.0/Hush-1.0.0.zip', sha: '092f9280cd012b18fcbc89c396ee67ed6c420d041ecacb5afd0a121102e13389', name: 'Hush', cat: 'apps', kind: 'App', platform: 'Windows', style: 'hush', ratio: '1 / 1',
