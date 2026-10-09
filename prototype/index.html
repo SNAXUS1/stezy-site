@@ -718,14 +718,15 @@
       sparks: [[64, 30, 26, '3.8s', '.4s'], [86, 52, 16, '4.6s', '1.8s'], [40, 40, 12, '5.2s', '3s']]
     },
     {
-      slug: 'minecraft-merge', name: 'Minecraft Merge', cat: 'remixes', kind: 'Mod', platform: 'Schedule I', legacy: true, noDownload: true,
-      game: 'Schedule I (you also need Minecraft: Java Edition)', by: 'STEZY', style: 'vinyl', ratio: '1 / 1',
+      slug: 'minecraft-merge', name: 'Minecraft Merge', cat: 'remixes', kind: 'Mod', platform: 'Schedule I', legacy: true,
+      download: 'https://github.com/SNAXUS1/stezy-site/releases/download/minecraft-merge-v0.3/MinecraftMerge_v0.3.zip',
+      game: 'Schedule I + Minecraft: Java Edition 1.21.10', by: 'STEZY', style: 'vinyl', ratio: '1 / 1',
       title: 't-remix', layout: 'at-left', page: '#06080A', accent: '#9BE38F', label: '#3E8E32',
       font: "'Unbounded', sans-serif", titleCss: 'font-weight:800;',
       blurb: 'Play Schedule I as Minecraft Steve, with blocks, tools, mobs and the Minecraft HUD.',
       lede: "Turns Schedule I into Minecraft. You play as Steve with the hotbar, hearts, hunger, inventory, chat and F3 screen, and you can break and place blocks, use tools, TNT and bows, and fight mobs that hunt the town at night. You can even build golems and the Wither. You need to own both games.",
-      how: ['Close Schedule I.', 'Unzip the mod and double-click INSTALL.bat. It finds the game through Steam and sets everything up.', 'Start Schedule I. The first launch takes a minute or two.'],
-      version: '0.2', size: '53 MB', updated: '5 Oct 2026', web: false
+      how: ['Play Minecraft: Java Edition once from the launcher, so its files are on your PC.', 'Close Schedule I, unzip the mod and double-click INSTALL.bat. It finds the game through Steam and copies the Minecraft textures and sounds from your own Minecraft.', 'Start Schedule I. The first launch takes a minute or two.'],
+      version: '0.3', size: '20 MB', updated: '9 Oct 2026', web: false
     }
   ];
   const CATEGORY = {};
@@ -928,13 +929,13 @@
   function detail(p) {
     const remix = p.cat === 'remixes';
     const buttons = remix
-      ? `<a class="btn primary" href="#" data-demo><i class="ph ph-download-simple" aria-hidden="true"></i>Download the mod</a>`
+      ? (p.download ? `<a class="btn primary" href="${p.download}" download><i class="ph ph-download-simple" aria-hidden="true"></i>Download the mod</a>` : `<a class="btn primary" href="#" data-demo><i class="ph ph-download-simple" aria-hidden="true"></i>Download the mod</a>`)
       : p.web
       ? `<a class="btn primary" href="#" data-demo><i class="ph ph-play" aria-hidden="true"></i>${p.webLabel || 'Play in browser'}</a>
          <a class="btn ghost" href="#" data-demo><i class="ph ph-download-simple" aria-hidden="true"></i>Download</a>`
       : `<a class="btn primary" href="#" data-demo><i class="ph ph-download-simple" aria-hidden="true"></i>Download for Windows</a>`;
     const note = remix
-      ? `<p class="note"><i class="ph ph-info" aria-hidden="true"></i>Back up your saves before installing any mod, and only install mods from people you trust.</p>`
+      ? `<p class="note"><i class="ph ph-info" aria-hidden="true"></i>Back up your saves first. This download contains no Minecraft files: the installer copies them from your own Minecraft. Fan mod, not affiliated with Mojang, Microsoft or the game's makers.</p>`
       : p.platform === 'Windows' ? `<p class="note"><i class="ph ph-shield-warning" aria-hidden="true"></i>Windows may warn you because this app isn't signed. Click More info, then Run anyway.</p>` : '';
     return `<div class="d" style="--accent:${p.accent}">
       <button class="icon-btn close" type="button" aria-label="Close"><i class="ph ph-x" aria-hidden="true"></i></button>
