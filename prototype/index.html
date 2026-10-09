@@ -34,6 +34,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&text=prismP&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Young+Serif&text=lullL&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Michroma&text=SPECTRspectr&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Gloock&text=nocturNe&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&text=Poltergeist&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&text=Undertow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Italiana&text=VEILVeil&display=swap" rel="stylesheet">
@@ -317,6 +318,10 @@
     transform: scaleX(0.34); transform-origin: right; transition: transform 0.35s var(--ease-out);
   }
   .rail button[aria-current="true"] { color: var(--chrome); }
+  /* A long list only names the projects around you; the rest stay as lines until you hover */
+  .rail button span { transition: opacity 0.3s var(--ease-out); }
+  .rail.long button:not(.near) span { opacity: 0; }
+  @media (hover: hover) and (pointer: fine) { .rail.long:hover button span { opacity: 1; } }
   .rail button[aria-current="true"]::after { transform: scaleX(1); }
   @media (hover: hover) and (pointer: fine) { .rail button:hover { color: var(--chrome); } }
 
@@ -660,6 +665,20 @@
     to { opacity: 1; transform: none; text-shadow: 0.06em 0.06em 0 rgba(159, 194, 255, 0.22), 0 0 0.35em rgba(159, 194, 255, 0.45); }
   }
 
+  /* Nocturne: a high-contrast serif glowing like the last lamp in the house */
+  .scene-nocturne { color: #F7E6C8; align-items: flex-end; text-align: right; --accent: #F7E6C8; }
+  .scene .t-nocturne {
+    font-family: 'Gloock', serif; text-transform: lowercase; font-size: clamp(80px, 12.5vw, 240px); line-height: 1;
+    margin-right: clamp(190px, 18vw, 290px); color: #FBE3BD; text-shadow: 0 0 0.3em rgba(246, 194, 122, 0.4);
+  }
+  /* Dusk: letters dim in from bright white to warm lamp light, one by one */
+  .scene.is-active .enter-dusk .ch { animation: dusk-in 1.8s var(--ease-out) calc(0.1s + var(--i) * 120ms) both; }
+  @keyframes dusk-in {
+    from { opacity: 0; color: #FFFFFF; text-shadow: 0 0 0.6em rgba(255, 255, 255, 0.8); transform: translateY(-0.08em); }
+    35% { opacity: 1; color: #FFFFFF; }
+    to { opacity: 1; color: #FBE3BD; text-shadow: 0 0 0.3em rgba(246, 194, 122, 0.4); transform: none; }
+  }
+
   /* Static: glitch and TV noise */
   .scene-static { color: #F5F5FF; --accent: #FF7CBE; }
   @keyframes tear { 0%, 84%, 100% { opacity: 0; transform: translateY(20vh); } 86% { opacity: 0.8; transform: translateY(44vh) translateX(-2vw); } 89% { opacity: 0.6; transform: translateY(62vh) translateX(1.5vw); } 91% { opacity: 0; } }
@@ -743,6 +762,9 @@
   .cv-specter { background: linear-gradient(135deg, rgba(22,34,58,.95), #070A10 60%, #0E1424); color: #E8F0FF; }
   .cv-specter .small { color: rgba(232,240,255,.6); }
   .art-specter { font-family: 'Michroma', sans-serif; text-transform: uppercase; font-size: 11cqi; line-height: 1; text-shadow: 0.7cqi 0.7cqi 0 rgba(159,194,255,.25), 0 0 4cqi rgba(159,194,255,.5); }
+  .cv-nocturne { background: radial-gradient(40% 35% at 75% 20%, rgba(246,194,122,.3), transparent 70%), linear-gradient(180deg, #151033, #0A0814 70%, #1A0F10); color: #F7E6C8; }
+  .cv-nocturne .small { color: rgba(247,230,200,.6); }
+  .art-nocturne { font-family: 'Gloock', serif; text-transform: lowercase; font-size: 17cqi; line-height: 1; color: #FBE3BD; text-shadow: 0 0 3cqi rgba(246,194,122,.45); }
   .cv-float { background: radial-gradient(60% 45% at 50% 56%, rgba(120,140,255,.3), transparent 70%), radial-gradient(45% 30% at 50% 100%, rgba(165,123,255,.25), transparent 70%), #06060B; color: #EEF0FF; }
   .cv-float::before { content: ""; position: absolute; inset: -50%; z-index: 0; background-image: var(--static); opacity: .14; animation: grain 0.5s steps(4) infinite; }
   .cv-float .small { color: rgba(238,240,255,.6); }
@@ -856,6 +878,7 @@
     .t-prism { font-size: 24vw; }
     .t-lull { font-size: 30vw; }
     .t-specter { font-size: 12vw; }
+    .scene .t-nocturne { margin-right: 0; font-size: 18vw; }
     .t-tide { font-size: 22vw; }
     .t-glitch { font-size: 15vw; }
     .t-halo { font-size: 30vw; }
@@ -997,6 +1020,17 @@
       how: ['Download the zip, unzip it and open Shadow.exe. No installer needed.', 'Name a runner and press Start to train it.', "Race it on the Race tab, or send its file to a friend."],
       shots: ['img/shadow/intro.webp', 'img/shadow/race.webp'],
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
+    },
+    {
+      slug: 'nocturne', enter: 'dusk', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/nocturne-v1.0.0/Nocturne-1.0.0.zip', sha: '0f40759bc9d3877c351046903a59246ef1c1dd10f929e7b963448888b5fa19ef', name: 'Nocturne', cat: 'apps', kind: 'App', platform: 'Windows', style: 'nocturne', ratio: '4 / 5',
+      title: 't-nocturne', layout: 'at-right', page: '#0A0814', accent: '#F7E6C8',
+      font: "'Gloock', serif", titleCss: 'text-transform:lowercase;',
+      blurb: 'Darker than your lowest brightness, warmer on the eyes, on every screen at night.',
+      lede: "Even the lowest brightness can glare in a dark room. Nocturne lays a see-through, click-through layer over every monitor that dims it further and warms the colour, with two big faders and a nightly schedule. Ctrl + Alt + End switches it, Page Up and Page Down nudge it. Screenshots and recordings stay at normal brightness, and quitting always puts your screens back.",
+      how: ["Download the zip, unzip it somewhere you'll keep it and open Nocturne.exe.", 'Drag the Darker and Warmer faders, then press Dim my screens.', 'Turn on the schedule to have it come on by itself every night.'],
+      shots: ['img/nocturne/main.webp'],
+      version: '1.0.0', size: '0.3 MB', updated: '9 Oct 2026', web: false,
+      sparks: [[18, 26, 10, '5.2s', '.4s'], [40, 62, 8, '4.4s', '2s']]
     },
     {
       slug: 'specter', enter: 'phase', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/specter-v1.0.0/Specter-1.0.0.zip', sha: '1eb359d81e03a6bf3151547ae895d2de664dec182dd3f019e29de8908e5d63a5', name: 'Specter', cat: 'apps', kind: 'App', platform: 'Windows', style: 'specter', ratio: '4 / 5',
@@ -1230,12 +1264,19 @@
 
   // Project rail: Start, the current tab's projects, About
   const rail = document.getElementById('rail');
+  function markNear() {
+    const items = [...rail.querySelectorAll('button')];
+    const at = Math.max(0, items.findIndex(b => b.dataset.go === body.dataset.scene));
+    rail.classList.toggle('long', items.length > 9);
+    items.forEach((b, i) => b.classList.toggle('near', Math.abs(i - at) <= 2 || i === 0 || i === items.length - 1));
+  }
   function buildRail() {
     rail.innerHTML = scenes.filter(s => !s.hidden).map(s => {
       const key = s.dataset.scene;
       const label = key === 'intro' ? (coverTab ? TAB_LABEL[coverTab] : 'Start') : key === 'outro' ? 'About' : projects.find(p => p.slug === key).name;
-      return `<button type="button" data-go="${key}" aria-label="${label}" aria-current="${body.dataset.scene === key}">${label}</button>`;
+      return `<button type="button" data-go="${key}" aria-label="${label}" aria-current="${body.dataset.scene === key}"><span>${label}</span></button>`;
     }).join('');
+    markNear();
   }
 
   // ---------- Tabs: Games / Apps / Remixes ----------
@@ -1359,6 +1400,7 @@
     body.dataset.scene = key;
     scenes.forEach(s => s.classList.toggle('is-active', s.dataset.scene === key));
     rail.querySelectorAll('button').forEach(b => b.setAttribute('aria-current', b.dataset.go === key));
+    markNear();
     field.setMode(key);
     document.querySelector('meta[name="theme-color"]').content = pageColor[key] || getComputedStyle(root).getPropertyValue('--base').trim();
   }
@@ -1609,13 +1651,14 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'specter': 'stars', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'nocturne': 'fireflies', 'specter': 'stars', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
       phantom: [[244, 247, 255], [140, 170, 255]],
       linkfuse: [[226, 231, 246], [140, 155, 215]],
       poltergeist: [[232, 236, 255], [150, 165, 255]],
+      'nocturne': [[251, 227, 189], [142, 123, 255]],
       'specter': [[232, 240, 255], [159, 194, 255]],
       'lull': [[230, 250, 242], [159, 227, 201]],
       'prism': [[255, 95, 143], [79, 179, 255]],
@@ -1876,6 +1919,8 @@
             case 'rays': ax = 0.28 + d.s * 0.35; ay = 0.12 + d.s * 0.18; break;
             // Everything rises and settles together, like slow breathing
             case 'breath': ax = Math.sin(t * 0.0003 + d.ph) * 0.06; ay = Math.sin(t * 0.00078) * (0.18 + d.s * 0.12); break;
+            // Fireflies: slow, lazy, blinking
+            case 'fireflies': ax = Math.sin(t * 0.0005 + d.ph * 2) * 0.22; ay = Math.cos(t * 0.0004 + d.ph) * 0.16; break;
             case 'glitch': ax = 0.12; ay = 0; if (Math.random() < 0.004) d.x += (Math.random() - 0.5) * 60; break;
             default: ax = Math.cos(flow) * d.s * 0.6; ay = Math.sin(flow) * d.s * 0.6 - 0.03;
           }
