@@ -23,7 +23,7 @@
 <!-- Body face loads in full. Each project's display face loads only the letters of its name (text=),
      so these files are tiny. Update the text= list when a project is renamed or added. -->
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&text=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz%20&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&text=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz%200123456789%21%3F.%2C%27%26%2B-%23%40%3A%C4%84%C4%8C%C4%98%C4%96%C4%AE%C5%A0%C5%B2%C5%AA%C5%BD%C4%85%C4%8D%C4%99%C4%97%C4%AF%C5%A1%C5%B3%C5%AB%C5%BE&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Anton&text=GhostLineGHOSTLINE%20&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@700..900&text=Shadow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&text=Phantom&display=swap" rel="stylesheet">
@@ -436,6 +436,32 @@
   .scroll-cue { display: block; width: 1.5px; height: 46px; margin: 30px auto 0; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--ink) 16%, transparent); }
   .scroll-cue::after { content: ""; display: block; width: 100%; height: 40%; border-radius: 2px; background: var(--ink); animation: cue 1.9s var(--ease-in-out) infinite; }
   @keyframes cue { 0% { transform: translateY(-100%); } 70%, 100% { transform: translateY(260%); } }
+  /* Particle writer: type in the outro and the particles write it */
+  .writer {
+    position: absolute; left: 0; right: 0; top: calc(46% + min(14vw, 28vh) * 0.42 + 26px); z-index: 2;
+    display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 0 20px;
+  }
+  .writer-box {
+    display: flex; align-items: center; width: min(440px, 100%); height: 54px; padding: 0 6px 0 22px; border-radius: 999px;
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 26%, transparent);
+    background: color-mix(in srgb, var(--base) 35%, transparent); backdrop-filter: blur(6px);
+    transition: box-shadow 0.2s var(--ease-out);
+  }
+  .writer-box:focus-within { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 70%, transparent); }
+  .writer-input {
+    flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--ink); text-align: center;
+    font: 800 16px/1 'Unbounded', sans-serif; letter-spacing: 0.28em; text-transform: uppercase; padding-left: 40px;
+  }
+  .writer-input::placeholder { color: var(--muted); opacity: 0.8; }
+  .writer-share {
+    flex: none; display: grid; place-items: center; width: 42px; height: 42px; border: 0; border-radius: 50%;
+    background: var(--ink); color: var(--base); cursor: pointer; font-size: 18px;
+    transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+  }
+  .writer-share:disabled { opacity: 0; transform: scale(0.6); pointer-events: none; }
+  .writer-share:active { transform: scale(0.94); }
+  .writer-share:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  .writer-hint { margin: 0; font-size: 13px; color: var(--muted); text-align: center; }
   .outro-text { position: absolute; left: 0; right: 0; bottom: clamp(32px, 8vh, 80px); padding: 0 20px; }
   .outro-text p { margin: 0 auto; max-width: 44ch; font-size: clamp(17px, 1.5vw, 21px); line-height: 1.5; }
   .outro-text .fine { margin-top: 18px; font-size: 13px; color: var(--muted); }
@@ -722,6 +748,14 @@
     <section class="scene scene-outro" id="s-outro" data-scene="outro" aria-labelledby="outro-title">
       <canvas class="fx" aria-hidden="true" style="--fx-o:0.5"></canvas>
       <h2 class="sr-only" id="outro-title">About STEZY</h2>
+      <form class="writer" id="writer" autocomplete="off">
+        <div class="writer-box">
+          <label class="sr-only" for="writer-input">Write something with the particles</label>
+          <input class="writer-input" id="writer-input" type="text" maxlength="14" placeholder="Write something" spellcheck="false" autocapitalize="characters" enterkeyhint="send">
+          <button class="writer-share" id="writer-share" type="submit" disabled aria-label="Share what you wrote"><i class="ph ph-share-network" aria-hidden="true"></i></button>
+        </div>
+        <p class="writer-hint">Type anything and the particles write it. Share the link and they'll see it too.</p>
+      </form>
       <div class="outro-text">
         <div class="outro-next" id="outro-next"></div>
         <p class="outro-line">Stay steezy.</p>
@@ -920,9 +954,11 @@
     tagText.classList.add('out');
     tagTimer = setTimeout(() => { tagText.innerHTML = html; tagText.classList.remove('out'); }, 200);
   }
+  let introWord = 'STEZY';
   function showCover(cat) {
     coverTab = cat;
-    field.setWord(cat ? TAB_LABEL[cat].toUpperCase() : 'STEZY');
+    introWord = cat ? TAB_LABEL[cat].toUpperCase() : 'STEZY';
+    field.setWord(introWord);
     setTagline(cat ? coverLine(cat) : DEFAULT_TAG);
     buildRail();
   }
@@ -990,7 +1026,7 @@
   document.addEventListener('click', e => {
     const go = e.target.closest('[data-go]');
     if (go) {
-      if (go.classList.contains('brand') && coverTab) showCover(null);
+      if (go.classList.contains('brand') && introWord !== 'STEZY') showCover(null);
       goTo(go.dataset.go);
     }
     const tab = e.target.closest('[data-tab]');
@@ -1316,19 +1352,33 @@
       off.width = w; off.height = h;
       const o = off.getContext('2d');
       let fs = w < 700 ? w * 0.165 : Math.min(w * 0.14, h * 0.28);
-      const letters = text.split('');
-      const measure = size => {
+      const measure = (str, size) => {
         o.font = `800 ${size}px Unbounded`;
+        const letters = [...str];
         const widths = letters.map(l => o.measureText(l).width);
-        return { widths, total: widths.reduce((s, v) => s + v, 0) + size * 0.2 * (letters.length - 1) };
+        return { letters, widths, total: widths.reduce((s, v) => s + v, 0) + size * 0.2 * (letters.length - 1) };
       };
-      let m = measure(fs);
       const maxW = w * (w < 700 ? 0.9 : 0.74);
-      if (m.total > maxW) { fs *= maxW / m.total; m = measure(fs); }
+      // A long phrase that would get tiny on one line wraps onto two, growing upwards so nothing below moves
+      let lines = [text];
+      const one = measure(text, fs).total;
+      if (one > maxW && fs * maxW / one < fs * 0.62) {
+        const spaces = [...text].map((c, i) => (c === ' ' ? i : -1)).filter(i => i > 0);
+        if (spaces.length) {
+          const cut = spaces.reduce((a, b) => (Math.abs(b - text.length / 2) < Math.abs(a - text.length / 2) ? b : a));
+          lines = [text.slice(0, cut), text.slice(cut + 1)];
+        }
+      }
+      let ms = lines.map(l => measure(l, fs));
+      const widest = Math.max(...ms.map(m => m.total));
+      if (widest > maxW) { fs *= maxW / widest; ms = lines.map(l => measure(l, fs)); }
       o.fillStyle = '#fff';
       o.textBaseline = 'middle';
-      let x = (w - m.total) / 2;
-      letters.forEach((l, i) => { o.fillText(l, x, h * 0.46); x += m.widths[i] + fs * 0.2; });
+      ms.forEach((m, li) => {
+        const y = h * 0.46 - (ms.length - 1 - li) * fs * 1.15;
+        let x = (w - m.total) / 2;
+        m.letters.forEach((l, i) => { o.fillText(l, x, y); x += m.widths[i] + fs * 0.2; });
+      });
       const data = o.getImageData(0, 0, w, h).data;
       const pts = [];
       for (let y = 0; y < h; y += 2) for (let xx = 0; xx < w; xx += 2) if (data[(y * w + xx) * 4 + 3] > 140) pts.push([xx, y]);
@@ -1336,7 +1386,9 @@
       return pts;
     }
     // Hand each particle a pixel of the word to fly to: the intro writes STEZY or the chosen tab, the outro always STEZY
-    let introWord = 'STEZY', sampled = '';
+    const words = { intro: 'STEZY', outro: 'STEZY' };
+    const wordFor = m => (m === 'outro' ? words.outro : words.intro);
+    let sampled = '';
     function useWord(word, force) {
       if (!ready || !w || !h || (word === sampled && !force)) return;
       sampled = word;
@@ -1349,12 +1401,13 @@
       });
       if (reduce) draw(0);
     }
-    function sampleText() { useWord(mode === 'outro' ? 'STEZY' : introWord, true); }
-    function setWord(word) {
-      introWord = word;
-      if (mode === 'outro' || word === sampled) return;
+    function sampleText() { useWord(wordFor(mode), true); }
+    // which: 'intro' (STEZY or the chosen tab) or 'outro' (STEZY or whatever the visitor typed)
+    function setWord(word, which = 'intro', kick = 6) {
+      words[which] = word;
+      if ((which === 'outro') !== (mode === 'outro') || word === sampled) return;
       useWord(word);
-      if (!reduce) dots.forEach(d => { d.vx += (Math.random() - 0.5) * 6; d.vy += (Math.random() - 0.5) * 6; });
+      if (!reduce) dots.forEach(d => { d.vx += (Math.random() - 0.5) * kick; d.vy += (Math.random() - 0.5) * kick; });
     }
     // Briefly write another word (a tab's name), then let the scene take over again
     let flashUntil = 0, wasFlashing = false;
@@ -1375,7 +1428,7 @@
     function setMode(key, quiet) {
       const leavingForm = KIND[mode] === 'form' && KIND[key] !== 'form';
       mode = key;
-      if (key === 'outro') useWord('STEZY'); else if (key === 'intro') useWord(introWord);
+      if (key === 'outro' || key === 'intro') useWord(wordFor(key));
       const [a, b] = colorsFor(key);
       tgt = { a, b };
       if (!reduce && !quiet) {
@@ -1893,6 +1946,38 @@
   rail.querySelector('[data-go="intro"]').setAttribute('aria-current', 'true');
   setTimeout(() => root.classList.add('loaded'), 300);
   scenes.forEach(s => io.observe(s));
+
+  // ---------- Particle writer: type in the outro, share a link that opens with your word ----------
+  const NOT_ALLOWED = /[^a-z0-9ąčęėįšųūž !?.,'&+\-#@:]/gi;
+  const cleanWord = t => (t || '').replace(NOT_ALLOWED, '').replace(/\s+/g, ' ').trim().slice(0, 14).toUpperCase();
+  const writer = document.getElementById('writer');
+  const writerInput = document.getElementById('writer-input');
+  const writerShare = document.getElementById('writer-share');
+  let writeTimer;
+  writerInput.addEventListener('input', () => {
+    const v = writerInput.value.replace(NOT_ALLOWED, '');
+    if (v !== writerInput.value) writerInput.value = v;
+    const word = cleanWord(v);
+    writerShare.disabled = !word;
+    clearTimeout(writeTimer);
+    writeTimer = setTimeout(() => field.setWord(word || 'STEZY', 'outro', 3), 160);
+  });
+  writer.addEventListener('submit', e => {
+    e.preventDefault();
+    const word = cleanWord(writerInput.value);
+    if (!word) return;
+    const link = 'https://stezy.lt/?w=' + encodeURIComponent(word).replace(/%20/g, '+');
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) navigator.share({ title: 'STEZY', url: link }).catch(() => {});
+    else if (navigator.clipboard) navigator.clipboard.writeText(link).then(() => toast('Link copied. Whoever opens it sees your word.'), () => toast(link));
+    else toast(link);
+  });
+  // Someone sent a link with a word: the intro writes it instead of STEZY
+  const sharedWord = cleanWord(new URLSearchParams(location.search).get('w'));
+  if (sharedWord) {
+    introWord = sharedWord;
+    field.setWord(sharedWord);
+    tagText.innerHTML = 'Someone wrote this for you. <strong>Write your own at the end.</strong>';
+  }
 
   // ---------- Entrance intro (skipped by any scroll, click or key, and by deep links) ----------
   const playIntro = root.classList.contains('intro-play') && !location.hash;
