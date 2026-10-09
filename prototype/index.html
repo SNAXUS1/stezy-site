@@ -32,6 +32,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Poiret+One&text=wispW&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&text=tetherT0123456789%3A&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&text=prismP&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&text=lullL&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&text=Poltergeist&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&text=Undertow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Italiana&text=VEILVeil&display=swap" rel="stylesheet">
@@ -633,6 +634,17 @@
     to { opacity: 1; transform: none; filter: none; }
   }
 
+  /* Lull: a soft serif that breathes */
+  .scene-lull { color: #ECF8F2; align-items: center; text-align: center; --accent: #BFF0DD; }
+  .t-lull {
+    font-family: 'Young Serif', serif; text-transform: lowercase; font-size: clamp(130px, 21vw, 380px); line-height: 1;
+    text-shadow: 0 0 0.25em rgba(159, 227, 201, 0.45);
+  }
+  /* Breathe: letters swell in slowly, then the word keeps breathing */
+  .scene.is-active .enter-breathe .ch { animation: breathe-in 2.2s cubic-bezier(0.37, 0, 0.63, 1) calc(0.15s + var(--i) * 200ms) both, breathe 8s ease-in-out calc(2.6s + var(--i) * 200ms) infinite; }
+  @keyframes breathe-in { from { opacity: 0; transform: scale(0.85); filter: blur(0.05em); } to { opacity: 1; transform: none; filter: none; } }
+  @keyframes breathe { 0%, 100% { scale: 1; } 50% { scale: 1.04; } }
+
   /* Static: glitch and TV noise */
   .scene-static { color: #F5F5FF; --accent: #FF7CBE; }
   @keyframes tear { 0%, 84%, 100% { opacity: 0; transform: translateY(20vh); } 86% { opacity: 0.8; transform: translateY(44vh) translateX(-2vw); } 89% { opacity: 0.6; transform: translateY(62vh) translateX(1.5vw); } 91% { opacity: 0; } }
@@ -710,6 +722,9 @@
   .cv-prism { background: #F3F0EA; color: #16131C; }
   .cv-prism .small { color: rgba(22,19,28,.55); }
   .art-prism { font-family: 'Dela Gothic One', sans-serif; text-transform: lowercase; font-size: 21cqi; line-height: 1; background: linear-gradient(90deg, #FF5F8F, #FFB347 25%, #7CE07C 50%, #4FB3FF 75%, #A47CFF); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .cv-lull { background: radial-gradient(45% 45% at 50% 48%, rgba(127,200,175,.35), transparent 70%), linear-gradient(180deg, #0B1A1A, #22162A); color: #ECF8F2; }
+  .cv-lull .small { color: rgba(236,248,242,.6); }
+  .art-lull { font-family: 'Young Serif', serif; text-transform: lowercase; font-size: 32cqi; line-height: 1; text-shadow: 0 0 4cqi rgba(159,227,201,.5); }
   .cv-float { background: radial-gradient(60% 45% at 50% 56%, rgba(120,140,255,.3), transparent 70%), radial-gradient(45% 30% at 50% 100%, rgba(165,123,255,.25), transparent 70%), #06060B; color: #EEF0FF; }
   .cv-float::before { content: ""; position: absolute; inset: -50%; z-index: 0; background-image: var(--static); opacity: .14; animation: grain 0.5s steps(4) infinite; }
   .cv-float .small { color: rgba(238,240,255,.6); }
@@ -821,6 +836,7 @@
     .t-wisp { font-size: 30vw; }
     .scene .t-tether { margin-right: 0; font-size: 16vw; }
     .t-prism { font-size: 24vw; }
+    .t-lull { font-size: 30vw; }
     .t-tide { font-size: 22vw; }
     .t-glitch { font-size: 15vw; }
     .t-halo { font-size: 30vw; }
@@ -962,6 +978,17 @@
       how: ['Download the zip, unzip it and open Shadow.exe. No installer needed.', 'Name a runner and press Start to train it.', "Race it on the Race tab, or send its file to a friend."],
       shots: ['img/shadow/intro.webp', 'img/shadow/race.webp'],
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
+    },
+    {
+      slug: 'lull', enter: 'breathe', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/lull-v1.0.0/Lull-1.0.0.zip', sha: 'da1b986c4328431ab6385ea4a5582cad50d200014117d69013939fec3ef08cab', name: 'Lull', cat: 'apps', kind: 'App', platform: 'Windows', style: 'lull', ratio: '1 / 1',
+      title: 't-lull', layout: 'at-center', page: '#0B1A1A', accent: '#BFF0DD',
+      font: "'Young Serif', serif", titleCss: 'text-transform:lowercase;',
+      blurb: 'Every 20 minutes at the screen, a calm breathing light asks your eyes to look far away.',
+      lede: "Long sessions dry out your eyes and stiffen your neck before you notice. Lull counts only the time you actually spend at the PC, then dims every screen with a slow breathing light and asks you to look at something far away for twenty seconds. Once an hour it nudges you to stand up and stretch. It fades away by itself, waits while a game or film is full-screen, and you can always skip or snooze.",
+      how: ["Download the zip, unzip it somewhere you'll keep it and open Lull.exe.", 'Leave it running in the tray.', 'When the light appears, look away until it fades. Skip or snooze if you are busy.'],
+      shots: ['img/lull/pause.webp', 'img/lull/main.webp'],
+      version: '1.0.0', size: '0.3 MB', updated: '9 Oct 2026', web: false,
+      sparks: [[30, 34, 10, '6s', '1s'], [70, 66, 12, '7s', '3s']]
     },
     {
       slug: 'prism', enter: 'refract', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/prism-v1.0.0/Prism-1.0.0.zip', sha: 'ead0d453596444df2af9c271d4a57fc0275810d7890bf364c62c919b7e010527', name: 'Prism', cat: 'apps', kind: 'App', platform: 'Windows', style: 'prism', ratio: '1 / 1',
@@ -1552,13 +1579,14 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
       phantom: [[244, 247, 255], [140, 170, 255]],
       linkfuse: [[226, 231, 246], [140, 155, 215]],
       poltergeist: [[232, 236, 255], [150, 165, 255]],
+      'lull': [[230, 250, 242], [159, 227, 201]],
       'prism': [[255, 95, 143], [79, 179, 255]],
       'tether': [[255, 226, 190], [255, 154, 92]],
       'wisp': [[220, 255, 245], [127, 255, 224]],
@@ -1815,6 +1843,8 @@
             case 'embers': ax = Math.sin(t * 0.0007 + d.ph) * 0.1; ay = -0.12 - d.s * 0.3; break;
             // Specks of coloured light drifting along a slanted beam
             case 'rays': ax = 0.28 + d.s * 0.35; ay = 0.12 + d.s * 0.18; break;
+            // Everything rises and settles together, like slow breathing
+            case 'breath': ax = Math.sin(t * 0.0003 + d.ph) * 0.06; ay = Math.sin(t * 0.00078) * (0.18 + d.s * 0.12); break;
             case 'glitch': ax = 0.12; ay = 0; if (Math.random() < 0.004) d.x += (Math.random() - 0.5) * 60; break;
             default: ax = Math.cos(flow) * d.s * 0.6; ay = Math.sin(flow) * d.s * 0.6 - 0.03;
           }
