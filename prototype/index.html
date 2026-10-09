@@ -28,6 +28,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@700..900&text=Shadow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&text=Phantom&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&text=LinkFuse&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&text=Poltergeist&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
 <script>
@@ -164,7 +165,7 @@
   @property --w-static { syntax: '<number>'; inherits: true; initial-value: 0; }
   body { transition: background-color 0.9s var(--ease-in-out), --w-mono 0.8s ease, --w-shadow 0.8s ease, --w-static 0.8s ease; }
   body[data-scene="shadow"] { --w-mono: 1; --w-shadow: 1; }
-  body[data-scene="static"] { --w-static: 1; }
+  body[data-scene="static"], body[data-scene="poltergeist"] { --w-static: 1; }
   [data-theme="light"] body[data-scene="intro"], [data-theme="light"] body[data-scene="outro"] { --w-mono: 1; }
   .grain {
     position: fixed; inset: -50%; width: 200%; height: 200%;
@@ -503,6 +504,28 @@
   .js .scene-linkfuse.is-active .title .half { background-position: -40% 0, 0 0; }
   .chrome-note { position: relative; z-index: 1; margin: -0.6em clamp(190px, 18vw, 290px) 0 0; max-width: 22ch; font-size: 13px; line-height: 1.45; color: rgba(230, 234, 245, 0.62); text-align: left; align-self: flex-end; }
 
+  /* Poltergeist: letters levitating in the light of a TV full of static */
+  .scene-poltergeist { color: #EEF0FF; align-items: center; text-align: center; --accent: #C9D4FF; }
+  .t-float {
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(50px, 8.2vw, 158px); line-height: 1.05; letter-spacing: -0.01em;
+    text-shadow: -0.025em 0 rgba(61, 90, 254, 0.75), 0.025em 0 rgba(255, 61, 154, 0.5), 0 0 0.4em rgba(170, 190, 255, 0.45);
+  }
+  .t-float::after {
+    content: ""; position: absolute; left: 18%; right: 18%; bottom: -0.32em; height: 0.14em; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(170, 190, 255, 0.22), transparent); filter: blur(8px);
+  }
+  /* Levitate: letters rise off the floor at odd angles, then keep hovering */
+  .scene.is-active .enter-levitate .ch {
+    animation: lev-in 1.2s var(--ease-out) calc(0.1s + var(--r) * 550ms) both,
+               hover-bob calc(2.4s + var(--r) * 1.6s) ease-in-out calc(1.3s + var(--r) * 700ms) infinite alternate;
+  }
+  @keyframes lev-in {
+    from { opacity: 0; transform: translateY(0.55em) rotate(calc((var(--r) - 0.5) * 34deg)); filter: blur(0.05em); }
+    40% { opacity: 1; }
+    to { opacity: 1; transform: rotate(calc((var(--r) - 0.5) * 7deg)); filter: none; }
+  }
+  @keyframes hover-bob { from { translate: 0 -0.035em; } to { translate: 0 0.045em; } }
+
   /* Static: glitch and TV noise */
   .scene-static { color: #F5F5FF; --accent: #FF7CBE; }
   @keyframes tear { 0%, 84%, 100% { opacity: 0; transform: translateY(20vh); } 86% { opacity: 0.8; transform: translateY(44vh) translateX(-2vw); } 89% { opacity: 0.6; transform: translateY(62vh) translateX(1.5vw); } 91% { opacity: 0; } }
@@ -562,6 +585,10 @@
   .cv-chrome { background: radial-gradient(38% 30% at 18% 74%, rgba(150,170,235,.38), transparent 70%), radial-gradient(30% 40% at 84% 18%, rgba(200,205,255,.2), transparent 70%), #08080D; color: #DCE3F2; }
   .cv-chrome .small { color: rgba(220,227,242,.6); }
   .art-chrome { font-family: 'Pinyon Script', cursive; font-size: 23cqi; line-height: 1.35; background: linear-gradient(180deg, #FFFFFF 0%, #DCE4F4 30%, #6B7894 50%, #EEF3FC 60%, #9AA6C0 82%, #F4F7FF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0.5cqi 1.2cqi rgba(0,0,0,.75)); }
+  .cv-float { background: radial-gradient(60% 45% at 50% 56%, rgba(120,140,255,.3), transparent 70%), radial-gradient(45% 30% at 50% 100%, rgba(165,123,255,.25), transparent 70%), #06060B; color: #EEF0FF; }
+  .cv-float::before { content: ""; position: absolute; inset: -50%; z-index: 0; background-image: var(--static); opacity: .14; animation: grain 0.5s steps(4) infinite; }
+  .cv-float .small { color: rgba(238,240,255,.6); }
+  .art-float { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 10.6cqi; line-height: 1; text-shadow: -0.35cqi 0 rgba(61,90,254,.75), 0.35cqi 0 rgba(255,61,154,.5), 0 0 4cqi rgba(170,190,255,.5); }
   .cv-glitch { background: radial-gradient(80% 90% at 0% 50%, rgba(70,90,255,.5), transparent 60%), #040406; color: #F5F5FF; }
   .cv-glitch::before { content: ""; position: absolute; inset: -50%; z-index: 0; background-image: var(--static); opacity: .4; animation: grain 0.5s steps(4) infinite; }
   .cv-glitch .small { color: rgba(245,245,255,.6); }
@@ -663,6 +690,7 @@
     .t-smoke { font-size: 21vw; }
     .t-ink { font-size: 22vw; }
     .t-melt { font-size: 18vw; }
+    .t-float { font-size: 12.5vw; }
     .t-glitch { font-size: 15vw; }
     .t-halo { font-size: 30vw; }
     .tagline { top: calc(46% + 16.5vw * 0.42 + 24px); }
@@ -690,7 +718,7 @@
     .grain.reveal { display: none; }
     .vinyl, .sound[aria-pressed="true"] .bars i { animation: none; }
     .sound[aria-pressed="true"] .bars i { height: 10px; }
-    .grain, .spark, .ghost-word, .cv-glitch::before, .tex-static, body[data-scene="static"] .tex-tear,
+    .grain, .spark, .ghost-word, .cv-glitch::before, .cv-float::before, .tex-static, body[data-scene="static"] .tex-tear,
     .scene-static.is-active .t-glitch::before, .scene-static.is-active .t-glitch::after,
     .js .scene-static.is-active .title { animation: none; }
     .spark { opacity: 0.8; }
@@ -805,6 +833,17 @@
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
     },
     {
+      slug: 'poltergeist', enter: 'levitate', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/poltergeist-v1.0.0/Poltergeist-1.0.0.zip', sha: 'ed45d95164eb266b60ea3a46b88897efe40ea9a0f33c6c484dc389c4d5ac2d55', name: 'Poltergeist', cat: 'apps', kind: 'App', platform: 'Windows', style: 'float', ratio: '4 / 5',
+      title: 't-float', layout: 'at-center', page: '#06060B', accent: '#C9D4FF',
+      font: "'Syne', sans-serif", titleCss: 'font-weight:800;',
+      blurb: 'Catches windows that jump in front of you or flash on screen by themselves, and names the program that did it.',
+      lede: "Something keeps stealing focus mid-sentence, or a black box blinks on screen and vanishes before you can read it. Poltergeist sits quietly in the tray and catches it: which program it was, what started it, and when. It only watches, so it never closes, changes or deletes anything, and everything stays on your PC.",
+      how: ["Download the zip, unzip it somewhere you'll keep it and open Poltergeist.exe.", 'Leave it running. Closing the window keeps it watching from the tray.', 'When something jumps in front of you, open it to see who did it.'],
+      shots: ['img/poltergeist/main.webp', 'img/poltergeist/empty.webp'],
+      version: '1.0.0', size: '0.4 MB', updated: '9 Oct 2026', web: false,
+      sparks: [[22, 30, 14, '4.4s', '.6s'], [78, 26, 18, '5s', '2s'], [64, 72, 12, '4s', '3.2s']]
+    },
+    {
       slug: 'phantom', enter: 'neon', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/phantom-v0.1.0/Phantom-0.1.0.zip', sha: '71db282a41ccb2c5dd69f4f36607b32d4fe8a6626e79bce4ddbe4718e49de240', name: 'Phantom', cat: 'apps', kind: 'App', platform: 'Windows', style: 'melt', ratio: '3 / 4',
       title: 't-melt', layout: 'at-left', page: '#040822', accent: '#A9C0FF',
       font: "'Bagel Fat One', sans-serif",
@@ -916,7 +955,7 @@
       <h2 class="title ${p.title}${p.enter ? ' split enter-' + p.enter : ''}" id="title-${p.slug}" data-text="${p.name}" style="--n:${p.name.replace(/ /g, '').length}">${p.enter ? splitName(p) : p.name}</h2>
       ${p.note ? `<p class="chrome-note">${p.note}</p>` : ''}
       <div class="info ${p.layout}">
-        <p class="credits">${p.kind} &middot; ${p.platform} &middot; v${p.version}${p.sample ? '<span class="sample-tag">Sample</span>' : ''}${p.legacy ? '<span class="sample-tag">Made before this site</span>' : ''}${p.by ? `<span class="made-by">Made by ${p.by}</span>` : ''}</p>
+        <p class="credits">${p.kind} &middot; ${p.platform} &middot; v${p.version}${p.sample ? '<span class="sample-tag">Sample</span>' : ''}${p.legacy ? '<span class="sample-tag">Made before this site</span>' : ''}${p.fresh ? '<span class="sample-tag">New</span>' : ''}${p.by ? `<span class="made-by">Made by ${p.by}</span>` : ''}</p>
         <p class="desc">${p.blurb}</p>
         <div class="actions">${action}</div>
       </div>`;
@@ -1305,12 +1344,13 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
       phantom: [[244, 247, 255], [140, 170, 255]],
       linkfuse: [[226, 231, 246], [140, 155, 215]],
+      poltergeist: [[232, 236, 255], [150, 165, 255]],
       static: [[255, 90, 175], [90, 120, 255]],
       halo: [[220, 230, 255], [80, 120, 255]],
       'schedule-steve': [[214, 246, 205], [110, 200, 90]],
@@ -1547,6 +1587,8 @@
             case 'ink': ax = Math.sin(t * 0.0008 + d.ph) * 0.25; ay = 0.25 + d.s * 0.9; break;
             case 'stars': ax = 0.05; ay = -0.02; break;
             case 'bokeh': ax = Math.sin(t * 0.0005 + d.ph) * 0.15; ay = -0.12 - d.s * 0.2; break;
+            // Dust that levitates, and every few seconds an invisible hand shoves it all sideways
+            case 'float': { const gust = Math.pow(Math.max(0, Math.sin(t * 0.0007)), 10) * 2.4; ax = Math.sin(t * 0.0006 + d.ph) * 0.12 + gust; ay = -0.1 - d.s * 0.25; break; }
             case 'glitch': ax = 0.12; ay = 0; if (Math.random() < 0.004) d.x += (Math.random() - 0.5) * 60; break;
             default: ax = Math.cos(flow) * d.s * 0.6; ay = Math.sin(flow) * d.s * 0.6 - 0.03;
           }
@@ -1692,7 +1734,7 @@
       const weight = test => (test(keyI) ? 1 - k : 0) + (i !== j && test(keyJ) ? k : 0);
       const light = root.dataset.theme === 'light';
       body.style.setProperty('--w-shadow', weight(s => s === 'shadow').toFixed(3));
-      body.style.setProperty('--w-static', weight(s => s === 'static').toFixed(3));
+      body.style.setProperty('--w-static', weight(s => s === 'static' || s === 'poltergeist').toFixed(3));
       body.style.setProperty('--w-mono', weight(s => s === 'shadow' || (light && (s === 'intro' || s === 'outro'))).toFixed(3));
     }
     const easeOut = t => 1 - Math.pow(1 - t, 4);
