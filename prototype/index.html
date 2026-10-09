@@ -31,6 +31,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@1&text=afterimageA&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poiret+One&text=wispW&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&text=tetherT0123456789%3A&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&text=prismP&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&text=Poltergeist&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&text=Undertow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Italiana&text=VEILVeil&display=swap" rel="stylesheet">
@@ -81,6 +82,7 @@
   body[data-scene="phantom"] { --page: #040822; --chrome: #EEF2FF; --chrome-muted: #9EAAD6; --g1: #1C3AD0; --g2: #0B1666; --g-o: 0.75; --b1x: 0vw; --b1y: 46vh; --b2x: -40vw; --b2y: -40vh; }
   body[data-scene="linkfuse"] { --page: #07070C; --chrome: #E6EAF5; --chrome-muted: #9AA1B8; --g1: #5161A6; --g2: #2C3158; --g-o: 0.55; --b1x: -34vw; --b1y: 34vh; --b2x: 38vw; --b2y: -36vh; }
   body[data-scene="static"] { --page: #050407; --chrome: #F5F5FF; --chrome-muted: #A6A3BC; --g1: #3443FF; --g2: #FF2E93; --g-o: 0.5; --b1x: -48vw; --b1y: 0vh; --b2x: 50vw; --b2y: 6vh; }
+  body[data-scene="prism"] { --page: #F3F0EA; --chrome: #16131C; --chrome-muted: #5E5866; --g1: #FFD1E0; --g2: #CDE6FF; --g-o: 0.9; --b1x: -34vw; --b1y: -36vh; --b2x: 38vw; --b2y: 36vh; }
   body[data-scene="halo"] { --page: #020207; --chrome: #EEF3FF; --chrome-muted: #97A3C9; --g1: #1B36E0; --g2: #060C3A; --g-o: 0.5; --b1x: 0vw; --b1y: 0vh; --b2x: 0vw; --b2y: 50vh; }
 
   * { box-sizing: border-box; }
@@ -136,7 +138,7 @@
     -webkit-mask-image: radial-gradient(circle 190px at var(--mx, -500px) var(--my, -500px), #000, transparent);
     mask-image: radial-gradient(circle 190px at var(--mx, -500px) var(--my, -500px), #000, transparent);
   }
-  body[data-scene="shadow"] .grain.reveal,
+  body[data-scene="shadow"] .grain.reveal, body[data-scene="prism"] .grain.reveal,
   [data-theme="light"] body[data-scene="intro"] .grain.reveal,
   [data-theme="light"] body[data-scene="outro"] .grain.reveal { background-image: var(--grain-mono); opacity: 0.4; }
   @keyframes grain-shift { 0% { background-position: 0 0; } 20% { background-position: -37px 21px; } 40% { background-position: 53px -18px; } 60% { background-position: -12px 44px; } 80% { background-position: 29px 9px; } 100% { background-position: -41px -33px; } }
@@ -613,6 +615,24 @@
   .scene.is-active .enter-tick .ch { animation: tick-in 0.5s steps(2, end) calc(0.2s + var(--i) * 230ms) both; }
   @keyframes tick-in { from { opacity: 0; transform: translateY(-0.12em); } to { opacity: 1; transform: none; } }
 
+  /* Prism: the one light world, chunky letters split into a rainbow */
+  .scene-prism { color: #16131C; --accent: #16131C; --accent-ink: #F3F0EA; }
+  .scene-prism ::selection { background: #16131C; color: #F3F0EA; }
+  .t-prism {
+    font-family: 'Dela Gothic One', sans-serif; text-transform: lowercase; font-size: clamp(100px, 16vw, 300px); line-height: 1; color: #16131C;
+  }
+  .t-prism .ch {
+    background: linear-gradient(90deg, #FF5F8F, #FFB347 25%, #7CE07C 50%, #4FB3FF 75%, #A47CFF) calc(var(--i) * 25%) 0 / 500% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  /* Refract: white light comes in, then splits into colour letter by letter */
+  .scene.is-active .enter-refract .ch { animation: refract 1.2s var(--ease-out) calc(0.1s + var(--i) * 110ms) both; }
+  @keyframes refract {
+    from { opacity: 0; transform: translateX(-0.3em) skewX(-14deg); filter: grayscale(1) brightness(3); }
+    45% { opacity: 1; filter: grayscale(0.4) brightness(1.4); }
+    to { opacity: 1; transform: none; filter: none; }
+  }
+
   /* Static: glitch and TV noise */
   .scene-static { color: #F5F5FF; --accent: #FF7CBE; }
   @keyframes tear { 0%, 84%, 100% { opacity: 0; transform: translateY(20vh); } 86% { opacity: 0.8; transform: translateY(44vh) translateX(-2vw); } 89% { opacity: 0.6; transform: translateY(62vh) translateX(1.5vw); } 91% { opacity: 0; } }
@@ -687,6 +707,9 @@
   .cv-tether { background: radial-gradient(55% 50% at 50% 50%, rgba(74,44,18,.9), transparent 70%), #0D0A07; color: #FFF4E8; }
   .cv-tether .small { color: rgba(255,244,232,.6); }
   .art-tether { font-family: 'Major Mono Display', monospace; text-transform: lowercase; font-size: 14cqi; line-height: 1; color: #FFE3C4; text-shadow: 0 0 3cqi rgba(255,154,92,.6); }
+  .cv-prism { background: #F3F0EA; color: #16131C; }
+  .cv-prism .small { color: rgba(22,19,28,.55); }
+  .art-prism { font-family: 'Dela Gothic One', sans-serif; text-transform: lowercase; font-size: 21cqi; line-height: 1; background: linear-gradient(90deg, #FF5F8F, #FFB347 25%, #7CE07C 50%, #4FB3FF 75%, #A47CFF); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .cv-float { background: radial-gradient(60% 45% at 50% 56%, rgba(120,140,255,.3), transparent 70%), radial-gradient(45% 30% at 50% 100%, rgba(165,123,255,.25), transparent 70%), #06060B; color: #EEF0FF; }
   .cv-float::before { content: ""; position: absolute; inset: -50%; z-index: 0; background-image: var(--static); opacity: .14; animation: grain 0.5s steps(4) infinite; }
   .cv-float .small { color: rgba(238,240,255,.6); }
@@ -797,6 +820,7 @@
     .t-echo { font-size: 14.5vw; }
     .t-wisp { font-size: 30vw; }
     .scene .t-tether { margin-right: 0; font-size: 16vw; }
+    .t-prism { font-size: 24vw; }
     .t-tide { font-size: 22vw; }
     .t-glitch { font-size: 15vw; }
     .t-halo { font-size: 30vw; }
@@ -938,6 +962,17 @@
       how: ['Download the zip, unzip it and open Shadow.exe. No installer needed.', 'Name a runner and press Start to train it.', "Race it on the Race tab, or send its file to a friend."],
       shots: ['img/shadow/intro.webp', 'img/shadow/race.webp'],
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
+    },
+    {
+      slug: 'prism', enter: 'refract', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/prism-v1.0.0/Prism-1.0.0.zip', sha: 'ead0d453596444df2af9c271d4a57fc0275810d7890bf364c62c919b7e010527', name: 'Prism', cat: 'apps', kind: 'App', platform: 'Windows', style: 'prism', ratio: '1 / 1',
+      title: 't-prism', layout: 'at-left', page: '#F3F0EA', accent: '#16131C',
+      font: "'Dela Gothic One', sans-serif", titleCss: 'text-transform:lowercase;',
+      blurb: 'Pick any colour on any screen with Ctrl + Alt + C, copied as HEX before you blink.',
+      lede: "Saw a colour you love on a website, a game or a photo? Press Ctrl + Alt + C, aim the magnifier at the exact pixel on any monitor and click. Prism copies it as HEX, shows it as RGB, HSL and CSS with lighter and darker shades, and keeps your last 80 colours on a wall you can click to copy again. The screen freezes while you pick, so menus and tooltips stay put.",
+      how: ["Download the zip, unzip it somewhere you'll keep it and open Prism.exe.", 'Press Ctrl + Alt + C anywhere and click the pixel you want.', 'Paste the HEX code wherever you need it, or copy another format from the window.'],
+      shots: ['img/prism/main.webp'],
+      version: '1.0.0', size: '0.2 MB', updated: '9 Oct 2026', web: false,
+      sparks: []
     },
     {
       slug: 'tether', enter: 'tick', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/tether-v1.0.0/Tether-1.0.0.zip', sha: 'dd2018102d233b40e46dc62425ce03c8c06e8ea7a342927f3656f888de8fea86', name: 'Tether', cat: 'apps', kind: 'App', platform: 'Windows', style: 'tether', ratio: '1 / 1',
@@ -1517,13 +1552,14 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
       phantom: [[244, 247, 255], [140, 170, 255]],
       linkfuse: [[226, 231, 246], [140, 155, 215]],
       poltergeist: [[232, 236, 255], [150, 165, 255]],
+      'prism': [[255, 95, 143], [79, 179, 255]],
       'tether': [[255, 226, 190], [255, 154, 92]],
       'wisp': [[220, 255, 245], [127, 255, 224]],
       'afterimage': [[255, 236, 240], [255, 150, 185]],
@@ -1777,6 +1813,8 @@
             case 'wander': ax = Math.sin(t * 0.0004 + d.ph) * 0.35; ay = Math.cos(t * 0.00033 + d.ph * 1.7) * 0.25 - 0.03; break;
             // Warm embers rising slowly from a lamp
             case 'embers': ax = Math.sin(t * 0.0007 + d.ph) * 0.1; ay = -0.12 - d.s * 0.3; break;
+            // Specks of coloured light drifting along a slanted beam
+            case 'rays': ax = 0.28 + d.s * 0.35; ay = 0.12 + d.s * 0.18; break;
             case 'glitch': ax = 0.12; ay = 0; if (Math.random() < 0.004) d.x += (Math.random() - 0.5) * 60; break;
             default: ax = Math.cos(flow) * d.s * 0.6; ay = Math.sin(flow) * d.s * 0.6 - 0.03;
           }
@@ -1923,7 +1961,7 @@
       const light = root.dataset.theme === 'light';
       body.style.setProperty('--w-shadow', weight(s => s === 'shadow').toFixed(3));
       body.style.setProperty('--w-static', weight(s => s === 'static' || s === 'poltergeist').toFixed(3));
-      body.style.setProperty('--w-mono', weight(s => s === 'shadow' || (light && (s === 'intro' || s === 'outro'))).toFixed(3));
+      body.style.setProperty('--w-mono', weight(s => s === 'shadow' || s === 'prism' || (light && (s === 'intro' || s === 'outro'))).toFixed(3));
     }
     const easeOut = t => 1 - Math.pow(1 - t, 4);
     const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
