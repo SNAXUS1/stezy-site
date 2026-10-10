@@ -348,6 +348,8 @@
   /* Sections of other tabs are hidden for real (the flex layout would otherwise override [hidden]) */
   .scene[hidden] { display: none !important; }
   .scene .title { margin: 0; font-weight: 400; position: relative; z-index: 1; will-change: transform, opacity; }
+  /* The big names, labels and controls are artwork, not text to copy (descriptions and the details stay selectable) */
+  .scene .title, .intro-title, .scene .credits, .credit, .chrome-note, .choices, .rail, header, .btn { -webkit-user-select: none; user-select: none; }
   .js .scene .title { opacity: 0; transform: translateY(0.1em) scale(0.985); transition: opacity 0.6s var(--ease-out), transform 0.9s var(--ease-out); }
   .js .scene.is-active .title { opacity: 1; transform: none; }
   /* Each world enters its own way */
