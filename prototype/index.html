@@ -195,8 +195,13 @@
     position: fixed; inset: -50%; width: 200%; height: 200%;
     pointer-events: none; z-index: 50;
     background-image: var(--grain-color);
-    opacity: calc(0.2 * (1 - var(--w-mono)));
+    opacity: calc(0.13 * (1 - var(--w-mono)));
     animation: grain 0.9s steps(6) infinite;
+  }
+  .grain.alt { background-image: var(--grain-color-2); opacity: calc(0.09 * (1 - var(--w-mono))); animation: grain-b 1.3s steps(7) infinite; }
+  @keyframes grain-b {
+    0% { transform: translate(2%, -3%); } 14% { transform: translate(-5%, -1%); } 28% { transform: translate(1%, 4%); } 42% { transform: translate(4%, -4%); }
+    57% { transform: translate(-3%, 2%); } 71% { transform: translate(5%, 3%); } 85% { transform: translate(-1%, -5%); } 100% { transform: translate(3%, 1%); }
   }
   .grain.mono { background-image: var(--grain-mono); opacity: calc(0.18 * var(--w-mono)); animation-delay: -0.45s; }
   .tex { position: fixed; pointer-events: none; }
@@ -1028,6 +1033,7 @@
   <div class="tex tex-tear" aria-hidden="true"></div>
   <canvas id="field" aria-hidden="true"></canvas>
   <div class="grain" aria-hidden="true"></div>
+  <div class="grain alt" aria-hidden="true"></div>
   <div class="grain mono" aria-hidden="true"></div>
   <div class="grain reveal" aria-hidden="true"></div>
   <svg id="filters" aria-hidden="true" width="0" height="0" style="position:absolute"></svg>
@@ -1493,6 +1499,7 @@
   function jumpTo(el) {
     if (scroller) scroller.jump(el);
     else window.scrollTo(0, el.offsetTop);
+    setScene(el.dataset.scene);
   }
   function setTabHash(cat) { history.replaceState(null, '', location.pathname + location.search + '#' + cat); }
   function selectTab(cat, animate = true) {
@@ -1553,7 +1560,7 @@
   const pageColor = { intro: null, outro: null };
   projects.forEach(p => { pageColor[p.slug] = p.page; });
   function setScene(key) {
-    if (body.dataset.scene === key) return;
+    if (body.dataset.scene === key && field.mode() === key) return;
     body.dataset.scene = key;
     scenes.forEach(s => s.classList.toggle('is-active', s.dataset.scene === key));
     rail.querySelectorAll('button').forEach(b => b.setAttribute('aria-current', b.dataset.go === key));
@@ -1850,8 +1857,9 @@
     x.putImageData(img, 0, 0);
     return `url(${c.toDataURL()})`;
   }
-  root.style.setProperty('--grain-color', noiseTile(220, 'color'));
-  root.style.setProperty('--grain-mono', noiseTile(220, 'mono'));
+  root.style.setProperty('--grain-color', noiseTile(509, 'color'));
+  root.style.setProperty('--grain-color-2', noiseTile(367, 'color'));
+  root.style.setProperty('--grain-mono', noiseTile(509, 'mono'));
   root.style.setProperty('--paper', noiseTile(200, 'paper'));
   root.style.setProperty('--static', noiseTile(160, 'static'));
 
@@ -1869,7 +1877,7 @@
     // A soft light that trails the cursor and reveals extra grain and sparkle
     const glow = { x: -9999, y: -9999, a: 0 };
     const revealEl = document.querySelector('.grain.reveal');
-    let lights = [];
+    let lights = [], haloTitle = null;
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
@@ -2048,7 +2056,7 @@
         case 'vinyl': return d.a * 0.9;
         case 'ink': return Math.min(0.85, d.a * 1.3);
         case 'bokeh': return d.big && d.c < 0.35 ? 0.16 : d.a * 0.2;
-        case 'halo': return Math.min(0.9, d.a * 1.3);
+        case 'halo': return d.c < 0.55 ? Math.min(0.95, 0.35 + d.a * 1.1) : d.a * 0.3;
         default: return d.a;
       }
     }
@@ -2097,6 +2105,17 @@
         intro.on = false;
       }
       const rr = kind === 'form' ? 120 : 95, push = kind === 'form' ? 5 : 1.6;
+      let hx = 0, hy = 0, hrx = 0, hry = 0, hcos = 1, hsin = 0;
+      if (kind === 'halo') {
+        const el = haloTitle || (haloTitle = document.querySelector('#s-halo .title'));
+        const b = el && el.getBoundingClientRect();
+        if (b && b.width) {
+          hx = b.left + b.width / 2; hrx = b.width * 0.46; hry = hrx * 0.16;
+          hy = b.top + b.height * 0.1 + Math.sin(t * 0.0011) * h * 0.006;
+        } else { hx = cx; hy = cy - R * 0.7; hrx = R; hry = R * 0.16; }
+        const tilt = -0.07 + Math.sin(t * 0.0004) * 0.025;
+        hcos = Math.cos(tilt); hsin = Math.sin(tilt);
+      }
       // The name rides along with its section; the further it scrolls away, the looser it holds
       const off = kind === 'form' && !flash ? (anchors[mode] || 0) - window.scrollY : 0;
       const loose = kind === 'form' ? Math.min(1, Math.abs(off) / (h * 0.5)) : 0;
@@ -2114,11 +2133,13 @@
           const tx = vcx + Math.cos(d.ang) * VR * (0.25 + d.ring * 0.75), ty = vcy + Math.sin(d.ang) * VR * (0.25 + d.ring * 0.75);
           d.vx = (d.vx + (tx - d.x) * 0.012) * 0.9;
           d.vy = (d.vy + (ty - d.y) * 0.012) * 0.9;
-        } else if (kind === 'halo') {
-          d.ang += 0.0016 * (0.5 + d.s);
-          const tx = cx + Math.cos(d.ang) * R * 1.45 * d.ring, ty = cy + Math.sin(d.ang) * R * 0.5 * d.ring;
-          d.vx = (d.vx + (tx - d.x) * 0.01) * 0.9;
-          d.vy = (d.vy + (ty - d.y) * 0.01) * 0.9;
+        } else if (kind === 'halo' && d.c < 0.55) {
+          // On the ring: all at nearly the same speed, so it reads as one band of light turning
+          d.ang += 0.0024 + d.s * 0.0006;
+          const k = 1 + (d.ring - 1.02) * 0.12, ex = Math.cos(d.ang) * hrx * k, ey = Math.sin(d.ang) * hry * k;
+          const tx = hx + ex * hcos - ey * hsin, ty = hy + ex * hsin + ey * hcos;
+          d.vx = (d.vx + (tx - d.x) * 0.02) * 0.84;
+          d.vy = (d.vy + (ty - d.y) * 0.02) * 0.84;
         } else {
           let ax, ay;
           const flow = (Math.sin(d.x * 0.0019 + t * 0.00011) + Math.cos(d.y * 0.0023 - t * 0.00009)) * Math.PI;
@@ -2146,6 +2167,8 @@
             // Fireflies: slow, lazy, blinking
             case 'fireflies': ax = Math.sin(t * 0.0005 + d.ph * 2) * 0.22; ay = Math.cos(t * 0.0004 + d.ph) * 0.16; break;
             case 'glitch': ax = 0.12; ay = 0; if (Math.random() < 0.004) d.x += (Math.random() - 0.5) * 60; break;
+            // Faint motes of light rising slowly around the halo
+            case 'halo': ax = Math.sin(t * 0.0004 + d.ph) * 0.08; ay = -0.05 - d.s * 0.08; break;
             default: ax = Math.cos(flow) * d.s * 0.6; ay = Math.sin(flow) * d.s * 0.6 - 0.03;
           }
           const depth = 0.35 + d.z * 0.9; // far particles drift slower
@@ -2158,7 +2181,7 @@
           if (dist2 < rr * rr) { const dist = Math.sqrt(dist2) || 1, f = (1 - dist / rr) * push; d.vx += (dx / dist) * f; d.vy += (dy / dist) * f; }
         }
         d.x += d.vx; d.y += d.vy;
-        if (!(kind === 'form' && isLetter(d)) && kind !== 'halo' && kind !== 'vinyl') {
+        if (!(kind === 'form' && isLetter(d)) && !(kind === 'halo' && d.c < 0.55) && kind !== 'vinyl') {
           if (d.x < -10) d.x = w + 10; else if (d.x > w + 10) d.x = -10;
           if (d.y < -10) d.y = h + 10; else if (d.y > h + 10) d.y = -10;
         }
@@ -2211,16 +2234,17 @@
       }
 
       // Additive light where particles overlap, so the name glows on dark backgrounds
-      ctx.globalCompositeOperation = kind === 'form' && root.dataset.theme === 'dark' ? 'lighter' : 'source-over';
+      ctx.globalCompositeOperation = (kind === 'form' && root.dataset.theme === 'dark') || kind === 'halo' ? 'lighter' : 'source-over';
       const reach = 180;
       for (const d of dots) {
         const letter = kind === 'form' && isLetter(d);
-        const depth = letter ? 0.15 : d.z;
+        const onRing = kind === 'halo' && d.c < 0.55, near = onRing ? (Math.sin(d.ang) + 1) / 2 : 0;
+        const depth = letter || onRing ? 0.15 : d.z;
         const px = d.x + par.x * (4 + depth * 26), py = d.y + par.y * (3 + depth * 18);
         const k = kind === 'form' ? Math.max(0, Math.min(3, Math.floor((d.x / w) * 4))) : Math.min(3, Math.floor(d.c * 4));
         let tw = 1;
         if (!reduce) tw = kind === 'stars' ? 0.25 + 0.75 * Math.abs(Math.sin(t * 0.0018 + d.ph)) : 0.7 + 0.3 * Math.sin(t * 0.0015 + d.ph);
-        let alpha = d.al * tw * (letter ? 1 : 0.45 + d.z * 0.7);
+        let alpha = d.al * tw * (letter ? 1 : onRing ? 0.35 + near * 0.65 : 0.45 + d.z * 0.7);
         // Particles brighten as the cursor light passes over them
         if (glow.a > 0.01) {
           const dx = px - glow.x, dy = py - glow.y, q = dx * dx + dy * dy;
@@ -2229,7 +2253,7 @@
         if (alpha < 0.01) continue;
         ctx.globalAlpha = Math.min(1, alpha);
         ctx.fillStyle = buckets[k];
-        const sz = d.r * size * (letter ? 1 : 0.55 + d.z * 0.95);
+        const sz = d.r * size * (letter ? 1 : onRing ? 0.75 + near * 0.75 : 0.55 + d.z * 0.95);
         if (kind === 'bokeh' && d.big && d.c < 0.35) { ctx.beginPath(); ctx.arc(px, py, 3 + d.r * 5, 0, Math.PI * 2); ctx.fill(); }
         else ctx.fillRect(px, py, sz, sz);
       }
@@ -2237,8 +2261,23 @@
       ctx.globalCompositeOperation = 'source-over';
     }
 
-    const api = { setMode, refreshColors, playIntro, skipIntro, setAnchors, flash, setWord, onFrame: null };
-    function loop(t) { if (api.onFrame) api.onFrame(t); step(t); draw(t); requestAnimationFrame(loop); }
+    const api = { setMode, refreshColors, playIntro, skipIntro, setAnchors, flash, setWord, mode: () => mode, onFrame: null };
+    // One bad frame must never stop the animation for good: carry on, and put back any particle that went astray
+    function heal() {
+      dots.forEach(d => {
+        if (!Number.isFinite(d.x + d.y + d.vx + d.vy)) { d.x = Math.random() * w; d.y = Math.random() * h; d.vx = d.vy = 0; }
+      });
+      if (!Number.isFinite(glow.x + glow.y)) { glow.x = glow.y = -9999; glow.a = 0; }
+      if (!Number.isFinite(par.x + par.y)) par.x = par.y = 0;
+    }
+    function loop(t) {
+      requestAnimationFrame(loop);
+      try { if (api.onFrame) api.onFrame(t); } catch (e) { console.warn(e); }
+      try { step(t); draw(t); } catch (e) { console.warn('Particles recovered:', e); heal(); }
+      if (dots.length && !Number.isFinite(dots[(t | 0) % dots.length].x)) heal();
+    }
+    // If the graphics card resets, the canvas comes back blank and unscaled: set it up again
+    canvas.addEventListener('contextrestored', resize);
 
     addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { mouse.x = e.clientX; mouse.y = e.clientY; mouse.on = true; } });
     document.addEventListener('pointerleave', () => { mouse.on = false; });
