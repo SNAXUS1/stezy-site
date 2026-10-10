@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Echo · STEZY</title>
+<meta name="description" content="A light lost in the dark. Every echo shows the way, and gives you away. Free to play in your browser.">
+<meta name="theme-color" content="#04040A">
+<link rel="canonical" href="https://stezy.lt/play/echo/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="STEZY">
+<meta property="og:title" content="Echo">
+<meta property="og:description" content="A light lost in the dark. Every echo shows the way, and gives you away. Free to play in your browser.">
+<meta property="og:url" content="https://stezy.lt/play/echo/">
+<meta property="og:image" content="https://stezy.lt/img/share/echo.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://stezy.lt/img/share/echo.jpg">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #04040A; --ink: #EEF0FF; --muted: #8E93B8; --line: rgba(238, 240, 255, 0.14);
+    --tint: #8FA8FF; --warm: #FFC98A;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden; }
+  body { font: 16px/1.5 'Hanken Grotesk', system-ui, sans-serif; -webkit-font-smoothing: antialiased; touch-action: none; user-select: none; -webkit-user-select: none; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .grain { position: fixed; inset: -50%; width: 200%; height: 200%; pointer-events: none; z-index: 5; opacity: 0.16; background-image: var(--noise); animation: grain 0.9s steps(6) infinite; }
+  @keyframes grain { 0% { transform: translate(0, 0); } 20% { transform: translate(-4%, 3%); } 40% { transform: translate(3%, -5%); } 60% { transform: translate(-2%, 4%); } 80% { transform: translate(5%, 1%); } 100% { transform: translate(-3%, -2%); } }
+  .vignette { position: fixed; inset: 0; pointer-events: none; z-index: 4; background: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.75)); }
+  .danger { position: fixed; inset: 0; pointer-events: none; z-index: 4; opacity: 0; background: radial-gradient(110% 85% at 50% 50%, transparent 50%, rgba(90, 40, 200, 0.55)); transition: opacity 0.25s linear; }
+
+  .hud { position: fixed; z-index: 8; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 22px; padding: max(18px, env(safe-area-inset-top)) 22px 0; font-size: 12px; font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase; color: var(--muted); pointer-events: none; }
+  .hud[hidden] { display: none; }
+  .hud .brand { color: var(--ink); text-decoration: none; letter-spacing: 0.42em; pointer-events: auto; }
+  .hud .grow { flex: 1; }
+  .hud button { pointer-events: auto; height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: rgba(238, 240, 255, 0.06); color: var(--ink); font: 600 11px/1 'Hanken Grotesk', sans-serif; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; box-shadow: inset 0 0 0 1px var(--line); }
+  .hud button:hover { background: rgba(238, 240, 255, 0.12); }
+  .hint { position: fixed; z-index: 8; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); transform: translateX(-50%); margin: 0; font-size: 13px; color: var(--muted); white-space: nowrap; transition: opacity 0.6s var(--ease-out); pointer-events: none; }
+  .hint[hidden] { display: none; }
+
+  .screen { position: fixed; inset: 0; z-index: 10; display: grid; place-content: center; justify-items: center; gap: 18px; padding: 24px; text-align: center; background: radial-gradient(70% 60% at 50% 50%, rgba(4, 4, 10, 0.25), rgba(4, 4, 10, 0.85)); animation: screen-in 0.4s var(--ease-out); }
+  .screen[hidden] { display: none; }
+  @keyframes screen-in { from { opacity: 0; } }
+  .logo { margin: 0; font: 700 clamp(56px, 13vw, 168px)/1 'Syncopate', sans-serif; letter-spacing: 0.08em; padding-left: 0.08em; color: #F4F5FF; text-shadow: 0 0 18px rgba(143, 168, 255, 0.55), 0 0 60px rgba(143, 168, 255, 0.35); }
+  .logo span { display: inline-block; animation: ping-in 1.6s var(--ease-out) both; animation-delay: calc(var(--i) * 140ms + 200ms); }
+  @keyframes ping-in { 0% { opacity: 0; filter: blur(14px); transform: scale(1.25); } 40% { opacity: 1; filter: blur(0); } 100% { opacity: 1; transform: none; } }
+  .tag { margin: 0; max-width: 36ch; font-size: clamp(16px, 2.2vw, 19px); color: #C9CDEB; }
+  .menu { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 10px; }
+  .btn { height: 50px; padding: 0 26px; border: 0; border-radius: 999px; background: transparent; color: var(--ink); font: 700 15px/1 'Hanken Grotesk', sans-serif; cursor: pointer; box-shadow: inset 0 0 0 1.5px var(--line); transition: transform 0.16s var(--ease-out), background 0.2s; }
+  .btn:hover { background: rgba(238, 240, 255, 0.08); }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary { background: var(--ink); color: #090A16; box-shadow: 0 0 34px rgba(143, 168, 255, 0.45); }
+  .btn.primary:hover { background: #fff; }
+  .btn:focus-visible, .hud button:focus-visible, .back:focus-visible { outline: 2px solid var(--tint); outline-offset: 3px; }
+  .how { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+  .how b { color: var(--ink); font-weight: 600; }
+  .back { margin-top: 14px; font-size: 13px; color: var(--muted); text-decoration: none; letter-spacing: 0.08em; }
+  .back:hover { color: var(--ink); }
+  .big { margin: 0; font: 700 clamp(28px, 5.6vw, 64px)/1.1 'Syncopate', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; text-shadow: 0 0 30px rgba(143, 168, 255, 0.45); }
+  .warm { background: radial-gradient(70% 60% at 50% 50%, rgba(4, 4, 10, 0.72), rgba(4, 4, 10, 0.92)); }
+  .warm .big { text-shadow: 0 0 30px rgba(255, 201, 138, 0.6); color: #FFF4E6; }
+  .small { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); }
+  .stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 34px; margin: 6px 0 0; }
+  .stats div { display: grid; gap: 2px; }
+  .stats dt { font-size: 12px; color: var(--muted); letter-spacing: 0.14em; text-transform: uppercase; }
+  .stats dd { margin: 0; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .toast { position: fixed; z-index: 20; left: 50%; top: 70px; transform: translate(-50%, -10px); padding: 10px 16px; border-radius: 999px; background: rgba(20, 20, 34, 0.92); font-size: 14px; opacity: 0; transition: opacity 0.2s, transform 0.2s var(--ease-out); pointer-events: none; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .hud > * { white-space: nowrap; }
+  @media (max-width: 600px) { .hud { gap: 10px; padding-left: 14px; padding-right: 14px; font-size: 11px; letter-spacing: 0.12em; } .hud .brand, .hud .cave-n { display: none; } .hud button { padding: 0 11px; letter-spacing: 0.12em; } .hint { font-size: 12px; } }
+  @media (prefers-reduced-motion: reduce) { .grain { animation: none; } .logo span { animation: none; } }
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="The cave" role="img"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="danger" id="danger" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="hud" id="hud" hidden>
+  <a class="brand" href="/#echo" aria-label="Back to STEZY">STEZY</a>
+  <span id="cave-label">Cave 1 <span class="cave-n">of 10</span></span>
+  <span id="mote-label">0 / 3 motes</span>
+  <span class="grow"></span>
+  <button type="button" id="sound-btn" aria-pressed="true">Sound on</button>
+  <button type="button" id="pause-btn">Pause</button>
+</header>
+<p class="hint" id="hint" hidden></p>
+<p class="sr" id="live" aria-live="polite"></p>
+
+<section class="screen" id="title-screen" aria-labelledby="logo">
+  <h1 class="logo" id="logo" aria-label="Echo"><span style="--i:0">E</span><span style="--i:1">C</span><span style="--i:2">H</span><span style="--i:3">O</span></h1>
+  <p class="tag">A light lost in the dark. Every echo shows the way, and gives you away.</p>
+  <div class="menu">
+    <button class="btn primary" type="button" id="play-btn">Begin</button>
+    <button class="btn" type="button" id="continue-btn" hidden>Continue</button>
+  </div>
+  <ul class="how">
+    <li><b>Click</b>, <b>tap</b> or press <b>Space</b> to send an echo.</li>
+    <li>Move with <b>WASD</b> or the <b>arrow keys</b>, or <b>hold</b> the mouse or your finger.</li>
+    <li>Find the warm light. Something down here is listening.</li>
+  </ul>
+  <a class="back" href="/#echo">&larr; back to STEZY</a>
+</section>
+
+<section class="screen" id="pause-screen" hidden aria-labelledby="pause-title">
+  <p class="small">Paused</p>
+  <h2 class="big" id="pause-title">Hold still</h2>
+  <div class="menu">
+    <button class="btn primary" type="button" id="resume-btn">Resume</button>
+    <button class="btn" type="button" id="restart-btn">Restart this cave</button>
+    <button class="btn" type="button" id="share-btn">Share Echo</button>
+  </div>
+  <a class="back" href="/#echo">&larr; back to STEZY</a>
+</section>
+
+<section class="screen warm" id="clear-screen" hidden aria-labelledby="clear-title">
+  <p class="small" id="clear-small">Cave 1</p>
+  <h2 class="big" id="clear-title">You found the light</h2>
+  <dl class="stats" id="clear-stats"></dl>
+  <div class="menu"><button class="btn primary" type="button" id="next-btn">Deeper</button></div>
+</section>
+
+<section class="screen warm" id="end-screen" hidden aria-labelledby="end-title">
+  <p class="small">Dawn</p>
+  <h2 class="big" id="end-title">You made it out</h2>
+  <p class="tag">Ten caves, in the dark, by sound alone.</p>
+  <dl class="stats" id="end-stats"></dl>
+  <div class="menu">
+    <button class="btn primary" type="button" id="endless-btn">Endless caves</button>
+    <button class="btn" type="button" id="share-end-btn">Share Echo</button>
+  </div>
+  <a class="back" href="/#echo">&larr; back to STEZY</a>
+</section>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+
+  // Film grain, made once
+  (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const x = c.getContext('2d'), img = x.createImageData(256, 256);
+    for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = Math.random() * 110; }
+    x.putImageData(img, 0, 0);
+    document.documentElement.style.setProperty('--noise', `url(${c.toDataURL()})`);
+  })();
+
+  // ---------- Canvas ----------
+  const cv = $('c'), ctx = cv.getContext('2d');
+  let W = 0, H = 0, dpr = 1, zoom = 1;
+  function resize() {
+    dpr = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    zoom = Math.max(0.8, Math.min(1.5, Math.min(W, H) / 620));
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  // ---------- Caves ----------
+  const CELL = 16, CAVES = 10;
+  const SEEDS = [11, 23, 37, 41, 59, 67, 73, 89, 97, 113];
+  const TINTS = [[143, 168, 255], [176, 140, 255], [127, 255, 224], [255, 140, 198], [150, 200, 255], [200, 160, 255], [120, 230, 255], [255, 170, 150], [170, 180, 255], [230, 150, 255]];
+  function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const N8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+
+  // Distances over open floor from one or more cells (walls stay -1)
+  function bfs(c, sources) {
+    const d = new Int32Array(c.w * c.h).fill(-1), q = new Int32Array(c.w * c.h);
+    let qh = 0, qt = 0;
+    for (const s of sources) if (!c.grid[s] && d[s] < 0) { d[s] = 0; q[qt++] = s; }
+    while (qh < qt) {
+      const i = q[qh++], x = i % c.w, y = (i / c.w) | 0;
+      for (let k = 0; k < 4; k++) {
+        const nx = x + N8[k][0], ny = y + N8[k][1];
+        if (nx < 0 || ny < 0 || nx >= c.w || ny >= c.h) continue;
+        const j = ny * c.w + nx;
+        if (c.grid[j] || d[j] >= 0) continue;
+        d[j] = d[i] + 1; q[qt++] = j;
+      }
+    }
+    return d;
+  }
+
+  function makeCave(seed, n) {
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const c = tryCave(seed + attempt * 1009, n);
+      if (c) return c;
+    }
+    return tryCave(seed, n, true);
+  }
+
+  function tryCave(seed, n, force) {
+    const rnd = rng(seed);
+    const w = 52 + n * 6, h = 34 + n * 4;
+    let g = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) g[y * w + x] = (x === 0 || y === 0 || x === w - 1 || y === h - 1 || rnd() < 0.46) ? 1 : 0;
+    const walls = (gr, x, y, r) => {
+      let s = 0;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const xx = x + dx, yy = y + dy;
+        s += (xx < 0 || yy < 0 || xx >= w || yy >= h) ? 1 : gr[yy * w + xx];
+      }
+      return s;
+    };
+    for (let it = 0; it < 5; it++) {
+      const ng = new Uint8Array(w * h);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        if (x === 0 || y === 0 || x === w - 1 || y === h - 1) { ng[y * w + x] = 1; continue; }
+        const a = walls(g, x, y, 1), b = it < 3 ? walls(g, x, y, 2) : 99;
+        ng[y * w + x] = (a >= 5 || b <= 2) ? 1 : 0;
+      }
+      g = ng;
+    }
+    const c = { w, h, grid: g, n };
+    // Keep only the biggest connected space
+    const label = new Int32Array(w * h).fill(-1);
+    let best = -1, bestSize = 0;
+    for (let i = 0; i < w * h; i++) {
+      if (g[i] || label[i] >= 0) continue;
+      const d = bfs(c, [i]); let size = 0;
+      for (let j = 0; j < w * h; j++) if (d[j] >= 0) { label[j] = i; size++; }
+      if (size > bestSize) { bestSize = size; best = i; }
+    }
+    if (!force && bestSize < w * h * 0.28) return null;
+    for (let i = 0; i < w * h; i++) if (!g[i] && label[i] !== best) g[i] = 1;
+    // How far each floor cell is from a wall
+    const wallCells = []; for (let i = 0; i < w * h; i++) if (g[i]) wallCells.push(i);
+    const clear = new Int32Array(w * h).fill(0);
+    {
+      const d = new Int32Array(w * h).fill(-1), q = new Int32Array(w * h); let qh = 0, qt = 0;
+      for (const i of wallCells) { d[i] = 0; q[qt++] = i; }
+      while (qh < qt) {
+        const i = q[qh++], x = i % w, y = (i / w) | 0;
+        for (const [dx, dy] of N8) {
+          const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const j = ny * w + nx; if (d[j] >= 0) continue; d[j] = d[i] + 1; q[qt++] = j;
+        }
+      }
+      for (let i = 0; i < w * h; i++) clear[i] = d[i];
+    }
+    // Start near the left, where there's room to breathe
+    let start = -1, bestScore = 1e9;
+    for (let i = 0; i < w * h; i++) {
+      if (g[i] || clear[i] < 3) continue;
+      const x = i % w, y = (i / w) | 0, score = x + Math.abs(y - h / 2) * 0.4;
+      if (score < bestScore) { bestScore = score; start = i; }
+    }
+    if (start < 0) for (let i = 0; i < w * h; i++) if (!g[i] && clear[i] >= 2) { start = i; break; }
+    if (start < 0) return null;
+    const dist = bfs(c, [start]);
+    let exit = -1, far = 0;
+    for (let i = 0; i < w * h; i++) if (dist[i] > far && clear[i] >= 2) { far = dist[i]; exit = i; }
+    if (exit < 0 || (!force && far < 50)) return null;
+    // Motes along the way, and the things that listen, kept far from the start
+    const pick = (count, minD, maxD, gap, avoid) => {
+      const out = [];
+      for (let tries = 0; tries < 4000 && out.length < count; tries++) {
+        const i = (rnd() * w * h) | 0;
+        if (g[i] || clear[i] < 2 || dist[i] < minD || dist[i] > maxD) continue;
+        const x = i % w, y = (i / w) | 0;
+        if ([...out, ...avoid].some(j => Math.hypot((j % w) - x, ((j / w) | 0) - y) < gap)) continue;
+        out.push(i);
+      }
+      return out;
+    };
+    const motes = pick(3, far * 0.2, far * 0.92, 12, [start, exit]);
+    const hollowCount = [0, 1, 1, 2, 2, 3, 3, 4, 5, 6][Math.min(n, 9)] + Math.max(0, n - 9);
+    const hollows = pick(hollowCount, far * 0.35, far * 1.01, 10, [start, exit, ...motes]);
+    c.start = start; c.exit = exit; c.far = far; c.clear = clear;
+    c.motes = motes.map(i => ({ x: (i % w + 0.5) * CELL, y: (((i / w) | 0) + 0.5) * CELL, got: false, lit: 0, ph: rnd() * 6.28 }));
+    c.hollowCells = hollows;
+    buildEdges(c, rnd);
+    return c;
+  }
+
+  // The walls are only ever seen as dust along their edges, lit by echoes. The edges are traced smoothly
+  // (marching squares over a softened copy of the grid), so caves look carved, not built from blocks.
+  const SEGS = [[], [[3, 2]], [[2, 1]], [[3, 1]], [[0, 1]], [[3, 0], [2, 1]], [[0, 2]], [[3, 0]], [[3, 0]], [[0, 2]], [[0, 1], [3, 2]], [[0, 1]], [[3, 1]], [[2, 1]], [[3, 2]], []];
+  function buildEdges(c, rnd) {
+    const { w, h, grid } = c;
+    const f = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let sum = 0, wt = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const k = (dx ? 1 : 2) * (dy ? 1 : 2), xx = x + dx, yy = y + dy;
+        sum += k * ((xx < 0 || yy < 0 || xx >= w || yy >= h) ? 1 : grid[yy * w + xx]); wt += k;
+      }
+      f[y * w + x] = sum / wt;
+    }
+    const xs = [], ys = [], cellOf = [];
+    c.cellPts = new Array(w * h);
+    const owner = (px, py) => {
+      const cx = Math.floor(px / CELL), cy = Math.floor(py / CELL);
+      if (isWall(c, cx, cy) && cx >= 0 && cy >= 0 && cx < w && cy < h) return cy * w + cx;
+      let best = -1, bd = 1e9;
+      for (const [dx, dy] of N8) {
+        const nx = cx + dx, ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h || !grid[ny * w + nx]) continue;
+        const d = Math.hypot((nx + 0.5) * CELL - px, (ny + 0.5) * CELL - py);
+        if (d < bd) { bd = d; best = ny * w + nx; }
+      }
+      return best >= 0 ? best : cy * w + cx;
+    };
+    const add = (px, py) => {
+      const i = owner(px, py);
+      (c.cellPts[i] || (c.cellPts[i] = [])).push(xs.length);
+      xs.push(px + (rnd() - 0.5) * 1.6); ys.push(py + (rnd() - 0.5) * 1.6); cellOf.push(i);
+    };
+    for (let y = 0; y < h - 1; y++) for (let x = 0; x < w - 1; x++) {
+      const a = f[y * w + x], b = f[y * w + x + 1], cc = f[(y + 1) * w + x + 1], d = f[(y + 1) * w + x];
+      const idx = (a > 0.5 ? 8 : 0) | (b > 0.5 ? 4 : 0) | (cc > 0.5 ? 2 : 0) | (d > 0.5 ? 1 : 0);
+      if (!idx || idx === 15) continue;
+      const at = e => e === 0 ? [x + (0.5 - a) / (b - a), y] : e === 1 ? [x + 1, y + (0.5 - b) / (cc - b)] : e === 2 ? [x + (0.5 - d) / (cc - d), y + 1] : [x, y + (0.5 - a) / (d - a)];
+      for (const [e1, e2] of SEGS[idx]) {
+        const p1 = at(e1), p2 = at(e2);
+        const x1 = (p1[0] + 0.5) * CELL, y1 = (p1[1] + 0.5) * CELL, x2 = (p2[0] + 0.5) * CELL, y2 = (p2[1] + 0.5) * CELL;
+        const n = Math.max(1, Math.round(Math.hypot(x2 - x1, y2 - y1) / 4.5));
+        for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; add(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t); }
+      }
+    }
+    c.px = Float32Array.from(xs); c.py = Float32Array.from(ys);
+    c.light = new Float32Array(xs.length); c.seen = new Uint8Array(xs.length);
+    c.ptCell = Int32Array.from(cellOf);
+  }
+
+  const isWall = (c, cx, cy) => cx < 0 || cy < 0 || cx >= c.w || cy >= c.h || c.grid[cy * c.w + cx] === 1;
+
+  // Walks a ray through the grid until it meets a wall
+  function cast(c, ox, oy, ang, maxD) {
+    const dx = Math.cos(ang), dy = Math.sin(ang);
+    let cx = Math.floor(ox / CELL), cy = Math.floor(oy / CELL);
+    const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1;
+    const tdx = dx !== 0 ? Math.abs(CELL / dx) : Infinity, tdy = dy !== 0 ? Math.abs(CELL / dy) : Infinity;
+    let tx = dx > 0 ? ((cx + 1) * CELL - ox) / dx : dx < 0 ? (ox - cx * CELL) / -dx : Infinity;
+    let ty = dy > 0 ? ((cy + 1) * CELL - oy) / dy : dy < 0 ? (oy - cy * CELL) / -dy : Infinity;
+    let t = 0;
+    while (t < maxD) {
+      if (tx < ty) { cx += sx; t = tx; tx += tdx; } else { cy += sy; t = ty; ty += tdy; }
+      if (isWall(c, cx, cy)) return { d: Math.min(t, maxD), cell: (cx >= 0 && cy >= 0 && cx < c.w && cy < c.h) ? cy * c.w + cx : -1 };
+    }
+    return { d: maxD, cell: -1 };
+  }
+  const sees = (c, ax, ay, bx, by) => { const d = Math.hypot(bx - ax, by - ay); return d < 1 || cast(c, ax, ay, Math.atan2(by - ay, bx - ax), d).d >= d - 1; };
+
+  // ---------- Sound: made on the spot, nothing to download ----------
+  const audio = (() => {
+    let ac = null, master, dry, verb, humGain, humPan, muted = store.get('echo-sound') === 'off';
+    function impulse(sec, decay) {
+      const len = Math.floor(ac.sampleRate * sec), b = ac.createBuffer(2, len, ac.sampleRate);
+      for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); }
+      return b;
+    }
+    function init() {
+      if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+      const A = window.AudioContext || window.webkitAudioContext; if (!A) return;
+      ac = new A();
+      master = ac.createGain(); master.gain.value = muted ? 0 : 0.6; master.connect(ac.destination);
+      dry = ac.createGain(); dry.connect(master);
+      verb = ac.createConvolver(); verb.buffer = impulse(3, 2.4);
+      const wet = ac.createGain(); wet.gain.value = 0.5; verb.connect(wet); wet.connect(master);
+      // Cave air: very soft, deep noise
+      const nb = ac.createBuffer(1, ac.sampleRate * 4, ac.sampleRate), nd = nb.getChannelData(0);
+      let last = 0; for (let i = 0; i < nd.length; i++) { last = (last + (Math.random() * 2 - 1) * 0.02) * 0.995; nd[i] = last * 3; }
+      const air = ac.createBufferSource(); air.buffer = nb; air.loop = true;
+      const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
+      const ag = ac.createGain(); ag.gain.value = 0.05;
+      air.connect(lp); lp.connect(ag); ag.connect(master); air.start();
+      // The way out hums softly; louder as you get closer
+      humGain = ac.createGain(); humGain.gain.value = 0;
+      humPan = ac.createStereoPanner();
+      const hl = ac.createBiquadFilter(); hl.type = 'lowpass'; hl.frequency.value = 900;
+      [196, 293.66, 392.5].forEach((f, k) => { const o = ac.createOscillator(); o.type = k === 2 ? 'triangle' : 'sine'; o.frequency.value = f; const og = ac.createGain(); og.gain.value = k === 2 ? 0.25 : 0.5; o.connect(og); og.connect(hl); o.start(); });
+      hl.connect(humGain); humGain.connect(humPan); humPan.connect(dry); humPan.connect(verb);
+    }
+    function tone(freq, t, dur, gain, pan = 0, cutoff = 6000, type = 'sine', glide = 0.96, wetOnly = false) {
+      if (!ac) return;
+      const o = ac.createOscillator(); o.type = type;
+      o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(freq * glide, t + dur);
+      const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff;
+      const p = ac.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan));
+      o.connect(f); f.connect(g); g.connect(p);
+      if (!wetOnly) p.connect(dry);
+      p.connect(verb);
+      o.start(t); o.stop(t + dur + 0.05);
+    }
+    function noise(t, dur, gain, freq, pan = 0, q = 1.2) {
+      if (!ac) return;
+      const b = ac.createBuffer(1, Math.floor(ac.sampleRate * dur), ac.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const s = ac.createBufferSource(); s.buffer = b;
+      const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+      const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + dur * 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      const p = ac.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan));
+      s.connect(f); f.connect(g); g.connect(p); p.connect(dry); p.connect(verb);
+      s.start(t);
+    }
+    return {
+      init,
+      get muted() { return muted; },
+      setMuted(m) { muted = m; store.set('echo-sound', m ? 'off' : 'on'); if (ac) master.gain.setTargetAtTime(m ? 0 : 0.6, ac.currentTime, 0.08); },
+      // The ping, then its echoes coming back from the walls: nearer walls answer sooner and louder
+      ping(echoes) {
+        if (!ac) return; const t = ac.currentTime + 0.01;
+        tone(988, t, 0.55, 0.2, 0, 7000); tone(1482, t, 0.25, 0.05, 0, 7000);
+        for (const e of echoes) tone(988 * (1 - Math.min(0.08, e.d / 9000)), t + e.delay, 0.5, 0.14 * e.vol, e.pan, 700 + 5000 * e.vol, 'sine', 0.97);
+      },
+      mote(pan) { if (!ac) return; const t = ac.currentTime + 0.01; tone(1568, t, 0.9, 0.11, pan); tone(2349, t + 0.08, 0.9, 0.07, pan); tone(3136, t + 0.16, 0.7, 0.04, pan); },
+      stir(pan) { if (!ac) return; const t = ac.currentTime + 0.05; noise(t, 1.6, 0.09, 240, pan, 1.6); tone(73, t, 1.4, 0.08, pan, 300, 'triangle', 0.8, true); },
+      caught() { if (!ac) return; const t = ac.currentTime + 0.01; tone(98, t, 1.4, 0.3, 0, 500, 'triangle', 0.45); noise(t, 1.2, 0.2, 400, 0, 0.7); },
+      found() { if (!ac) return; const t = ac.currentTime + 0.02; [523.25, 659.25, 783.99, 987.77, 1174.66].forEach((f, k) => tone(f, t + k * 0.1, 2.4, 0.09, (k - 2) * 0.25, 5000, 'sine', 1)); },
+      beat(gain) { if (!ac) return; const t = ac.currentTime + 0.01; tone(55, t, 0.25, gain, 0, 200, 'sine', 0.7); tone(52, t + 0.2, 0.22, gain * 0.7, 0, 200, 'sine', 0.7); },
+      hum(gain, pan) { if (!ac) return; humGain.gain.setTargetAtTime(gain, ac.currentTime, 0.25); humPan.pan.setTargetAtTime(Math.max(-1, Math.min(1, pan)), ac.currentTime, 0.25); }
+    };
+  })();
+
+  // ---------- State ----------
+  let state = 'title', caveIndex = 0, endless = false, cave = null;
+  const player = { x: 0, y: 0, vx: 0, vy: 0, cool: 0 };
+  let hollows = [], pulses = [], sparks = [];
+  let exit = { x: 0, y: 0, lit: 0 };
+  let cam = { x: 0, y: 0 }, tint = TINTS[0];
+  let stats = { time: 0, echoes: 0 }, totals = { time: 0, echoes: 0, caught: 0, motes: 0 };
+  let flowPlayer = null, flowAt = 0, beatAt = 0, shake = 0, fade = 1, fadeTo = 0, after = null;
+  const progress = (() => { try { return JSON.parse(store.get('echo-progress')) || {}; } catch (e) { return {}; } })();
+
+  function loadCave(i) {
+    caveIndex = i;
+    const seed = endless ? (Date.now() & 0xffff) + i * 7919 : SEEDS[i];
+    cave = makeCave(seed, endless ? Math.min(12, 6 + i) : i);
+    tint = TINTS[i % TINTS.length];
+    document.documentElement.style.setProperty('--tint', `rgb(${tint.join(',')})`);
+    const s = cave.start;
+    player.x = (s % cave.w + 0.5) * CELL; player.y = (((s / cave.w) | 0) + 0.5) * CELL;
+    player.vx = player.vy = 0; player.cool = 0;
+    cam.x = player.x; cam.y = player.y;
+    exit = { x: (cave.exit % cave.w + 0.5) * CELL, y: (((cave.exit / cave.w) | 0) + 0.5) * CELL, lit: 0 };
+    const speed = 62 + Math.min(cave.n, 12) * 5.5;
+    hollows = cave.hollowCells.map(i => ({ x: (i % cave.w + 0.5) * CELL, y: (((i / cave.w) | 0) + 0.5) * CELL, mode: 'rest', flow: null, lit: 0, speed, wob: Math.random() * 6.28, wait: 0, home: i, dir: 0, giveUp: 0 }));
+    pulses = []; sparks = []; flowPlayer = null;
+    $('danger').style.opacity = 0;
+    stats = { time: 0, echoes: 0 };
+    $('cave-label').innerHTML = endless ? `Endless ${i + 1}` : `Cave ${i + 1} <span class="cave-n">of ${CAVES}</span>`;
+    updateMotes();
+  }
+  function updateMotes() { $('mote-label').textContent = `${cave.motes.filter(m => m.got).length} / ${cave.motes.length} motes`; }
+
+  // ---------- Echoes ----------
+  const RAYS = 540, REACH = 980, SPEED = 560;
+  function sendEcho(x, y, auto) {
+    const rays = new Float32Array(RAYS), hits = [];
+    for (let i = 0; i < RAYS; i++) {
+      const r = cast(cave, x, y, i / RAYS * Math.PI * 2, REACH);
+      rays[i] = r.d;
+      if (r.cell >= 0) hits.push(r.d, r.cell);
+    }
+    const order = []; for (let k = 0; k < hits.length; k += 2) order.push(k);
+    order.sort((a, b) => hits[a] - hits[b]);
+    pulses.push({ x, y, t0: performance.now(), rays, hits, order, k: 0 });
+    if (auto) return;
+    stats.echoes++;
+    // Twelve directions: the nearest wall in each answers back
+    const echoes = [];
+    for (let s = 0; s < 12; s++) {
+      let m = REACH;
+      for (let i = Math.floor(s * RAYS / 12); i < Math.floor((s + 1) * RAYS / 12); i++) m = Math.min(m, rays[i]);
+      if (m < 880) { const vol = Math.pow(Math.max(0.12, 1 - m / 900), 1.4), ang = (s + 0.5) / 12 * Math.PI * 2; echoes.push({ d: m, delay: 0.07 + m * 2 / 1700, vol, pan: Math.cos(ang) * 0.85 }); }
+    }
+    audio.ping(echoes);
+    // Anything listening nearby wakes up and comes to see
+    const hear = 380 + Math.min(cave.n, 12) * 26;
+    let stirred = null, flow = null;
+    const cell = Math.floor(y / CELL) * cave.w + Math.floor(x / CELL);
+    for (const h of hollows) {
+      if (Math.hypot(h.x - x, h.y - y) > hear || h.mode === 'chase') continue;
+      if (h.mode === 'rest') stirred = h;
+      h.mode = 'hunt';
+      h.flow = flow || (flow = bfs(cave, [cell]));
+    }
+    if (stirred) audio.stir((stirred.x - player.x) / 500);
+  }
+
+  function lightCell(cell, v) {
+    const list = cave.cellPts[cell]; if (!list) return;
+    for (const p of list) if (cave.light[p] < v) { cave.light[p] = v; if (v > 0.3) cave.seen[p] = 1; }
+  }
+
+  function updatePulses(now) {
+    for (const p of pulses) {
+      const r = (now - p.t0) / 1000 * SPEED;
+      while (p.k < p.order.length && p.hits[p.order[p.k]] <= r) {
+        const k = p.order[p.k], d = p.hits[k], cell = p.hits[k + 1], v = 1 - 0.55 * d / REACH;
+        lightCell(cell, v);
+        const x = cell % cave.w, y = (cell / cave.w) | 0;
+        for (const [dx, dy] of N8) { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < cave.w && ny < cave.h) lightCell(ny * cave.w + nx, v * 0.55); }
+        p.k++;
+      }
+      const touch = (o, key) => { const d = Math.hypot(o.x - p.x, o.y - p.y); if (Math.abs(d - r) < 26 && sees(cave, p.x, p.y, o.x, o.y)) o[key] = 1; };
+      for (const h of hollows) touch(h, 'lit');
+      for (const m of cave.motes) touch(m, 'lit');
+      touch(exit, 'lit');
+    }
+    pulses = pulses.filter(p => (now - p.t0) / 1000 * SPEED < REACH + 60);
+  }
+
+  // ---------- Movement ----------
+  const keys = new Set();
+  const ptr = { down: false, id: -1, x: 0, y: 0, sx: 0, sy: 0, t: 0, moved: false };
+  function collide(e, r) {
+    const x0 = Math.floor((e.x - r) / CELL), x1 = Math.floor((e.x + r) / CELL), y0 = Math.floor((e.y - r) / CELL), y1 = Math.floor((e.y + r) / CELL);
+    for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) {
+      if (!isWall(cave, cx, cy)) continue;
+      const qx = Math.max(cx * CELL, Math.min(e.x, cx * CELL + CELL)), qy = Math.max(cy * CELL, Math.min(e.y, cy * CELL + CELL));
+      let dx = e.x - qx, dy = e.y - qy, d = Math.hypot(dx, dy);
+      if (d >= r) continue;
+      if (d < 0.001) { dx = e.x - (cx + 0.5) * CELL; dy = e.y - (cy + 0.5) * CELL; d = Math.hypot(dx, dy) || 1; e.x += dx / d * r; e.y += dy / d * r; continue; }
+      const nx = dx / d, ny = dy / d;
+      e.x += nx * (r - d); e.y += ny * (r - d);
+      const vn = e.vx * nx + e.vy * ny; if (vn < 0) { e.vx -= vn * nx; e.vy -= vn * ny; }
+    }
+  }
+  function moveInput() {
+    let ax = 0, ay = 0;
+    if (keys.has('arrowleft') || keys.has('a')) ax -= 1;
+    if (keys.has('arrowright') || keys.has('d')) ax += 1;
+    if (keys.has('arrowup') || keys.has('w')) ay -= 1;
+    if (keys.has('arrowdown') || keys.has('s')) ay += 1;
+    if (!ax && !ay && ptr.down && (ptr.moved || performance.now() - ptr.t > 170)) {
+      const wx = cam.x + (ptr.x - W / 2) / zoom, wy = cam.y + (ptr.y - H / 2) / zoom;
+      const dx = wx - player.x, dy = wy - player.y, d = Math.hypot(dx, dy);
+      if (d > 6) { const k = Math.min(1, d / 110); ax = dx / d * k; ay = dy / d * k; }
+    }
+    const m = Math.hypot(ax, ay); if (m > 1) { ax /= m; ay /= m; }
+    return [ax, ay];
+  }
+
+  // ---------- The things in the dark ----------
+  function stepHollows(dt, now) {
+    const pcell = Math.floor(player.y / CELL) * cave.w + Math.floor(player.x / CELL);
+    let nearest = Infinity;
+    for (const h of hollows) {
+      const dp = Math.hypot(h.x - player.x, h.y - player.y);
+      // They can feel your warmth when you come too close
+      if (dp < 92 && h.mode !== 'chase' && sees(cave, h.x, h.y, player.x, player.y)) { h.mode = 'chase'; h.giveUp = 0; audio.stir((h.x - player.x) / 500); }
+      if (h.mode === 'chase') { h.giveUp = dp > 240 ? h.giveUp + dt : 0; if (h.giveUp > 2.2) h.mode = 'rest'; }
+      if (h.mode === 'hunt' || h.mode === 'chase') nearest = Math.min(nearest, dp);
+      let flow = null;
+      if (h.mode === 'chase') {
+        if (!flowPlayer || now - flowAt > 350) { flowPlayer = bfs(cave, [pcell]); flowAt = now; }
+        flow = flowPlayer;
+      } else if (h.mode === 'hunt') flow = h.flow;
+      let tx = h.x, ty = h.y, speed = h.speed;
+      const cx = Math.floor(h.x / CELL), cy = Math.floor(h.y / CELL), here = cy * cave.w + cx;
+      if (flow && flow[here] >= 0) {
+        if (flow[here] <= 1 && h.mode === 'hunt') { h.mode = 'rest'; h.wait = 1.5; }
+        let bestD = flow[here], bx = cx, by = cy;
+        for (const [dx, dy] of N8) {
+          const nx = cx + dx, ny = cy + dy; if (isWall(cave, nx, ny)) continue;
+          if (dx && dy && (isWall(cave, cx + dx, cy) || isWall(cave, cx, cy + dy))) continue;
+          const v = flow[ny * cave.w + nx]; if (v >= 0 && v < bestD) { bestD = v; bx = nx; by = ny; }
+        }
+        tx = (bx + 0.5) * CELL; ty = (by + 0.5) * CELL;
+        if (h.mode === 'chase') { speed = Math.min(h.speed * 1.18, 138); if (dp < 40) { tx = player.x; ty = player.y; } }
+      } else {
+        // Resting: drift a little around where they are
+        h.wait -= dt;
+        if (!h.wander || h.wait <= 0) {
+          h.wait = 2 + Math.random() * 3;
+          for (let tries = 0; tries < 12; tries++) {
+            const nx = cx + Math.round((Math.random() - 0.5) * 6), ny = cy + Math.round((Math.random() - 0.5) * 6);
+            if (!isWall(cave, nx, ny) && sees(cave, h.x, h.y, (nx + 0.5) * CELL, (ny + 0.5) * CELL)) { h.wander = { x: (nx + 0.5) * CELL, y: (ny + 0.5) * CELL }; break; }
+          }
+        }
+        if (h.wander) { tx = h.wander.x; ty = h.wander.y; }
+        speed = 18;
+      }
+      const dx = tx - h.x, dy = ty - h.y, d = Math.hypot(dx, dy);
+      if (d > 0.5) { const s = Math.min(d, speed * dt); h.x += dx / d * s; h.y += dy / d * s; h.dir = Math.atan2(dy, dx); }
+      h.lit = Math.max(0, h.lit - dt / 1.3);
+      h.wob += dt * (h.mode === 'rest' ? 1.2 : 3.2);
+      if (dp < 13 && state === 'play') caught();
+    }
+    // A heartbeat, and the edges going violet, when something is close
+    const danger = nearest < 260 ? 1 - nearest / 260 : 0;
+    $('danger').style.opacity = (danger * 0.9).toFixed(3);
+    if (danger > 0.15 && now - beatAt > 1100 - danger * 500) { beatAt = now; audio.beat(0.05 + danger * 0.2); }
+  }
+
+  // ---------- Moments ----------
+  function burst(x, y, color, count, speed) {
+    for (let i = 0; i < count; i++) { const a = Math.random() * Math.PI * 2, s = speed * (0.3 + Math.random()); sparks.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, color }); }
+  }
+  function caught() {
+    state = 'caught';
+    totals.caught++;
+    audio.caught();
+    shake = 1;
+    burst(player.x, player.y, [180, 140, 255], 60, 160);
+    say('The dark caught you. Try again.');
+    fadeTo = 1;
+    after = () => { loadCave(caveIndex); state = 'play'; fadeTo = 0; };
+  }
+  function found() {
+    state = 'found';
+    audio.found();
+    $('danger').style.opacity = 0;
+    burst(exit.x, exit.y, [255, 210, 150], 90, 200);
+    const got = cave.motes.filter(m => m.got).length;
+    totals.time += stats.time; totals.echoes += stats.echoes; totals.motes += got;
+    if (!endless) {
+      const best = progress.motes || {};
+      best[caveIndex] = Math.max(best[caveIndex] || 0, got);
+      progress.motes = best;
+      progress.cave = Math.max(progress.cave || 0, caveIndex + 1);
+      store.set('echo-progress', JSON.stringify(progress));
+    }
+    setTimeout(() => {
+      if (!endless && caveIndex === CAVES - 1) { showEnd(); return; }
+      $('clear-small').textContent = endless ? `Endless cave ${caveIndex + 1}` : `Cave ${caveIndex + 1} of ${CAVES}`;
+      $('clear-title').textContent = ['You found the light', 'Out of the dark', 'There it is', 'Warmth, at last'][caveIndex % 4];
+      $('clear-stats').innerHTML = statsHtml([['Time', clock(stats.time)], ['Echoes', stats.echoes], ['Motes', `${got} / ${cave.motes.length}`]]);
+      show('clear-screen');
+      setTimeout(() => $('next-btn').focus(), 50);
+    }, 1300);
+  }
+  function showEnd() {
+    $('end-stats').innerHTML = statsHtml([['Time', clock(totals.time)], ['Echoes', totals.echoes], ['Motes', `${totals.motes} / ${CAVES * 3}`], ['Caught', totals.caught]]);
+    show('end-screen');
+    state = 'end';
+  }
+  const statsHtml = rows => rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  const clock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  function say(text) { $('live').textContent = text; toast(text); }
+  let toastT;
+  function toast(text) { const t = $('toast'); t.textContent = text; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200); }
+
+  // ---------- Screens ----------
+  const screens = ['title-screen', 'pause-screen', 'clear-screen', 'end-screen'];
+  function show(id) { screens.forEach(s => { $(s).hidden = s !== id; }); }
+  function begin(i) {
+    audio.init();
+    if (i === 0 && !endless) totals = { time: 0, echoes: 0, caught: 0, motes: 0 };
+    loadCave(i);
+    show(null);
+    $('hud').hidden = false;
+    state = 'play';
+    fade = 1; fadeTo = 0;
+    const hint = $('hint');
+    hint.hidden = false; hint.style.opacity = 1;
+    hint.textContent = matchMedia('(pointer: coarse)').matches ? 'Tap to send an echo. Hold to move.' : 'Click or press Space to send an echo. WASD or hold to move.';
+    clearTimeout(hint._t); hint._t = setTimeout(() => { hint.style.opacity = 0; }, i === 0 ? 9000 : 3500);
+  }
+  function pause() { if (state !== 'play') return; state = 'pause'; show('pause-screen'); setTimeout(() => $('resume-btn').focus(), 30); }
+  function resume() { if (state !== 'pause') return; show(null); state = 'play'; }
+  $('play-btn').addEventListener('click', () => { endless = false; begin(0); });
+  $('continue-btn').addEventListener('click', () => { endless = false; begin(Math.min(CAVES - 1, progress.cave || 0)); });
+  if (progress.cave > 0 && progress.cave < CAVES) { const b = $('continue-btn'); b.hidden = false; b.textContent = `Continue · Cave ${progress.cave + 1}`; }
+  $('resume-btn').addEventListener('click', resume);
+  $('restart-btn').addEventListener('click', () => { show(null); loadCave(caveIndex); state = 'play'; });
+  $('pause-btn').addEventListener('click', () => (state === 'pause' ? resume() : pause()));
+  $('next-btn').addEventListener('click', () => begin(caveIndex + 1));
+  $('endless-btn').addEventListener('click', () => { endless = true; totals = { time: 0, echoes: 0, caught: 0, motes: 0 }; begin(0); });
+  const soundBtn = $('sound-btn');
+  function soundUi() { soundBtn.textContent = audio.muted ? 'Sound off' : 'Sound on'; soundBtn.setAttribute('aria-pressed', String(!audio.muted)); }
+  soundBtn.addEventListener('click', () => { audio.init(); audio.setMuted(!audio.muted); soundUi(); });
+  soundUi();
+  document.querySelectorAll('.hud button').forEach(b => b.addEventListener('click', () => b.blur()));
+  async function share() {
+    const url = 'https://stezy.lt/p/echo/';
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) { try { await navigator.share({ title: 'Echo', text: 'A light lost in the dark. Play it free in your browser.', url }); return; } catch (e) { return; } }
+    try { await navigator.clipboard.writeText(url); toast('Link copied'); } catch (e) { toast(url); }
+  }
+  $('share-btn').addEventListener('click', share);
+  $('share-end-btn').addEventListener('click', share);
+
+  // ---------- Input ----------
+  addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    if (state === 'play') {
+      if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(k)) { keys.add(k); e.preventDefault(); }
+      if ((k === ' ' || k === 'e') && !e.repeat) { tryEcho(); e.preventDefault(); }
+      if (k === 'escape' || k === 'p') pause();
+      if (k === 'r') { loadCave(caveIndex); }
+    } else if (state === 'pause' && (k === 'escape' || k === 'p')) resume();
+    if (k === 'm') { audio.init(); audio.setMuted(!audio.muted); soundUi(); }
+    if (state === 'title' && k === 'enter' && document.activeElement === document.body) $('play-btn').click();
+  });
+  addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+  addEventListener('blur', () => { keys.clear(); ptr.down = false; if (state === 'play') pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') pause(); });
+  cv.addEventListener('pointerdown', e => {
+    if (state !== 'play') return;
+    audio.init();
+    ptr.down = true; ptr.id = e.pointerId; ptr.x = ptr.sx = e.clientX; ptr.y = ptr.sy = e.clientY; ptr.t = performance.now(); ptr.moved = false;
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!ptr.down || e.pointerId !== ptr.id) return;
+    ptr.x = e.clientX; ptr.y = e.clientY;
+    if (Math.hypot(ptr.x - ptr.sx, ptr.y - ptr.sy) > 12) ptr.moved = true;
+  });
+  const up = e => {
+    if (!ptr.down || e.pointerId !== ptr.id) return;
+    ptr.down = false;
+    if (!ptr.moved && performance.now() - ptr.t < 230 && state === 'play') tryEcho();
+  };
+  cv.addEventListener('pointerup', up);
+  cv.addEventListener('pointercancel', e => { if (e.pointerId === ptr.id) ptr.down = false; });
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  function tryEcho() {
+    if (player.cool > 0) return;
+    player.cool = 0.75;
+    sendEcho(player.x, player.y);
+  }
+
+  // ---------- Title screen: a cave being drawn by echoes behind the name ----------
+  let demo = null, demoAt = 0;
+  function startDemo() {
+    demo = makeCave(5, 4);
+    cave = demo;
+    const pts = []; for (let i = 0; i < demo.w * demo.h; i++) if (!demo.grid[i] && demo.clear[i] >= 3) pts.push(i);
+    demo.spots = pts;
+    const s = pts[(pts.length / 2) | 0];
+    cam.x = (s % demo.w + 0.5) * CELL; cam.y = (((s / demo.w) | 0) + 0.5) * CELL;
+    tint = TINTS[0];
+  }
+
+  // ---------- Loop ----------
+  let last = performance.now();
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    try { update(dt, now); draw(now); } catch (err) { console.warn(err); }
+  }
+
+  function update(dt, now) {
+    fade += (fadeTo - fade) * Math.min(1, dt * 3.5);
+    if (after && fade > 0.97) { const f = after; after = null; f(); }
+    if (state === 'title') {
+      if (!demo) startDemo();
+      if (now - demoAt > 2600) {
+        demoAt = now;
+        const s = demo.spots[(Math.random() * demo.spots.length) | 0];
+        const tx = (s % demo.w + 0.5) * CELL, ty = (((s / demo.w) | 0) + 0.5) * CELL;
+        if (Math.hypot(tx - cam.x, ty - cam.y) < 420) sendEcho(tx, ty, true); else sendEcho(cam.x, cam.y, true);
+      }
+      updatePulses(now);
+      decay(dt);
+      return;
+    }
+    if (!cave || cave === demo) return;
+    if (state === 'play') {
+      stats.time += dt;
+      const [ax, ay] = moveInput();
+      const max = 150, acc = 900;
+      player.vx += (ax * max - player.vx) * Math.min(1, dt * acc / max);
+      player.vy += (ay * max - player.vy) * Math.min(1, dt * acc / max);
+      const steps = Math.max(1, Math.ceil(Math.hypot(player.vx, player.vy) * dt / 3));
+      for (let i = 0; i < steps; i++) { player.x += player.vx * dt / steps; player.y += player.vy * dt / steps; collide(player, 6); }
+      player.cool = Math.max(0, player.cool - dt);
+      // Motes and the way out
+      for (const m of cave.motes) {
+        if (!m.got && Math.hypot(m.x - player.x, m.y - player.y) < 15) { m.got = true; audio.mote((m.x - player.x) / 400); burst(m.x, m.y, [200, 225, 255], 26, 90); updateMotes(); say('A mote of light'); }
+      }
+      if (Math.hypot(exit.x - player.x, exit.y - player.y) < 20) found();
+    }
+    if (state === 'play' || state === 'caught') stepHollows(state === 'play' ? dt : 0, now);
+    // the way out hums, louder when near
+    const de = Math.hypot(exit.x - player.x, exit.y - player.y);
+    audio.hum(state === 'play' ? 0.07 * Math.pow(Math.max(0, 1 - de / 1300), 2) : 0, (exit.x - player.x) / 520);
+    updatePulses(now);
+    decay(dt);
+    // your own small glow lights the walls right next to you
+    const R = 74, cx = Math.floor(player.x / CELL), cy = Math.floor(player.y / CELL), rc = Math.ceil(R / CELL);
+    for (let y = cy - rc; y <= cy + rc; y++) for (let x = cx - rc; x <= cx + rc; x++) {
+      if (x < 0 || y < 0 || x >= cave.w || y >= cave.h) continue;
+      const list = cave.cellPts[y * cave.w + x]; if (!list) continue;
+      for (const p of list) { const d = Math.hypot(cave.px[p] - player.x, cave.py[p] - player.y); if (d < R) { const v = 0.8 * (1 - d / R); if (cave.light[p] < v) cave.light[p] = v; if (v > 0.3) cave.seen[p] = 1; } }
+    }
+    exit.lit = Math.max(0, exit.lit - dt / 4);
+    for (const m of cave.motes) m.lit = Math.max(0, m.lit - dt / 2);
+    for (const s of sparks) { s.x += s.vx * dt; s.y += s.vy * dt; s.vx *= 0.96; s.vy *= 0.96; s.life -= dt * 0.9; }
+    sparks = sparks.filter(s => s.life > 0);
+    shake = Math.max(0, shake - dt * 2);
+    const lead = 0.28;
+    cam.x += (player.x + player.vx * lead - cam.x) * Math.min(1, dt * 4);
+    cam.y += (player.y + player.vy * lead - cam.y) * Math.min(1, dt * 4);
+  }
+
+  function decay(dt) {
+    const k = Math.exp(-dt / 1.9), L = cave.light, S = cave.seen;
+    for (let i = 0; i < L.length; i++) { const mem = S[i] ? 0.055 : 0; if (L[i] > mem) L[i] = mem + (L[i] - mem) * k; }
+  }
+
+  const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  function draw(now) {
+    const t = now / 1000;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#04040A';
+    ctx.fillRect(0, 0, W, H);
+    if (!cave) return;
+    const sx = shake ? (Math.random() - 0.5) * 10 * shake : 0, sy = shake ? (Math.random() - 0.5) * 10 * shake : 0;
+    ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, dpr * (W / 2 - cam.x * zoom + sx), dpr * (H / 2 - cam.y * zoom + sy));
+    const vx0 = cam.x - W / 2 / zoom - 20, vx1 = cam.x + W / 2 / zoom + 20, vy0 = cam.y - H / 2 / zoom - 20, vy1 = cam.y + H / 2 / zoom + 20;
+    ctx.globalCompositeOperation = 'lighter';
+
+    // The way out: a warm glow, brighter when an echo has found it
+    if (cave !== demo) {
+      const de = Math.hypot(exit.x - player.x, exit.y - player.y);
+      const vis = Math.max(exit.lit, de < 320 ? 1 - de / 320 : 0, 0.0);
+      if (vis > 0.01) {
+        const r = 70 + Math.sin(t * 2) * 6;
+        const g = ctx.createRadialGradient(exit.x, exit.y, 0, exit.x, exit.y, r * 1.8);
+        g.addColorStop(0, `rgba(255,236,200,${0.9 * vis})`); g.addColorStop(0.18, `rgba(255,201,138,${0.55 * vis})`); g.addColorStop(1, 'rgba(255,170,90,0)');
+        ctx.fillStyle = g; ctx.fillRect(exit.x - r * 1.8, exit.y - r * 1.8, r * 3.6, r * 3.6);
+        for (let i = 0; i < 6; i++) {
+          const a = t * 0.3 + i * Math.PI / 3, len = 26 + Math.sin(t * 1.7 + i) * 8;
+          ctx.strokeStyle = `rgba(255,214,160,${0.35 * vis})`; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.moveTo(exit.x + Math.cos(a) * 10, exit.y + Math.sin(a) * 10); ctx.lineTo(exit.x + Math.cos(a) * len, exit.y + Math.sin(a) * len); ctx.stroke();
+        }
+      }
+    }
+
+    // Wall dust
+    const L = cave.light, PX = cave.px, PY = cave.py;
+    const tc = tint, buckets = [];
+    for (let b = 0; b < 8; b++) { const k = b / 7; buckets.push(`rgb(${Math.round(tc[0] + (255 - tc[0]) * k * 0.7)},${Math.round(tc[1] + (255 - tc[1]) * k * 0.7)},${Math.round(tc[2] + (255 - tc[2]) * k * 0.7)})`); }
+    for (let i = 0; i < L.length; i++) {
+      const v = L[i]; if (v < 0.02) continue;
+      const x = PX[i], y = PY[i]; if (x < vx0 || x > vx1 || y < vy0 || y > vy1) continue;
+      ctx.globalAlpha = Math.min(1, v);
+      ctx.fillStyle = buckets[Math.min(7, (v * 8) | 0)];
+      const s = 1.5 + v * 1.9;
+      ctx.fillRect(x - s / 2, y - s / 2, s, s);
+    }
+    ctx.globalAlpha = 1;
+
+    // Echo wavefronts: they travel until a wall swallows them
+    for (const p of pulses) {
+      const r = (now - p.t0) / 1000 * SPEED, a = Math.max(0, 0.6 * (1 - r / REACH));
+      if (a < 0.01) continue;
+      ctx.strokeStyle = rgba(tc, a); ctx.lineWidth = 2;
+      ctx.beginPath();
+      let open = false;
+      for (let i = 0; i <= RAYS; i++) {
+        const k = i % RAYS, ang = k / RAYS * Math.PI * 2;
+        if (p.rays[k] > r) {
+          const x = p.x + Math.cos(ang) * r, y = p.y + Math.sin(ang) * r;
+          if (open) ctx.lineTo(x, y); else { ctx.moveTo(x, y); open = true; }
+        } else open = false;
+      }
+      ctx.shadowColor = rgba(tc, 0.9); ctx.shadowBlur = 14; ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.strokeStyle = rgba([255, 255, 255], a * 0.3); ctx.lineWidth = 4; ctx.stroke();
+    }
+
+    // Motes: tiny lights that are always faintly there
+    for (const m of cave.motes) {
+      if (m.got) continue;
+      const tw = 0.35 + 0.25 * Math.sin(t * 3 + m.ph), v = Math.min(1, tw + m.lit);
+      const g = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 18);
+      g.addColorStop(0, `rgba(235,245,255,${v})`); g.addColorStop(0.25, `rgba(170,200,255,${0.5 * v})`); g.addColorStop(1, 'rgba(120,150,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(m.x - 18, m.y - 18, 36, 36);
+    }
+
+    // Sparks
+    for (const s of sparks) { ctx.globalAlpha = Math.max(0, s.life); ctx.fillStyle = rgba(s.color, 1); ctx.fillRect(s.x - 1, s.y - 1, 2.2, 2.2); }
+    ctx.globalAlpha = 1;
+
+    if (cave !== demo) {
+      // The listeners: only seen when an echo touches them, or when they're right beside you
+      ctx.globalCompositeOperation = 'source-over';
+      for (const h of hollows) {
+        const dp = Math.hypot(h.x - player.x, h.y - player.y);
+        const v = Math.min(1, Math.max(h.lit, dp < 110 ? (1 - dp / 110) * 0.9 : 0));
+        if (v < 0.02 || h.x < vx0 || h.x > vx1 || h.y < vy0 || h.y > vy1) continue;
+        const shadow = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, 34);
+        shadow.addColorStop(0, `rgba(0,0,0,${0.95 * v})`); shadow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = shadow; ctx.fillRect(h.x - 34, h.y - 34, 68, 68);
+        ctx.beginPath();
+        for (let i = 0; i <= 10; i++) {
+          const a = i / 10 * Math.PI * 2, rr = 13 + Math.sin(a * 3 + h.wob) * 2.6 + Math.sin(a * 5 - h.wob * 1.3) * 1.4;
+          const x = h.x + Math.cos(a) * rr, y = h.y + Math.sin(a) * rr;
+          if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+        }
+        ctx.fillStyle = `rgba(2,1,6,${v})`; ctx.fill();
+        ctx.strokeStyle = `rgba(160,120,255,${0.55 * v})`; ctx.lineWidth = 1.2;
+        ctx.shadowColor = 'rgba(150,100,255,0.9)'; ctx.shadowBlur = 12 * v; ctx.stroke(); ctx.shadowBlur = 0;
+        const ex = Math.cos(h.dir), ey = Math.sin(h.dir), px = -ey, py = ex;
+        ctx.fillStyle = `rgba(235,230,255,${v})`;
+        for (const side of [-1, 1]) { ctx.beginPath(); ctx.arc(h.x + ex * 4 + px * side * 3.6, h.y + ey * 4 + py * side * 3.6, 1.5, 0, Math.PI * 2); ctx.fill(); }
+      }
+      // You: a small light, with your echo filling back up around it
+      ctx.globalCompositeOperation = 'lighter';
+      if (state !== 'caught') {
+        const g = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, 90);
+        g.addColorStop(0, rgba(tc, 0.32)); g.addColorStop(1, rgba(tc, 0));
+        ctx.fillStyle = g; ctx.fillRect(player.x - 90, player.y - 90, 180, 180);
+        ctx.fillStyle = '#FFFFFF'; ctx.shadowColor = rgba(tc, 1); ctx.shadowBlur = 16;
+        ctx.beginPath(); ctx.arc(player.x, player.y, 4.2, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+        if (player.cool > 0) {
+          ctx.strokeStyle = rgba(tc, 0.5); ctx.lineWidth = 1.4;
+          ctx.beginPath(); ctx.arc(player.x, player.y, 10, -Math.PI / 2, -Math.PI / 2 + (1 - player.cool / 0.75) * Math.PI * 2); ctx.stroke();
+        }
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (fade > 0.005) { ctx.fillStyle = `rgba(4,4,10,${fade})`; ctx.fillRect(0, 0, W, H); }
+  }
+
+  requestAnimationFrame(frame);
+  // For testing only: open the page with #debug
+  if (location.hash === '#debug') window.__echo = { makeCave, SEEDS, get player() { return player; }, get exit() { return exit; }, get hollows() { return hollows; }, get state() { return state; }, get cave() { return cave; } };
+})();
+</script>
+</body>
+</html>
