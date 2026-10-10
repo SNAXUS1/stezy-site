@@ -1699,7 +1699,7 @@
   }
   // A thread of light that shows (and drives) how far a box has scrolled
   let threads = [];
-  function attachThread(sc, host, color, fixed, fade = true) {
+  function attachThread(sc, host, color, fixed, fade = true, avoid = null) {
     const bar = document.createElement('div');
     bar.className = 'thread' + (fixed ? ' fixed' : '');
     bar.setAttribute('aria-hidden', 'true');
@@ -1723,9 +1723,14 @@
       bar.hidden = !can;
       if (!can) { sc.classList.remove('more-up', 'more-down'); return; }
       const r = sc.getBoundingClientRect(), hr = fixed ? { top: 0, left: 0 } : host.getBoundingClientRect();
-      bar.style.top = (r.top - hr.top + 14) + 'px';
-      bar.style.height = (r.height - 28) + 'px';
-      bar.style.left = (r.right - hr.left - 10) + 'px';
+      const x = r.right - hr.left - 10, end = r.bottom - hr.top - 14;
+      let top = r.top - hr.top + 14;
+      // Never run over a button in the same corner (the close button): start just below it
+      const a = avoid && avoid.isConnected ? avoid.getBoundingClientRect() : null;
+      if (a && a.width && x > a.left - hr.left - 12 && x < a.right - hr.left + 12) top = Math.max(top, a.bottom - hr.top + 10);
+      bar.style.top = top + 'px';
+      bar.style.height = Math.max(40, end - top) + 'px';
+      bar.style.left = x + 'px';
       update();
     }
     sc.addEventListener('scroll', () => {
@@ -1764,8 +1769,9 @@
     threads = threads.filter(t => !t.detail);
     const d = dlg.querySelector('.d');
     const color = root.dataset.theme === 'light' ? getComputedStyle(root).getPropertyValue('--ink').trim() : (lightEnough(p.accent) ? p.accent : '#F2F0FF');
-    ['.d-media', '.d-info'].forEach(sel => { const t = attachThread(dlg.querySelector(sel), dlg, color); t.detail = true; threads.push(t); });
-    const whole = attachThread(d, dlg, color); whole.detail = true; threads.push(whole);   // phones: the whole view scrolls
+    const closeBtn = dlg.querySelector('.close');
+    ['.d-media', '.d-info'].forEach(sel => { const t = attachThread(dlg.querySelector(sel), dlg, color, false, true, closeBtn); t.detail = true; threads.push(t); });
+    const whole = attachThread(d, dlg, color, false, true, closeBtn); whole.detail = true; threads.push(whole);   // phones: the whole view scrolls
   }
   function openProject(p) {
     dlg.innerHTML = detail(p);
@@ -1877,7 +1883,7 @@
     indexReturn = document.activeElement;
     fillIndex();
     indexEl.hidden = false;
-    if (!indexThread) indexThread = attachThread(indexEl, document.body, 'var(--ink)', true, false);
+    if (!indexThread) indexThread = attachThread(indexEl, document.body, 'var(--ink)', true, false, document.getElementById('index-close'));
     indexThread.place();
     root.style.overflow = 'hidden';
     if (scroller) scroller.pause();
