@@ -41,6 +41,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&text=Undertow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Italiana&text=VEILVeil&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Caveat+Brush&text=haloH&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&text=REAPERreaper&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@700&text=ECHOecho&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
@@ -770,6 +771,32 @@
     100% { opacity: 1; transform: none; }
   }
 
+  /* Reaper: engraved capitals under a cold moon, with the crescent from the app's own logo over the word */
+  body[data-scene="reaper"] { --page: #07070A; --chrome: #ECE7DD; --chrome-muted: #9A958C; --g1: #1C2840; --g2: #2A0C12; --g-o: 0.42; --b1x: -12vw; --b1y: -8vh; --b2x: 22vw; --b2y: 56vh; }
+  .scene-reaper { color: #ECE7DD; --accent: #ECE7DD; }
+  .t-reaper {
+    position: relative; font-family: 'Cinzel', serif; font-weight: 600; font-size: clamp(60px, 12vw, 215px); line-height: 1.05;
+    letter-spacing: 0.16em; text-transform: uppercase; color: #F2EEE6;
+    text-shadow: 0 0 0.05em rgba(143, 179, 232, 0.5), 0 0 0.35em rgba(143, 179, 232, 0.16);
+  }
+  .t-reaper::before, .art-reaper::before {
+    content: ""; position: absolute; left: -0.08em; top: -0.34em; width: 1.75em; height: 0.58em; pointer-events: none;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 132 44'><defs><linearGradient id='b' x1='0' y1='1' x2='1' y2='0'><stop offset='0' stop-color='%23ECE7DD' stop-opacity='0'/><stop offset='.35' stop-color='%23ECE7DD' stop-opacity='.55'/><stop offset='.78' stop-color='%23F4F1EA'/><stop offset='1' stop-color='%23C9D8F0' stop-opacity='.9'/></linearGradient></defs><path d='M4 41 C 18 18, 52 4, 92 3.2 C 108 2.9, 121 4.6, 129 8.4 C 116 6.4, 104 6.2, 92 6.9 C 56 9, 24 22, 4 41 Z' fill='url(%23b)'/></svg>") center / contain no-repeat; filter: drop-shadow(0 0 0.06em rgba(143, 179, 232, 0.55));
+  }
+  .scene.is-active .t-reaper::before { animation: reap-moon 1.3s var(--ease-out) 0.6s both; }
+  @keyframes reap-moon { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
+  /* Reap: each letter cuts in from the left, out of a blur */
+  .scene.is-active .enter-reap .ch { animation: reap-in 0.9s var(--ease-out) calc(0.12s + var(--i) * 85ms) both; }
+  @keyframes reap-in {
+    from { opacity: 0; transform: translateX(-0.22em) skewX(-14deg); filter: blur(0.08em); }
+    60% { opacity: 1; }
+    to { opacity: 1; transform: none; filter: none; }
+  }
+  .cv-reaper { background: radial-gradient(70% 60% at 30% 25%, rgba(143, 179, 232, 0.2), transparent 60%), radial-gradient(50% 40% at 85% 95%, rgba(229, 72, 77, 0.12), transparent 70%), #060608; color: #F2EEE6; }
+  .cv-reaper .small { color: rgba(236, 231, 221, 0.55); }
+  .art-reaper { position: relative; font-family: 'Cinzel', serif; font-weight: 600; text-transform: uppercase; letter-spacing: 0.16em; padding-left: 0.16em; font-size: 13cqi; text-shadow: 0 0 2cqi rgba(143, 179, 232, 0.45); }
+  @media (prefers-reduced-motion: reduce) { .scene.is-active .t-reaper::before { animation: none; } }
+
   /* Halo: glowing brush inside a ring of light */
   .scene-halo { color: #EEF3FF; align-items: center; text-align: center; --accent: #9FB8FF; }
   .t-halo {
@@ -778,6 +805,37 @@
     filter: url(#f-sketch-lg);
   }
 
+  /* STEZY's picks: a warm sparkle that twinkles now and then, and a pill with a slow sheen */
+  .pk { display: inline-flex; flex: none; width: 11px; height: 11px; color: #FFE6B3; filter: drop-shadow(0 0 4px rgba(255, 205, 130, 0.85)); animation: pk-twinkle 4.8s ease-in-out var(--pk-d, 0s) infinite; }
+  .pk-star { display: block; width: 100%; height: 100%; fill: currentColor; }
+  @keyframes pk-twinkle {
+    0%, 80%, 100% { transform: scale(1) rotate(0deg); opacity: 0.85; }
+    87% { transform: scale(1.5) rotate(45deg); opacity: 1; }
+    94% { transform: scale(0.9) rotate(90deg); opacity: 0.9; }
+  }
+  body[data-scene="prism"] .rail .pk, body[data-scene="ledger"] .rail .pk, body[data-scene="shadow"] .rail .pk, [data-theme="light"] body[data-scene="intro"] .rail .pk, [data-theme="light"] body[data-scene="outro"] .rail .pk { color: #B07A18; filter: none; }
+  .pick-tag {
+    position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 0.6em; margin-left: 0.6em; padding: 0.35em 0.85em 0.35em 0.7em;
+    border-radius: 999px; font-size: 10px; letter-spacing: 0.16em; vertical-align: 0.1em; color: #FFEFD2;
+    background: linear-gradient(100deg, rgba(255, 210, 140, 0.18), rgba(255, 210, 140, 0.05));
+    box-shadow: inset 0 0 0 1px rgba(255, 210, 140, 0.6), 0 0 22px -8px rgba(255, 196, 110, 0.9);
+  }
+  .pick-tag .pk-star { width: 1.2em; height: 1.2em; filter: drop-shadow(0 0 3px rgba(255, 205, 130, 0.9)); }
+  .pick-tag::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.4) 50%, transparent 65%);
+    transform: translateX(-130%); animation: pick-sheen 6s var(--ease-out) 1.2s infinite;
+  }
+  @keyframes pick-sheen { 0% { transform: translateX(-130%); } 22%, 100% { transform: translateX(130%); } }
+  .scene.is-active .pick-tag .pk-star { animation: pk-glint 1.1s var(--ease-out) 0.8s both; }
+  @keyframes pk-glint { 0% { transform: scale(0.3) rotate(-90deg); opacity: 0; } 55% { transform: scale(1.6) rotate(20deg); opacity: 1; } 100% { transform: none; opacity: 1; } }
+  .d-credits .pick-tag { margin-left: 1em; letter-spacing: 0.2em; }
+  .pk-title { position: relative; top: -0.62em; width: 0.26em; height: 0.26em; min-width: 14px; min-height: 14px; margin-left: 0.1em; vertical-align: baseline; }
+  .cover-dock button { position: relative; }
+  .dock-pk { position: absolute; top: -5px; right: -5px; width: 13px; height: 13px; pointer-events: none; }
+  .index-pk { position: absolute; top: 14px; right: 14px; width: 18px; height: 18px; }
+  .index-filters .pk-star { display: inline-block; width: 12px; height: 12px; margin-right: 7px; vertical-align: -1px; }
+  @media (prefers-reduced-motion: reduce) { .pk, .pick-tag::after, .scene.is-active .pick-tag .pk-star { animation: none; } }
   .sample-tag { display: inline-block; margin-left: 0.6em; padding: 0.35em 0.7em; border-radius: 999px; font-size: 10px; letter-spacing: 0.16em; box-shadow: inset 0 0 0 1px currentColor; vertical-align: 0.1em; }
 
   /* Sparkles */
@@ -1010,6 +1068,7 @@
     .info.at-center .desc { margin-left: 0; }
     .rail { right: 10px; gap: 2px; }
     .credits .sample-tag { display: table; margin: 10px 0 0; }
+    .credits .pick-tag { display: flex; width: fit-content; margin: 10px 0 0; }
     .rail button { font-size: 0; letter-spacing: 0; padding: 7px 0; }
     .rail button::after { width: 18px; }
     .scene-linkfuse { align-items: center; text-align: center; }
@@ -1177,7 +1236,7 @@
       sparks: []
     },
     {
-      slug: 'ghost-line', enter: 'smoke', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/ghost-line-v6.0.0/GhostLine-6.0.0.zip', sha: 'bb0e35c419d3af4cdd03fa8607072aa9f46c4379a276b97fe07cb06a08533a18', name: 'Ghost Line', cat: 'games', kind: 'Game', platform: 'Windows', style: 'smoke', ratio: '4 / 5',
+      slug: 'ghost-line', pick: true, enter: 'smoke', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/ghost-line-v6.0.0/GhostLine-6.0.0.zip', sha: 'bb0e35c419d3af4cdd03fa8607072aa9f46c4379a276b97fe07cb06a08533a18', name: 'Ghost Line', cat: 'games', kind: 'Game', platform: 'Windows', style: 'smoke', ratio: '4 / 5',
       title: 't-smoke', layout: 'at-center', page: '#04050A', accent: '#D6E0FF',
       font: "'Anton', sans-serif", titleCss: 'text-transform:uppercase;',
       blurb: "Draw a track, evolve an AI driver on it, then race it against a friend's.",
@@ -1195,6 +1254,17 @@
       how: ['Download the zip, unzip it and open Shadow.exe. No installer needed.', 'Name a runner and press Start to train it.', "Race it on the Race tab, or send its file to a friend."],
       shots: ['img/shadow/intro.webp', 'img/shadow/race.webp'],
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
+    },
+    {
+      slug: 'reaper', pick: true, icon: 'img/icons/reaper.png', enter: 'reap', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/reaper-v1.0.0/REAPER-1.0.0.zip', sha: 'd6eb7d34057468b46c4f81d6893ca5fac67208d3c5fddf00caee8300506b626b', demo: '/play/reaper/', name: 'Reaper', cat: 'apps', kind: 'App', platform: 'Windows', style: 'reaper', ratio: '1 / 1',
+      title: 't-reaper', layout: 'at-left', page: '#07070A', accent: '#ECE7DD',
+      font: "'Cinzel', serif", titleCss: 'font-weight:600;text-transform:uppercase;letter-spacing:0.16em;',
+      blurb: "A sharper Task Manager: it tells you what's slowing your PC down, and remembers what happened.",
+      lede: "Windows' Task Manager shows numbers and forgets them a minute later. Reaper tells you what's going on in plain words: one line at the top answers \"why is my PC slow?\", apps are grouped properly with real names for the mystery background processes, and anything that stops responding jumps to the top with End task right there. Freeze an app and unfreeze it later, scroll back through a 30-minute flight recorder that marks every spike, and switch on a game overlay with FPS, 1% lows and graphics card temperature that never touches your games. It can even take over Ctrl+Shift+Esc.",
+      how: ["Download the zip, unzip it somewhere you'll keep it and open REAPER.exe.", 'Click any app to see what it is, its last 30 minutes and what you can do with it.', 'In a game, Ctrl+Alt+F shows the overlay. The FPS counter asks for administrator rights.'],
+      shots: ['img/reaper/main.webp', 'img/reaper/details.webp', 'img/reaper/overlay.webp'],
+      version: '1.0.0', size: '44.5 MB', updated: '10 Oct 2026', web: false,
+      sparks: []
     },
     {
       slug: 'ledger', icon: 'img/icons/ledger.png', enter: 'write', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/ledger-v1.0.0/Ledger-1.0.0.zip', sha: '1e43dc64d63fea743cfada3c2d622751b5a0cdb41391f5beef283d066fea077b', name: 'Ledger', cat: 'apps', kind: 'App', platform: 'Windows', style: 'ledger', ratio: '4 / 5',
@@ -1285,7 +1355,7 @@
       sparks: [[20, 30, 10, '4.8s', '1s'], [34, 70, 14, '5.4s', '2.8s']]
     },
     {
-      slug: 'wisp', icon: 'img/icons/wisp.png', enter: 'gather', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/wisp-v1.0.0/Wisp-1.0.0.zip', sha: '087672a3f9c1f5b2a638cf684d6dfd85fb69f2bd19b4a391cb1efc149672c732', name: 'Wisp', cat: 'apps', kind: 'App', platform: 'Windows', style: 'wisp', ratio: '1 / 1',
+      slug: 'wisp', pick: true, icon: 'img/icons/wisp.png', enter: 'gather', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/wisp-v1.0.0/Wisp-1.0.0.zip', sha: '087672a3f9c1f5b2a638cf684d6dfd85fb69f2bd19b4a391cb1efc149672c732', name: 'Wisp', cat: 'apps', kind: 'App', platform: 'Windows', style: 'wisp', ratio: '1 / 1',
       title: 't-wisp', layout: 'at-center', page: '#040A0C', accent: '#9FFFE6',
       font: "'Poiret One', sans-serif", titleCss: 'text-transform:lowercase;',
       blurb: 'See which apps are talking to the internet right now, drawn as lights around you.',
@@ -1329,7 +1399,7 @@
       sparks: [[30, 24, 12, '5s', '1s'], [18, 70, 16, '4.2s', '2.6s']]
     },
     {
-      slug: 'undertow', icon: 'img/icons/undertow.png', enter: 'wave', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/undertow-v1.0.0/Undertow-1.0.0.zip', sha: 'f6826352164c848d421418446af1810c154c0b574476bd4f93ca931162221a31', name: 'Undertow', cat: 'apps', kind: 'App', platform: 'Windows', style: 'tide', ratio: '4 / 5',
+      slug: 'undertow', pick: true, icon: 'img/icons/undertow.png', enter: 'wave', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/undertow-v1.0.0/Undertow-1.0.0.zip', sha: 'f6826352164c848d421418446af1810c154c0b574476bd4f93ca931162221a31', name: 'Undertow', cat: 'apps', kind: 'App', platform: 'Windows', style: 'tide', ratio: '4 / 5',
       title: 't-tide', layout: 'at-left', page: '#04101C', accent: '#A9DCFF',
       font: "'Instrument Serif', serif", titleCss: 'font-style:italic;font-weight:400;',
       blurb: 'Pulls loose files out of your Downloads and onto their own shelves. Every sort can be undone.',
@@ -1340,7 +1410,7 @@
       sparks: [[70, 22, 14, '4.6s', '.8s'], [88, 60, 12, '5.4s', '2.4s']]
     },
     {
-      slug: 'poltergeist', icon: 'img/icons/poltergeist.png', enter: 'levitate', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/poltergeist-v1.0.0/Poltergeist-1.0.0.zip', sha: '3de55d7710268c719a69c49349a3d44f43007ec08157094b83128bd6aa7d08b7', name: 'Poltergeist', cat: 'apps', kind: 'App', platform: 'Windows', style: 'float', ratio: '4 / 5',
+      slug: 'poltergeist', pick: true, icon: 'img/icons/poltergeist.png', enter: 'levitate', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/poltergeist-v1.0.0/Poltergeist-1.0.0.zip', sha: '3de55d7710268c719a69c49349a3d44f43007ec08157094b83128bd6aa7d08b7', name: 'Poltergeist', cat: 'apps', kind: 'App', platform: 'Windows', style: 'float', ratio: '4 / 5',
       title: 't-float', layout: 'at-center', page: '#06060B', accent: '#C9D4FF',
       font: "'Syne', sans-serif", titleCss: 'font-weight:800;',
       blurb: 'Catches windows that jump in front of you or flash on screen by themselves, and names the program that did it.',
@@ -1362,7 +1432,7 @@
       sparks: [[18, 26, 22, '3.6s', '0s'], [78, 22, 28, '4.4s', '1.2s'], [70, 64, 18, '3.2s', '2s'], [28, 62, 14, '5s', '.6s'], [50, 16, 12, '4s', '2.6s']]
     },
     {
-      slug: 'linkfuse', enter: 'fuse', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/linkfuse-v3.0.0/LinkFuse-3.0.0.zip', sha: 'd2f9cbc93def264bfd3bceb6e5b0ce03131465ffbe5f96c345c3148a65a065a3', name: 'LinkFuse', cat: 'apps', kind: 'App', platform: 'Windows', style: 'chrome', ratio: '4 / 5',
+      slug: 'linkfuse', pick: true, enter: 'fuse', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/linkfuse-v3.0.0/LinkFuse-3.0.0.zip', sha: 'd2f9cbc93def264bfd3bceb6e5b0ce03131465ffbe5f96c345c3148a65a065a3', name: 'LinkFuse', cat: 'apps', kind: 'App', platform: 'Windows', style: 'chrome', ratio: '4 / 5',
       title: 't-chrome', layout: 'at-left', page: '#07070C', accent: '#E3E8F4',
       font: "'Pinyon Script', cursive", titleCss: 'font-size:clamp(48px,5.4vw,78px);',
       note: 'Every connection you have, working as one.',
@@ -1442,6 +1512,9 @@
     const word = w => `<span class="word">${[...w].map(c => `<span class="ch" style="--i:${i++};--r:${Math.random().toFixed(2)}">${c}</span>`).join('')}</span>`;
     return label + `<span aria-hidden="true">${p.name.split(' ').map(word).join(' ')}</span>`;
   }
+  // A four-point sparkle marks STEZY's own favourites
+  const SPARK = '<svg class="pk-star" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C8.5 4.6 11.4 7.5 16 8 11.4 8.5 8.5 11.4 8 16 7.5 11.4 4.6 8.5 0 8 4.6 7.5 7.5 4.6 8 0Z"/></svg>';
+  const pickTag = () => `<span class="pick-tag" title="One of STEZY's favourites">${SPARK}<span>STEZY's pick</span></span>`;
   projects.forEach(p => {
     const s = document.createElement('section');
     s.className = `scene scene-${p.slug}${p.cat === 'remixes' ? ' scene-remix' : ''}`;
@@ -1452,7 +1525,8 @@
     const second = secondAction(p);
     const action = `<button class="btn primary" type="button" data-open="${p.slug}">Open ${p.name}</button>
       ${p.play ? `<a class="btn ghost" href="${p.play}" aria-label="Play ${p.name} in your browser"><i class="ph ${second.icon}" aria-hidden="true"></i>${second.label}</a>`
-        : `<button class="btn ghost" type="button" data-open="${p.slug}" data-download aria-label="${second.label}: ${p.name}"><i class="ph ${second.icon}" aria-hidden="true"></i>${second.label}</button>`}`;
+        : `<button class="btn ghost" type="button" data-open="${p.slug}" data-download aria-label="${second.label}: ${p.name}"><i class="ph ${second.icon}" aria-hidden="true"></i>${second.label}</button>`}
+      ${p.demo ? `<a class="btn ghost" href="${p.demo}" aria-label="Try ${p.name} live in your browser"><i class="ph ph-play" aria-hidden="true"></i>Live demo</a>` : ''}`;
     const creditSide = p.layout === 'at-left' ? 'at-right' : 'at-left';
     s.innerHTML = `
       ${FX[p.slug] ? `<canvas class="fx" aria-hidden="true" style="--fx-o:${FX[p.slug].opacity}"></canvas>` : ''}
@@ -1463,7 +1537,7 @@
       <h2 class="title ${p.title}${p.enter ? ' split enter-' + p.enter : ''}" id="title-${p.slug}" data-text="${p.name}" style="--n:${p.name.replace(/ /g, '').length}">${p.enter ? splitName(p) : p.name}</h2>
       ${p.note ? `<p class="chrome-note">${p.note}</p>` : ''}
       <div class="info ${p.layout}">
-        <p class="credits">${p.kind} &middot; ${p.platform} &middot; v${p.version}${p.sample ? '<span class="sample-tag">Sample</span>' : ''}${p.legacy ? '<span class="sample-tag">Made before this site</span>' : ''}${p.fresh ? '<span class="sample-tag">New</span>' : ''}${p.by ? `<span class="made-by">Made by ${p.by}</span>` : ''}</p>
+        <p class="credits">${p.kind} &middot; ${p.platform} &middot; v${p.version}${p.pick ? pickTag() : ''}${p.sample ? '<span class="sample-tag">Sample</span>' : ''}${p.legacy ? '<span class="sample-tag">Made before this site</span>' : ''}${p.fresh ? '<span class="sample-tag">New</span>' : ''}${p.by ? `<span class="made-by">Made by ${p.by}</span>` : ''}</p>
         <p class="desc">${p.blurb}</p>
         <div class="actions">${action}</div>
       </div>`;
@@ -1482,8 +1556,10 @@
   function buildRail() {
     rail.innerHTML = scenes.filter(s => !s.hidden).map(s => {
       const key = s.dataset.scene;
-      const label = key === 'intro' ? (coverTab ? TAB_LABEL[coverTab] : 'Start') : key === 'outro' ? 'About' : projects.find(p => p.slug === key).name;
-      return `<button type="button" data-go="${key}" aria-label="${label}" aria-current="${body.dataset.scene === key}"><span>${label}</span></button>`;
+      const proj = projects.find(p => p.slug === key);
+      const label = key === 'intro' ? (coverTab ? TAB_LABEL[coverTab] : 'Start') : key === 'outro' ? 'About' : proj.name;
+      const pk = proj && proj.pick ? `<i class="pk" style="--pk-d:${(label.length % 7) * 0.6}s">${SPARK}</i>` : '';
+      return `<button type="button" data-go="${key}" aria-label="${label}${pk ? ", STEZY's pick" : ''}" aria-current="${body.dataset.scene === key}"><span>${label}</span>${pk}</button>`;
     }).join('');
     markNear();
   }
@@ -1522,7 +1598,7 @@
     const dock = document.getElementById('cover-dock');
     const list = cat ? projects.filter(p => p.cat === cat && p.icon) : [];
     dock.hidden = list.length < 3;
-    dock.innerHTML = list.map((p, i) => `<button type="button" data-open="${p.slug}" title="${p.name}" aria-label="Open ${p.name}" style="--d:${i * 35}ms"><img src="${p.icon}" alt="" width="44" height="44"></button>`).join('');
+    dock.innerHTML = list.map((p, i) => `<button type="button" data-open="${p.slug}" title="${p.name}" aria-label="Open ${p.name}" style="--d:${i * 35}ms"><img src="${p.icon}" alt="" width="44" height="44">${p.pick ? `<i class="pk dock-pk">${SPARK}</i>` : ''}</button>`).join('');
   }
   const tabsEl = document.getElementById('tabs');
   const tabInd = tabsEl.querySelector('.ind');
@@ -1656,7 +1732,7 @@
       : p.web
       ? `<a class="btn primary" href="#" data-demo><i class="ph ph-play" aria-hidden="true"></i>${p.webLabel || 'Play in browser'}</a>
          <a class="btn ghost" href="#" data-demo><i class="ph ph-download-simple" aria-hidden="true"></i>Download</a>`
-      : p.download ? `<a class="btn primary" href="${p.download}" download><i class="ph ph-download-simple" aria-hidden="true"></i>Download for Windows</a>`
+      : p.download ? `<a class="btn primary" href="${p.download}" download><i class="ph ph-download-simple" aria-hidden="true"></i>Download for Windows</a>${p.demo ? `<a class="btn ghost" href="${p.demo}"><i class="ph ph-play" aria-hidden="true"></i>Try the live demo</a>` : ''}`
       : `<a class="btn primary" href="#" data-demo><i class="ph ph-download-simple" aria-hidden="true"></i>Download for Windows</a>`;
     const note = remix
       ? `<p class="note"><i class="ph ph-info" aria-hidden="true"></i>Back up your saves first. This download contains no Minecraft files: the installer copies them from your own Minecraft. Fan mod, not affiliated with Mojang, Microsoft or the game's makers.</p>`
@@ -1675,8 +1751,8 @@
       </div>
       <div class="d-info">
         ${p.icon ? `<img class="d-icon" src="${p.icon}" alt="" width="64" height="64">` : ''}
-        <p class="d-credits">${p.kind} for ${remix ? p.game : p.platform}${p.sample ? ' (sample)' : ''}</p>
-        <h2 class="d-title" style="font-family:${p.font};${p.titleCss || ''}">${p.name}</h2>
+        <p class="d-credits">${p.kind} for ${remix ? p.game : p.platform}${p.sample ? ' (sample)' : ''}${p.pick ? pickTag() : ''}</p>
+        <h2 class="d-title" style="font-family:${p.font};${p.titleCss || ''}">${p.name}${p.pick ? `<i class="pk pk-title" title="STEZY's pick">${SPARK}</i>` : ''}</h2>
         ${p.by ? `<p class="d-by">Made by ${p.by}</p>` : ''}
         <p class="d-lede">${p.lede}</p>
         <h3>${remix ? 'How to install it' : 'How to use it'}</h3>
@@ -1867,14 +1943,14 @@
   const indexGrid = document.getElementById('index-grid');
   const indexFilters = document.getElementById('index-filters');
   let indexCat = 'all', indexReturn = null;
-  indexFilters.innerHTML = ['all', ...usedTabs].map(c => `<button type="button" data-cat="${c}" aria-pressed="${c === 'all'}">${c === 'all' ? 'All' : TAB_LABEL[c]}</button>`).join('');
+  indexFilters.innerHTML = ['all', ...usedTabs, 'picks'].map(c => `<button type="button" data-cat="${c}" aria-pressed="${c === 'all'}">${c === 'all' ? 'All' : c === 'picks' ? SPARK + "STEZY's picks" : TAB_LABEL[c]}</button>`).join('');
   function fillIndex() {
     const q = indexQ.value.trim().toLowerCase();
-    const list = projects.filter(p => (indexCat === 'all' || p.cat === indexCat) &&
+    const list = projects.filter(p => (indexCat === 'all' || (indexCat === 'picks' ? p.pick : p.cat === indexCat)) &&
       (!q || [p.name, p.blurb, p.kind, p.platform, p.game || ''].join(' ').toLowerCase().includes(q)));
     document.getElementById('index-count').textContent = list.length === 1 ? '1 thing' : `${list.length} things`;
     indexGrid.innerHTML = list.length ? list.map(p => `<button class="index-card" type="button" data-index-open="${p.slug}">
-        <span class="index-art">${cover(p)}${p.icon ? `<img class="index-icon" src="${p.icon}" alt="" width="40" height="40" loading="lazy">` : ''}</span><strong>${p.name}${p.fresh ? ' \u00B7 new' : ''}</strong><span class="meta">${p.blurb}</span></button>`).join('')
+        <span class="index-art">${cover(p)}${p.icon ? `<img class="index-icon" src="${p.icon}" alt="" width="40" height="40" loading="lazy">` : ''}${p.pick ? `<i class="pk index-pk" title="STEZY's pick">${SPARK}</i>` : ''}</span><strong>${p.name}${p.fresh ? ' \u00B7 new' : ''}</strong><span class="meta">${p.blurb}</span></button>`).join('')
       : '<p class="index-empty">Nothing matches that. Try another word.</p>';
   }
   let indexThread = null;
@@ -2027,7 +2103,7 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'ledger': 'ink', 'hush': 'bokeh', 'nocturne': 'fireflies', 'specter': 'stars', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl', echo: 'echo' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'ledger': 'ink', 'hush': 'bokeh', 'nocturne': 'fireflies', 'specter': 'stars', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl', echo: 'echo', reaper: 'reap' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
@@ -2048,6 +2124,7 @@
       static: [[255, 90, 175], [90, 120, 255]],
       halo: [[220, 230, 255], [80, 120, 255]],
       echo: [[225, 232, 255], [143, 168, 255]],
+      reaper: [[236, 231, 221], [143, 179, 232]],
       'schedule-steve': [[214, 246, 205], [110, 200, 90]],
       'midnight-pack': [[214, 224, 255], [120, 140, 255]],
       afterglow: [[255, 214, 236], [255, 120, 190]]
@@ -2206,6 +2283,7 @@
         case 'ink': return Math.min(0.85, d.a * 1.3);
         case 'bokeh': return d.big && d.c < 0.35 ? 0.16 : d.a * 0.2;
         case 'echo': return d.a * 0.22;
+        case 'reap': return d.a * 0.32;
         case 'halo': return d.c < 0.12 ? (mouse.on ? 0.9 : 0.6) : d.c < 0.24 ? d.a * 0.4 : d.c < 0.62 ? Math.min(0.95, 0.4 + d.a) : d.a * 0.3;
         default: return d.a;
       }
@@ -2277,6 +2355,10 @@
         cring.squeeze = lerp(cring.squeeze, 1, 0.12);
       }
       while (ripples.length && now - ripples[0].t0 > (ripples[0].life || 1100)) ripples.shift();
+      if (kind === 'reap' && now - lastPing > 5200) {
+        lastPing = now;
+        ripples.push({ x: -w * 0.6, y: -h * 0.1, t0: now, v: 1.15, life: 2400, soft: true });
+      }
       if (kind === 'echo') {
         // a ping goes out from the title every couple of seconds
         const el = echoTitle || (echoTitle = document.querySelector('#s-echo .title'));
@@ -2343,6 +2425,8 @@
             // Fireflies: slow, lazy, blinking
             case 'fireflies': ax = Math.sin(t * 0.0005 + d.ph * 2) * 0.22; ay = Math.cos(t * 0.0004 + d.ph) * 0.16; break;
             case 'glitch': ax = 0.12; ay = 0; if (Math.random() < 0.004) d.x += (Math.random() - 0.5) * 60; break;
+            // Ash drifting down through the dark
+            case 'reap': ax = Math.sin(t * 0.0004 + d.ph) * 0.08 + 0.04; ay = 0.1 + d.s * 0.16; break;
             // Dust hanging in the dark, only seen when a ping washes over it
             case 'echo': ax = Math.sin(t * 0.0003 + d.ph) * 0.05; ay = Math.cos(t * 0.00025 + d.ph) * 0.04; break;
             // Faint motes of light rising slowly around the halo
@@ -2353,14 +2437,14 @@
           d.vx = lerp(d.vx, ax * depth, 0.04);
           d.vy = lerp(d.vy, ay * depth, 0.04);
         }
-        if ((halo.on || kind === 'echo') && ripples.length) {
+        if ((halo.on || kind === 'echo' || kind === 'reap') && ripples.length) {
           for (const rp of ripples) {
             const life = rp.life || 1100, age = now - rp.t0, rad = age * (rp.v || 0.62), dx = d.x - rp.x, dy = d.y - rp.y, dist = Math.sqrt(dx * dx + dy * dy) || 1;
             const near = 1 - Math.abs(dist - rad) / (rp.soft ? 40 : 28);
             if (near > 0) { const f = near * (rp.soft ? 0.5 : 2.4) * (1 - age / life); d.vx += (dx / dist) * f; d.vy += (dy / dist) * f; d.lit = Math.max(d.lit || 0, near * (1 - age / life)); }
           }
         }
-        if (d.lit) d.lit = d.lit > 0.01 ? d.lit * (kind === 'echo' ? 0.966 : 0.93) : 0;
+        if (d.lit) d.lit = d.lit > 0.01 ? d.lit * (kind === 'echo' || kind === 'reap' ? 0.966 : 0.93) : 0;
         // Particles move out of the way of the mouse in every scene
         if (mouse.on && !(halo.on && d.c < 0.12)) {
           const dx = d.x - mouse.x, dy = d.y - mouse.y, dist2 = dx * dx + dy * dy;
@@ -2463,7 +2547,7 @@
         }
         fctx.restore();
       }
-      if (kind === 'echo' && ripples.length) {
+      if ((kind === 'echo' || kind === 'reap') && ripples.length) {
         const tnow = performance.now();
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
@@ -2477,7 +2561,7 @@
         ctx.restore();
       }
       // Additive light where particles overlap, so the name glows on dark backgrounds
-      ctx.globalCompositeOperation = (kind === 'form' && root.dataset.theme === 'dark') || kind === 'halo' || kind === 'echo' ? 'lighter' : 'source-over';
+      ctx.globalCompositeOperation = (kind === 'form' && root.dataset.theme === 'dark') || kind === 'halo' || kind === 'echo' || kind === 'reap' ? 'lighter' : 'source-over';
       fctx.globalCompositeOperation = 'lighter';
       const reach = 180;
       for (const d of dots) {
@@ -2488,7 +2572,7 @@
         const k = kind === 'form' ? Math.max(0, Math.min(3, Math.floor((d.x / w) * 4))) : Math.min(3, Math.floor(d.c * 4));
         let tw = 1;
         if (!reduce) tw = kind === 'stars' ? 0.25 + 0.75 * Math.abs(Math.sin(t * 0.0018 + d.ph)) : 0.7 + 0.3 * Math.sin(t * 0.0015 + d.ph);
-        let alpha = d.al * tw * (letter ? 1 : onRing ? 0.4 + near * 0.6 : 0.45 + d.z * 0.7) * (1 + (d.lit || 0) * (kind === 'echo' ? 5 : 2.5));
+        let alpha = d.al * tw * (letter ? 1 : onRing ? 0.4 + near * 0.6 : 0.45 + d.z * 0.7) * (1 + (d.lit || 0) * (kind === 'echo' ? 5 : kind === 'reap' ? 3.5 : 2.5));
         // Particles brighten as the cursor light passes over them
         if (glow.a > 0.01) {
           const dx = px - glow.x, dy = py - glow.y, q = dx * dx + dy * dy;
