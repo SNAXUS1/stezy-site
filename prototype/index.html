@@ -137,6 +137,8 @@
   .blob.b1 { background-color: var(--g1); transform: translate(var(--b1x), var(--b1y)); }
   .blob.b2 { background-color: var(--g2); transform: translate(var(--b2x), var(--b2y)); }
   #field { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+  /* The near half of Halo's ring, drawn in front of the title */
+  #field-front { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
   /* GPU effect behind a scene's title (Shaders library). Edges fade so no seam shows while scrolling. */
   .fx {
     position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0;
@@ -890,6 +892,26 @@
   .note { display: flex; gap: 10px; margin: 18px 0 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
   .note i { font-size: 18px; flex: none; margin-top: 1px; }
   .close { position: absolute; top: 14px; right: 14px; z-index: 2; background: var(--panel); color: var(--ink); }
+  /* Scrolling inside the details and the wall: a thread of light instead of the browser's grey bar */
+  .d, .d-media, .d-info, .index { scrollbar-width: none; }
+  .d::-webkit-scrollbar, .d-media::-webkit-scrollbar, .d-info::-webkit-scrollbar, .index::-webkit-scrollbar { display: none; }
+  .thread { position: absolute; z-index: 4; width: 16px; margin-left: -8px; opacity: 0.5; touch-action: none; cursor: pointer; transition: opacity 0.3s var(--ease-out); }
+  .thread.fixed { position: fixed; z-index: 72; }
+  .thread[hidden] { display: none; }
+  .thread::before {
+    content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; transform: translateX(-50%);
+    background: linear-gradient(transparent, color-mix(in srgb, var(--thread) 30%, transparent) 14%, color-mix(in srgb, var(--thread) 30%, transparent) 86%, transparent);
+  }
+  .thread span {
+    position: absolute; left: 50%; top: 0; width: 3px; border-radius: 3px; background: var(--thread);
+    box-shadow: 0 0 12px var(--thread), 0 0 3px var(--thread); transition: width 0.2s var(--ease-out);
+  }
+  .thread.active, .thread:hover, .thread.drag { opacity: 1; }
+  .thread:hover span, .thread.drag span { width: 5px; }
+  .more-down { -webkit-mask-image: linear-gradient(#000 calc(100% - 64px), transparent); mask-image: linear-gradient(#000 calc(100% - 64px), transparent); }
+  .more-up { -webkit-mask-image: linear-gradient(transparent, #000 48px); mask-image: linear-gradient(transparent, #000 48px); }
+  .more-up.more-down { -webkit-mask-image: linear-gradient(transparent, #000 48px, #000 calc(100% - 64px), transparent); mask-image: linear-gradient(transparent, #000 48px, #000 calc(100% - 64px), transparent); }
+  @media (prefers-reduced-motion: reduce) { .thread, .thread span { transition: none; } }
 
   /* Demo-only controls */
   .demo-bar {
@@ -909,7 +931,7 @@
     animation: fade 0.22s var(--ease-out);
   }
   .index[hidden] { display: none; }
-  .index-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; position: sticky; top: -28px; padding: 6px 0 12px; z-index: 2; }
+  .index-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; position: sticky; top: -28px; padding: 34px 0 26px; margin: -28px 0 -14px; z-index: 2; background: linear-gradient(color-mix(in srgb, var(--base) 97%, transparent) 72%, transparent); }
   .index-search { flex: 1 1 280px; display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 18px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 8%, transparent); box-shadow: inset 0 0 0 1px var(--line); }
   .index-search i { font-size: 20px; color: var(--muted); }
   .index-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--ink); font: 500 17px 'Hanken Grotesk', sans-serif; }
@@ -1032,6 +1054,7 @@
   <div class="tex tex-static" aria-hidden="true"></div>
   <div class="tex tex-tear" aria-hidden="true"></div>
   <canvas id="field" aria-hidden="true"></canvas>
+  <canvas id="field-front" aria-hidden="true"></canvas>
   <div class="grain" aria-hidden="true"></div>
   <div class="grain alt" aria-hidden="true"></div>
   <div class="grain mono" aria-hidden="true"></div>
@@ -1641,10 +1664,81 @@
       </div>
     </div>`;
   }
+  // A thread of light that shows (and drives) how far a box has scrolled
+  let threads = [];
+  function attachThread(sc, host, color, fixed, fade = true) {
+    const bar = document.createElement('div');
+    bar.className = 'thread' + (fixed ? ' fixed' : '');
+    bar.setAttribute('aria-hidden', 'true');
+    bar.style.setProperty('--thread', color);
+    bar.innerHTML = '<span></span>';
+    const thumb = bar.firstChild;
+    host.appendChild(bar);
+    let idle;
+    function update() {
+      const range = sc.scrollHeight - sc.clientHeight;
+      const track = bar.clientHeight, size = Math.min(46, track / 3);   // a short bead of light sliding along the thread
+      thumb.style.height = size + 'px';
+      thumb.style.transform = `translate(-50%, ${(track - size) * (range > 0 ? sc.scrollTop / range : 0)}px)`;
+      if (!fade) return;
+      sc.classList.toggle('more-up', sc.scrollTop > 4);
+      sc.classList.toggle('more-down', sc.scrollTop < range - 4);
+    }
+    function place() {
+      const oy = sc.isConnected ? getComputedStyle(sc).overflowY : '';
+      const can = (oy === 'auto' || oy === 'scroll') && sc.clientHeight > 0 && sc.scrollHeight > sc.clientHeight + 4;
+      bar.hidden = !can;
+      if (!can) { sc.classList.remove('more-up', 'more-down'); return; }
+      const r = sc.getBoundingClientRect(), hr = fixed ? { top: 0, left: 0 } : host.getBoundingClientRect();
+      bar.style.top = (r.top - hr.top + 14) + 'px';
+      bar.style.height = (r.height - 28) + 'px';
+      bar.style.left = (r.right - hr.left - 10) + 'px';
+      update();
+    }
+    sc.addEventListener('scroll', () => {
+      update();
+      bar.classList.add('active');
+      clearTimeout(idle);
+      idle = setTimeout(() => bar.classList.remove('active'), 900);
+    }, { passive: true });
+    thumb.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      thumb.setPointerCapture(e.pointerId);
+      const y0 = e.clientY, s0 = sc.scrollTop, range = sc.scrollHeight - sc.clientHeight, room = bar.clientHeight - thumb.offsetHeight || 1;
+      bar.classList.add('drag');
+      const move = ev => { sc.scrollTop = s0 + (ev.clientY - y0) * range / room; };
+      const up = () => { bar.classList.remove('drag'); thumb.removeEventListener('pointermove', move); thumb.removeEventListener('pointerup', up); thumb.removeEventListener('pointercancel', up); };
+      thumb.addEventListener('pointermove', move);
+      thumb.addEventListener('pointerup', up);
+      thumb.addEventListener('pointercancel', up);
+    });
+    bar.addEventListener('pointerdown', e => {
+      if (e.target !== bar) return;
+      const r = bar.getBoundingClientRect();
+      sc.scrollTo({ top: (e.clientY - r.top) / r.height * (sc.scrollHeight - sc.clientHeight), behavior: reduce ? 'auto' : 'smooth' });
+    });
+    // Images arriving late make the content taller, so measure again when they load
+    sc.addEventListener('load', place, true);
+    const ro = new ResizeObserver(place);
+    ro.observe(sc);
+    if (sc.firstElementChild) ro.observe(sc.firstElementChild);
+    requestAnimationFrame(place);
+    return { place, remove() { ro.disconnect(); bar.remove(); } };
+  }
+  addEventListener('resize', () => threads.forEach(t => t.place()));
+  function threadDetail(p) {
+    threads.filter(t => t.detail).forEach(t => t.remove());
+    threads = threads.filter(t => !t.detail);
+    const d = dlg.querySelector('.d');
+    const color = root.dataset.theme === 'light' ? getComputedStyle(root).getPropertyValue('--ink').trim() : (lightEnough(p.accent) ? p.accent : '#F2F0FF');
+    ['.d-media', '.d-info'].forEach(sel => { const t = attachThread(dlg.querySelector(sel), dlg, color); t.detail = true; threads.push(t); });
+    const whole = attachThread(d, dlg, color); whole.detail = true; threads.push(whole);   // phones: the whole view scrolls
+  }
   function openProject(p) {
     dlg.innerHTML = detail(p);
     dlg.setAttribute('aria-label', `${p.name} details`);
     if (!dlg.open) dlg.showModal();
+    threadDetail(p);
     closedHandled = false;
     root.style.overflow = 'hidden';
     if (scroller) scroller.pause();
@@ -1744,11 +1838,14 @@
         <span class="index-art">${cover(p)}${p.icon ? `<img class="index-icon" src="${p.icon}" alt="" width="40" height="40" loading="lazy">` : ''}</span><strong>${p.name}${p.fresh ? ' \u00B7 new' : ''}</strong><span class="meta">${p.blurb}</span></button>`).join('')
       : '<p class="index-empty">Nothing matches that. Try another word.</p>';
   }
+  let indexThread = null;
   function openIndex() {
     if (!indexEl.hidden) return;
     indexReturn = document.activeElement;
     fillIndex();
     indexEl.hidden = false;
+    if (!indexThread) indexThread = attachThread(indexEl, document.body, 'var(--ink)', true, false);
+    indexThread.place();
     root.style.overflow = 'hidden';
     if (scroller) scroller.pause();
     setTimeout(() => indexQ.focus(), 30);
@@ -1756,18 +1853,20 @@
   function closeIndex(keepLock) {
     if (indexEl.hidden) return;
     indexEl.hidden = true;
+    if (indexThread) indexThread.place();
     if (!keepLock) { root.style.overflow = ''; if (scroller) scroller.resume(); }
     if (indexReturn && indexReturn.focus) indexReturn.focus();
   }
   document.getElementById('index-btn').addEventListener('click', openIndex);
   document.getElementById('index-close').addEventListener('click', () => closeIndex());
-  indexQ.addEventListener('input', fillIndex);
+  indexQ.addEventListener('input', () => { fillIndex(); if (indexThread) indexThread.place(); });
   indexFilters.addEventListener('click', e => {
     const b = e.target.closest('[data-cat]');
     if (!b) return;
     indexCat = b.dataset.cat;
     indexFilters.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
     fillIndex();
+    if (indexThread) indexThread.place();
   });
   indexGrid.addEventListener('click', e => {
     const b = e.target.closest('[data-index-open]');
@@ -1867,6 +1966,9 @@
   const field = (() => {
     const canvas = document.getElementById('field');
     const ctx = canvas.getContext('2d');
+    const front = document.getElementById('field-front');
+    const fctx = front.getContext('2d');
+    let frontDirty = false;
     let w = 0, h = 0, dots = [], mode = 'intro', ready = false;
     // Where the intro and outro sections sit on the page, so the name scrolls with them
     const anchors = { intro: 0, outro: 0 };
@@ -1878,6 +1980,11 @@
     const glow = { x: -9999, y: -9999, a: 0 };
     const revealEl = document.querySelector('.grain.reveal');
     let lights = [], haloTitle = null;
+    // Halo scene: the ring's shape this frame, the small ring that trails the cursor, and click ripples
+    const halo = { x: 0, y: 0, rx: 0, ry: 0, tilt: 0, on: false };
+    const cring = { x: -9999, y: -9999, squeeze: 1 };
+    const ripples = [];
+    const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
@@ -1919,6 +2026,8 @@
       if (!hadSize) dots.forEach(d => { d.x = Math.random() * w; d.y = Math.random() * h; });
       canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      front.width = canvas.width; front.height = canvas.height;
+      fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const n = Math.max(1000, Math.min(5200, Math.round((w * h) / 230)));
       dots = Array.from({ length: n }, (_, i) => dots[i] || {
         x: Math.random() * w, y: Math.random() * h, vx: 0, vy: 0,
@@ -2056,7 +2165,7 @@
         case 'vinyl': return d.a * 0.9;
         case 'ink': return Math.min(0.85, d.a * 1.3);
         case 'bokeh': return d.big && d.c < 0.35 ? 0.16 : d.a * 0.2;
-        case 'halo': return d.c < 0.55 ? Math.min(0.95, 0.35 + d.a * 1.1) : d.a * 0.3;
+        case 'halo': return d.c < 0.12 ? (mouse.on ? 0.9 : 0.6) : d.c < 0.24 ? d.a * 0.4 : d.c < 0.62 ? Math.min(0.95, 0.4 + d.a) : d.a * 0.3;
         default: return d.a;
       }
     }
@@ -2106,15 +2215,26 @@
       }
       const rr = kind === 'form' ? 120 : 95, push = kind === 'form' ? 5 : 1.6;
       let hx = 0, hy = 0, hrx = 0, hry = 0, hcos = 1, hsin = 0;
-      if (kind === 'halo') {
+      const now = performance.now();
+      halo.on = kind === 'halo';
+      if (halo.on) {
+        // An ellipse that goes all the way around the word with room to spare, so it never cuts a letter
         const el = haloTitle || (haloTitle = document.querySelector('#s-halo .title'));
         const b = el && el.getBoundingClientRect();
         if (b && b.width) {
-          hx = b.left + b.width / 2; hrx = b.width * 0.46; hry = hrx * 0.16;
-          hy = b.top + b.height * 0.1 + Math.sin(t * 0.0011) * h * 0.006;
-        } else { hx = cx; hy = cy - R * 0.7; hrx = R; hry = R * 0.16; }
-        const tilt = -0.07 + Math.sin(t * 0.0004) * 0.025;
+          hx = b.left + b.width / 2; hy = b.top + b.height * 0.56 + Math.sin(t * 0.0009) * 3;
+          hrx = b.width * 0.5 + Math.min(90, w * 0.06); hry = hrx * 0.26;
+        } else { hx = cx; hy = cy; hrx = R * 1.3; hry = R * 0.34; }
+        const tilt = -0.13 + Math.sin(t * 0.00035) * 0.025;
         hcos = Math.cos(tilt); hsin = Math.sin(tilt);
+        Object.assign(halo, { x: hx, y: hy, rx: hrx, ry: hry, tilt });
+        // The little ring trails the cursor, and tightens for a moment on each click
+        if (mouse.on) {
+          if (cring.x < -999) { cring.x = mouse.x; cring.y = mouse.y; }
+          cring.x = lerp(cring.x, mouse.x, 0.3); cring.y = lerp(cring.y, mouse.y, 0.3);
+        }
+        cring.squeeze = lerp(cring.squeeze, 1, 0.12);
+        while (ripples.length && now - ripples[0].t0 > 1100) ripples.shift();
       }
       // The name rides along with its section; the further it scrolls away, the looser it holds
       const off = kind === 'form' && !flash ? (anchors[mode] || 0) - window.scrollY : 0;
@@ -2133,13 +2253,22 @@
           const tx = vcx + Math.cos(d.ang) * VR * (0.25 + d.ring * 0.75), ty = vcy + Math.sin(d.ang) * VR * (0.25 + d.ring * 0.75);
           d.vx = (d.vx + (tx - d.x) * 0.012) * 0.9;
           d.vy = (d.vy + (ty - d.y) * 0.012) * 0.9;
-        } else if (kind === 'halo' && d.c < 0.55) {
-          // On the ring: all at nearly the same speed, so it reads as one band of light turning
-          d.ang += 0.0024 + d.s * 0.0006;
-          const k = 1 + (d.ring - 1.02) * 0.12, ex = Math.cos(d.ang) * hrx * k, ey = Math.sin(d.ang) * hry * k;
+        } else if (kind === 'halo' && d.c < 0.12 && mouse.on) {
+          // The cursor's own halo, like the app: a small, tight ring that goes wherever the mouse goes
+          if (d.hg === undefined) d.hg = gauss();
+          d.ang += 0.03 + d.s * 0.01;
+          const rc = (26 + d.hg * 1.6) * cring.squeeze;
+          d.vx = (d.vx + (cring.x + Math.cos(d.ang) * rc - d.x) * 0.22) * 0.62;
+          d.vy = (d.vy + (cring.y + Math.sin(d.ang) * rc - d.y) * 0.22) * 0.62;
+        } else if (kind === 'halo' && d.c < 0.62) {
+          // The big halo: a soft band of light around the word, brighter at its core, with a faint corona
+          if (d.hg === undefined) d.hg = gauss();
+          d.ang += 0.0009 + d.s * 0.0005;
+          const spread = d.c < 0.24 ? 28 : 7.5, o = d.hg * spread;
+          const ex = Math.cos(d.ang) * (hrx + o), ey = Math.sin(d.ang) * (hry + o * 0.35);
           const tx = hx + ex * hcos - ey * hsin, ty = hy + ex * hsin + ey * hcos;
-          d.vx = (d.vx + (tx - d.x) * 0.02) * 0.84;
-          d.vy = (d.vy + (ty - d.y) * 0.02) * 0.84;
+          d.vx = (d.vx + (tx - d.x) * 0.03) * 0.8;
+          d.vy = (d.vy + (ty - d.y) * 0.03) * 0.8;
         } else {
           let ax, ay;
           const flow = (Math.sin(d.x * 0.0019 + t * 0.00011) + Math.cos(d.y * 0.0023 - t * 0.00009)) * Math.PI;
@@ -2175,13 +2304,21 @@
           d.vx = lerp(d.vx, ax * depth, 0.04);
           d.vy = lerp(d.vy, ay * depth, 0.04);
         }
+        if (halo.on && ripples.length) {
+          for (const rp of ripples) {
+            const age = now - rp.t0, rad = age * 0.62, dx = d.x - rp.x, dy = d.y - rp.y, dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const near = 1 - Math.abs(dist - rad) / 28;
+            if (near > 0) { const f = near * 2.4 * (1 - age / 1100); d.vx += (dx / dist) * f; d.vy += (dy / dist) * f; d.lit = Math.max(d.lit || 0, near * (1 - age / 1100)); }
+          }
+        }
+        if (d.lit) d.lit = d.lit > 0.01 ? d.lit * 0.93 : 0;
         // Particles move out of the way of the mouse in every scene
-        if (mouse.on) {
+        if (mouse.on && !(halo.on && d.c < 0.12)) {
           const dx = d.x - mouse.x, dy = d.y - mouse.y, dist2 = dx * dx + dy * dy;
           if (dist2 < rr * rr) { const dist = Math.sqrt(dist2) || 1, f = (1 - dist / rr) * push; d.vx += (dx / dist) * f; d.vy += (dy / dist) * f; }
         }
         d.x += d.vx; d.y += d.vy;
-        if (!(kind === 'form' && isLetter(d)) && !(kind === 'halo' && d.c < 0.55) && kind !== 'vinyl') {
+        if (!(kind === 'form' && isLetter(d)) && !(kind === 'halo' && d.c < 0.62) && kind !== 'vinyl') {
           if (d.x < -10) d.x = w + 10; else if (d.x > w + 10) d.x = -10;
           if (d.y < -10) d.y = h + 10; else if (d.y > h + 10) d.y = -10;
         }
@@ -2233,32 +2370,80 @@
         ctx.fillRect(glow.x - gr, glow.y - gr, gr * 2, gr * 2);
       }
 
+      if (frontDirty) { fctx.clearRect(0, 0, w, h); frontDirty = false; }
+      if (kind === 'halo' && halo.rx) {
+        frontDirty = true;
+        const col = rgb(cur.b), core = rgb(cur.a), breathe = 0.85 + Math.sin(t * 0.0012) * 0.15;
+        const band = (c, from, to, strength) => {
+          c.save();
+          c.globalCompositeOperation = 'lighter';
+          c.translate(halo.x, halo.y); c.rotate(halo.tilt);
+          c.beginPath(); c.ellipse(0, 0, halo.rx, halo.ry, 0, from, to);
+          c.shadowColor = `rgba(${col},0.9)`; c.shadowBlur = 36;
+          c.strokeStyle = `rgba(${col},${0.2 * breathe * strength})`; c.lineWidth = 14; c.stroke();
+          c.shadowBlur = 12; c.strokeStyle = `rgba(${core},${0.4 * breathe * strength})`; c.lineWidth = 1.8; c.stroke();
+          if (strength === 1) {
+            // where the near half crosses the white letters, a coloured line shows it passing in front of them
+            c.globalCompositeOperation = 'source-over'; c.shadowBlur = 8;
+            c.strokeStyle = `rgba(${col},${0.5 * breathe})`; c.lineWidth = 2.4; c.stroke();
+            c.globalCompositeOperation = 'lighter';
+          }
+          // a brighter stretch of light slowly travelling round the ring
+          const a0 = (t * 0.00045) % (Math.PI * 2), a1 = a0 + 0.8;
+          const lo = Math.max(from, a0), hi = Math.min(to, a1);
+          if (hi > lo) { c.beginPath(); c.ellipse(0, 0, halo.rx, halo.ry, 0, lo, hi); c.shadowBlur = 22; c.strokeStyle = `rgba(255,255,255,${0.5 * strength})`; c.lineWidth = 2.6; c.stroke(); }
+          const lo2 = Math.max(from, a0 - Math.PI * 2), hi2 = Math.min(to, a1 - Math.PI * 2);
+          if (hi2 > lo2) { c.beginPath(); c.ellipse(0, 0, halo.rx, halo.ry, 0, lo2, hi2); c.shadowBlur = 22; c.strokeStyle = `rgba(255,255,255,${0.5 * strength})`; c.lineWidth = 2.6; c.stroke(); }
+          c.restore();
+        };
+        band(ctx, Math.PI, Math.PI * 2, 0.55);   // far half, behind the word
+        band(fctx, 0, Math.PI, 1);               // near half, in front of it
+        fctx.save();
+        fctx.globalCompositeOperation = 'lighter';
+        if (mouse.on && cring.x > -999) {
+          fctx.beginPath(); fctx.arc(cring.x, cring.y, 26 * cring.squeeze, 0, Math.PI * 2);
+          fctx.shadowColor = `rgba(${col},0.9)`; fctx.shadowBlur = 18;
+          fctx.strokeStyle = `rgba(${core},0.3)`; fctx.lineWidth = 2; fctx.stroke();
+        }
+        const tnow = performance.now();
+        for (const rp of ripples) {
+          const age = tnow - rp.t0, k = age / 1100;
+          fctx.beginPath(); fctx.arc(rp.x, rp.y, age * 0.62, 0, Math.PI * 2);
+          fctx.shadowColor = `rgba(${col},0.8)`; fctx.shadowBlur = 16;
+          fctx.strokeStyle = `rgba(${core},${0.35 * (1 - k) * (1 - k)})`; fctx.lineWidth = 2 + 5 * (1 - k); fctx.stroke();
+        }
+        fctx.restore();
+      }
       // Additive light where particles overlap, so the name glows on dark backgrounds
       ctx.globalCompositeOperation = (kind === 'form' && root.dataset.theme === 'dark') || kind === 'halo' ? 'lighter' : 'source-over';
+      fctx.globalCompositeOperation = 'lighter';
       const reach = 180;
       for (const d of dots) {
         const letter = kind === 'form' && isLetter(d);
-        const onRing = kind === 'halo' && d.c < 0.55, near = onRing ? (Math.sin(d.ang) + 1) / 2 : 0;
+        const onRing = kind === 'halo' && d.c < 0.62 && !(d.c < 0.12 && mouse.on), near = onRing ? (Math.sin(d.ang + halo.tilt) + 1) / 2 : 0;
         const depth = letter || onRing ? 0.15 : d.z;
         const px = d.x + par.x * (4 + depth * 26), py = d.y + par.y * (3 + depth * 18);
         const k = kind === 'form' ? Math.max(0, Math.min(3, Math.floor((d.x / w) * 4))) : Math.min(3, Math.floor(d.c * 4));
         let tw = 1;
         if (!reduce) tw = kind === 'stars' ? 0.25 + 0.75 * Math.abs(Math.sin(t * 0.0018 + d.ph)) : 0.7 + 0.3 * Math.sin(t * 0.0015 + d.ph);
-        let alpha = d.al * tw * (letter ? 1 : onRing ? 0.35 + near * 0.65 : 0.45 + d.z * 0.7);
+        let alpha = d.al * tw * (letter ? 1 : onRing ? 0.4 + near * 0.6 : 0.45 + d.z * 0.7) * (1 + (d.lit || 0) * 2.5);
         // Particles brighten as the cursor light passes over them
         if (glow.a > 0.01) {
           const dx = px - glow.x, dy = py - glow.y, q = dx * dx + dy * dy;
           if (q < reach * reach) { const f = 1 - Math.sqrt(q) / reach; alpha *= 1 + 1.6 * f * f * glow.a; }
         }
         if (alpha < 0.01) continue;
-        ctx.globalAlpha = Math.min(1, alpha);
-        ctx.fillStyle = buckets[k];
+        const c2 = kind === 'halo' && ((onRing && near > 0.5) || (d.c < 0.12 && mouse.on)) ? fctx : ctx;
+        c2.globalAlpha = Math.min(1, alpha);
+        c2.fillStyle = buckets[k];
         const sz = d.r * size * (letter ? 1 : onRing ? 0.75 + near * 0.75 : 0.55 + d.z * 0.95);
         if (kind === 'bokeh' && d.big && d.c < 0.35) { ctx.beginPath(); ctx.arc(px, py, 3 + d.r * 5, 0, Math.PI * 2); ctx.fill(); }
-        else ctx.fillRect(px, py, sz, sz);
+        else c2.fillRect(px, py, sz, sz);
       }
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
+      fctx.globalAlpha = 1;
+      fctx.globalCompositeOperation = 'source-over';
     }
 
     const api = { setMode, refreshColors, playIntro, skipIntro, setAnchors, flash, setWord, mode: () => mode, onFrame: null };
@@ -2280,6 +2465,12 @@
     canvas.addEventListener('contextrestored', resize);
 
     addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { mouse.x = e.clientX; mouse.y = e.clientY; mouse.on = true; } });
+    addEventListener('pointerdown', e => {
+      if (KIND[mode] !== 'halo' || reduce) return;
+      ripples.push({ x: e.clientX, y: e.clientY, t0: performance.now() });
+      if (ripples.length > 5) ripples.shift();
+      cring.squeeze = 0.6;
+    });
     document.addEventListener('pointerleave', () => { mouse.on = false; });
     let rt;
     addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(resize, 150); });
