@@ -89,6 +89,16 @@
   body[data-scene="static"] { --page: #050407; --chrome: #F5F5FF; --chrome-muted: #A6A3BC; --g1: #3443FF; --g2: #FF2E93; --g-o: 0.5; --b1x: -48vw; --b1y: 0vh; --b2x: 50vw; --b2y: 6vh; }
   body[data-scene="prism"] { --page: #F3F0EA; --chrome: #16131C; --chrome-muted: #5E5866; --g1: #FFD1E0; --g2: #CDE6FF; --g-o: 0.9; --b1x: -34vw; --b1y: -36vh; --b2x: 38vw; --b2y: 36vh; }
   body[data-scene="ledger"] { --page: #F2EBDD; --chrome: #2A2118; --chrome-muted: #6E5F4E; --g1: #F7E3C8; --g2: #E8D2B0; --g-o: 0.8; --b1x: -30vw; --b1y: -34vh; --b2x: 36vw; --b2y: 36vh; }
+  body[data-scene="poltergeist"] { --page: #06060B; --chrome: #EEF0FF; --chrome-muted: #9EA3C4; --g1: #2A2F6E; --g2: #3A1E5E; --g-o: 0.6; --b1x: -36vw; --b1y: -40vh; --b2x: 40vw; --b2y: 40vh; }
+  body[data-scene="undertow"] { --page: #04101C; --chrome: #E6F3FF; --chrome-muted: #8FB1CC; --g1: #1E6FD9; --g2: #4B3BC4; --g-o: 0.6; --b1x: -36vw; --b1y: -40vh; --b2x: 40vw; --b2y: 40vh; }
+  body[data-scene="veil"] { --page: #0A0910; --chrome: #EEEAFF; --chrome-muted: #A49DC2; --g1: #3A2F8A; --g2: #6A2A6E; --g-o: 0.6; --b1x: -36vw; --b1y: -40vh; --b2x: 40vw; --b2y: 40vh; }
+  body[data-scene="afterimage"] { --page: #0C0809; --chrome: #FFF3F5; --chrome-muted: #C9A9B0; --g1: #7A2848; --g2: #7A4A28; --g-o: 0.6; --b1x: -36vw; --b1y: -40vh; --b2x: 40vw; --b2y: 40vh; }
+  body[data-scene="wisp"] { --page: #040A0C; --chrome: #E8FFF8; --chrome-muted: #8FB8AE; --g1: #0E4A4E; --g2: #1E3A6E; --g-o: 0.6; --b1x: -36vw; --b1y: -40vh; --b2x: 40vw; --b2y: 40vh; }
+  body[data-scene="tether"] { --page: #0D0A07; --chrome: #FFF4E8; --chrome-muted: #C9B6A2; --g1: #5A3412; --g2: #3A1E10; --g-o: 0.6; --b1x: -36vw; --b1y: -40vh; --b2x: 40vw; --b2y: 40vh; }
+  body[data-scene="lull"] { --page: #0B1A1A; --chrome: #ECF8F2; --chrome-muted: #9FB5AE; --g1: #1E5A4A; --g2: #4A2A5E; --g-o: 0.6; --b1x: -36vw; --b1y: -40vh; --b2x: 40vw; --b2y: 40vh; }
+  body[data-scene="specter"] { --page: #070A10; --chrome: #E8F0FF; --chrome-muted: #8A9AB8; --g1: #1E2E5A; --g2: #2A3A6E; --g-o: 0.6; --b1x: -36vw; --b1y: -40vh; --b2x: 40vw; --b2y: 40vh; }
+  body[data-scene="nocturne"] { --page: #0A0814; --chrome: #F7E6C8; --chrome-muted: #B8A98F; --g1: #2A1F66; --g2: #5A3412; --g-o: 0.6; --b1x: -36vw; --b1y: -40vh; --b2x: 40vw; --b2y: 40vh; }
+  body[data-scene="hush"] { --page: #0C0707; --chrome: #FFEDEA; --chrome-muted: #C7A7A3; --g1: #5A1218; --g2: #3A0E12; --g-o: 0.6; --b1x: -36vw; --b1y: -40vh; --b2x: 40vw; --b2y: 40vh; }
   body[data-scene="halo"] { --page: #020207; --chrome: #EEF3FF; --chrome-muted: #97A3C9; --g1: #1B36E0; --g2: #060C3A; --g-o: 0.5; --b1x: 0vw; --b1y: 0vh; --b2x: 0vw; --b2y: 50vh; }
 
   * { box-sizing: border-box; }
@@ -916,6 +926,19 @@
     .index-card strong { font-size: 14px; }
     .index-filters { order: 3; width: 100%; overflow-x: auto; }
   }
+  .index-art { position: relative; display: block; }
+  .index-icon { position: absolute; left: 12px; bottom: 12px; width: 40px; height: 40px; border-radius: 11px; box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.7); }
+  .d-icon { display: block; width: 64px; height: 64px; border-radius: 17px; margin: 0 0 16px; box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6); }
+  .cover-dock { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; max-width: 760px; margin: 26px auto 0; padding: 0 12px; }
+  .cover-dock[hidden] { display: none; }
+  .choices .cover-dock button { opacity: 1; padding: 0; margin: 0; letter-spacing: 0; }
+  .choices .cover-dock button::after { content: none; }
+  .cover-dock button { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 13px; animation: dock-in 0.5s var(--ease-out) var(--d, 0ms) both; transition: transform 0.2s var(--ease-out); }
+  .cover-dock img { display: block; width: 44px; height: 44px; border-radius: 12px; box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.8); }
+  @media (hover: hover) and (pointer: fine) { .cover-dock button:hover { transform: translateY(-4px) scale(1.08); } }
+  .cover-dock button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  @keyframes dock-in { from { opacity: 0; transform: translateY(10px) scale(0.9); } }
+  @media (max-width: 700px) { .cover-dock { gap: 8px; } .cover-dock img { width: 38px; height: 38px; } }
   .index-empty { grid-column: 1 / -1; color: var(--muted); padding: 40px 0; text-align: center; }
   .toast {
     position: fixed; left: 50%; bottom: 70px; z-index: 60; transform: translate(-50%, 8px);
@@ -1036,6 +1059,7 @@
           <button type="button" data-tab="apps" aria-pressed="false">Apps</button>
           <button type="button" data-tab="remixes" aria-pressed="false">Remixes</button>
         </div>
+        <div class="cover-dock tag-in" id="cover-dock" hidden></div>
         <span class="scroll-cue tag-in" aria-hidden="true"></span>
       </div>
     </section>
@@ -1112,7 +1136,7 @@
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
     },
     {
-      slug: 'ledger', enter: 'write', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/ledger-v1.0.0/Ledger-1.0.0.zip', sha: '1e43dc64d63fea743cfada3c2d622751b5a0cdb41391f5beef283d066fea077b', name: 'Ledger', cat: 'apps', kind: 'App', platform: 'Windows', style: 'ledger', ratio: '4 / 5',
+      slug: 'ledger', icon: 'img/icons/ledger.png', enter: 'write', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/ledger-v1.0.0/Ledger-1.0.0.zip', sha: '1e43dc64d63fea743cfada3c2d622751b5a0cdb41391f5beef283d066fea077b', name: 'Ledger', cat: 'apps', kind: 'App', platform: 'Windows', style: 'ledger', ratio: '4 / 5',
       title: 't-ledger', layout: 'at-left', page: '#F2EBDD', accent: '#2A2118',
       font: "'Libre Baskerville', serif", titleCss: 'font-style:italic;',
       blurb: 'A private diary of where your screen time goes, drawn as a ribbon of colour.',
@@ -1123,7 +1147,7 @@
       sparks: []
     },
     {
-      slug: 'static', enter: 'tune', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/static-v1.1.0/Static-1.1.0.zip', sha: '4d636d5464a629b3e4b7d7f95949d63bf177001b5bcf811f6a90d835d5b7a603', name: 'Static', cat: 'apps', kind: 'App', platform: 'Windows', style: 'glitch', ratio: '16 / 10',
+      slug: 'static', icon: 'img/icons/static.png', enter: 'tune', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/static-v1.1.0/Static-1.1.0.zip', sha: '4d636d5464a629b3e4b7d7f95949d63bf177001b5bcf811f6a90d835d5b7a603', name: 'Static', cat: 'apps', kind: 'App', platform: 'Windows', style: 'glitch', ratio: '16 / 10',
       title: 't-glitch', layout: 'at-left', page: '#050407', accent: '#FF7CBE',
       font: "'Archivo', sans-serif", titleCss: 'font-weight:900;font-stretch:125%;text-transform:uppercase;',
       blurb: 'Real rain, a thunderstorm, the sea, a river and a campfire: mix your own background sound.',
@@ -1134,7 +1158,7 @@
       sparks: []
     },
     {
-      slug: 'hush', enter: 'onair', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/hush-v1.0.0/Hush-1.0.0.zip', sha: '056ada28884ef856c64ad511ed85cb5312685460b19c9412baaeeffdf76c15e6', name: 'Hush', cat: 'apps', kind: 'App', platform: 'Windows', style: 'hush', ratio: '1 / 1',
+      slug: 'hush', icon: 'img/icons/hush.png', enter: 'onair', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/hush-v1.0.0/Hush-1.0.0.zip', sha: '056ada28884ef856c64ad511ed85cb5312685460b19c9412baaeeffdf76c15e6', name: 'Hush', cat: 'apps', kind: 'App', platform: 'Windows', style: 'hush', ratio: '1 / 1',
       title: 't-hush', layout: 'at-center', page: '#0C0707', accent: '#FFD6D2',
       font: "'Bungee', sans-serif", titleCss: 'text-transform:uppercase;',
       blurb: 'One shortcut mutes every microphone at once, and a little sign tells you you are muted.',
@@ -1145,7 +1169,7 @@
       sparks: []
     },
     {
-      slug: 'nocturne', enter: 'dusk', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/nocturne-v1.0.0/Nocturne-1.0.0.zip', sha: '5609a75faa2726d382d938d8d438d1091e293e434f8f66df192f02e185d5a85b', name: 'Nocturne', cat: 'apps', kind: 'App', platform: 'Windows', style: 'nocturne', ratio: '4 / 5',
+      slug: 'nocturne', icon: 'img/icons/nocturne.png', enter: 'dusk', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/nocturne-v1.0.0/Nocturne-1.0.0.zip', sha: '5609a75faa2726d382d938d8d438d1091e293e434f8f66df192f02e185d5a85b', name: 'Nocturne', cat: 'apps', kind: 'App', platform: 'Windows', style: 'nocturne', ratio: '4 / 5',
       title: 't-nocturne', layout: 'at-right', page: '#0A0814', accent: '#F7E6C8',
       font: "'Gloock', serif", titleCss: 'text-transform:lowercase;',
       blurb: 'Darker than your lowest brightness, warmer on the eyes, on every screen at night.',
@@ -1156,7 +1180,7 @@
       sparks: [[18, 26, 10, '5.2s', '.4s'], [40, 62, 8, '4.4s', '2s']]
     },
     {
-      slug: 'specter', enter: 'phase', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/specter-v1.0.0/Specter-1.0.0.zip', sha: 'a6a7df79e4165c5b5de076bcae34712da43a263630674b280397275326173f77', name: 'Specter', cat: 'apps', kind: 'App', platform: 'Windows', style: 'specter', ratio: '4 / 5',
+      slug: 'specter', icon: 'img/icons/specter.png', enter: 'phase', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/specter-v1.0.0/Specter-1.0.0.zip', sha: 'a6a7df79e4165c5b5de076bcae34712da43a263630674b280397275326173f77', name: 'Specter', cat: 'apps', kind: 'App', platform: 'Windows', style: 'specter', ratio: '4 / 5',
       title: 't-specter', layout: 'at-left', page: '#070A10', accent: '#CFE0FF',
       font: "'Michroma', sans-serif", titleCss: 'text-transform:uppercase;',
       blurb: 'Pin any window on top, or let it fade until you can see right through it.',
@@ -1167,7 +1191,7 @@
       sparks: [[70, 24, 12, '4.6s', '.8s'], [86, 58, 9, '3.8s', '2.2s']]
     },
     {
-      slug: 'lull', enter: 'breathe', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/lull-v1.0.0/Lull-1.0.0.zip', sha: 'dcdb0e79d0db59050804b40cb53849a1ad573ab5423f0ba062bfbee5a74bbf24', name: 'Lull', cat: 'apps', kind: 'App', platform: 'Windows', style: 'lull', ratio: '1 / 1',
+      slug: 'lull', icon: 'img/icons/lull.png', enter: 'breathe', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/lull-v1.0.0/Lull-1.0.0.zip', sha: 'dcdb0e79d0db59050804b40cb53849a1ad573ab5423f0ba062bfbee5a74bbf24', name: 'Lull', cat: 'apps', kind: 'App', platform: 'Windows', style: 'lull', ratio: '1 / 1',
       title: 't-lull', layout: 'at-center', page: '#0B1A1A', accent: '#BFF0DD',
       font: "'Young Serif', serif", titleCss: 'text-transform:lowercase;',
       blurb: 'Every 20 minutes at the screen, a calm breathing light asks your eyes to look far away.',
@@ -1178,7 +1202,7 @@
       sparks: [[30, 34, 10, '6s', '1s'], [70, 66, 12, '7s', '3s']]
     },
     {
-      slug: 'prism', enter: 'refract', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/prism-v1.0.0/Prism-1.0.0.zip', sha: '4840bf025fa98c045b2439cf13edd3cd984e91b702ae270f1cb38a077449099b', name: 'Prism', cat: 'apps', kind: 'App', platform: 'Windows', style: 'prism', ratio: '1 / 1',
+      slug: 'prism', icon: 'img/icons/prism.png', enter: 'refract', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/prism-v1.0.0/Prism-1.0.0.zip', sha: '4840bf025fa98c045b2439cf13edd3cd984e91b702ae270f1cb38a077449099b', name: 'Prism', cat: 'apps', kind: 'App', platform: 'Windows', style: 'prism', ratio: '1 / 1',
       title: 't-prism', layout: 'at-left', page: '#F3F0EA', accent: '#16131C',
       font: "'Dela Gothic One', sans-serif", titleCss: 'text-transform:lowercase;',
       blurb: 'Pick any colour on any screen with Ctrl + Alt + C, copied as HEX before you blink.',
@@ -1189,7 +1213,7 @@
       sparks: []
     },
     {
-      slug: 'tether', enter: 'tick', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/tether-v1.0.0/Tether-1.0.0.zip', sha: '932fbcdbd6fb80b2193c45f5fe377f9035e3052ef59138ecf957f39b3d03b96b', name: 'Tether', cat: 'apps', kind: 'App', platform: 'Windows', style: 'tether', ratio: '1 / 1',
+      slug: 'tether', icon: 'img/icons/tether.png', enter: 'tick', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/tether-v1.0.0/Tether-1.0.0.zip', sha: '932fbcdbd6fb80b2193c45f5fe377f9035e3052ef59138ecf957f39b3d03b96b', name: 'Tether', cat: 'apps', kind: 'App', platform: 'Windows', style: 'tether', ratio: '1 / 1',
       title: 't-tether', layout: 'at-right', page: '#0D0A07', accent: '#FFD9B0',
       font: "'Major Mono Display', monospace", titleCss: 'text-transform:lowercase;',
       blurb: 'Keeps your PC awake for exactly as long as you need, then lets it sleep.',
@@ -1200,7 +1224,7 @@
       sparks: [[20, 30, 10, '4.8s', '1s'], [34, 70, 14, '5.4s', '2.8s']]
     },
     {
-      slug: 'wisp', enter: 'gather', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/wisp-v1.0.0/Wisp-1.0.0.zip', sha: '087672a3f9c1f5b2a638cf684d6dfd85fb69f2bd19b4a391cb1efc149672c732', name: 'Wisp', cat: 'apps', kind: 'App', platform: 'Windows', style: 'wisp', ratio: '1 / 1',
+      slug: 'wisp', icon: 'img/icons/wisp.png', enter: 'gather', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/wisp-v1.0.0/Wisp-1.0.0.zip', sha: '087672a3f9c1f5b2a638cf684d6dfd85fb69f2bd19b4a391cb1efc149672c732', name: 'Wisp', cat: 'apps', kind: 'App', platform: 'Windows', style: 'wisp', ratio: '1 / 1',
       title: 't-wisp', layout: 'at-center', page: '#040A0C', accent: '#9FFFE6',
       font: "'Poiret One', sans-serif", titleCss: 'text-transform:lowercase;',
       blurb: 'See which apps are talking to the internet right now, drawn as lights around you.',
@@ -1211,7 +1235,7 @@
       sparks: [[30, 30, 10, '4.2s', '.8s'], [70, 62, 12, '5s', '2.6s'], [60, 22, 8, '3.6s', '1.4s']]
     },
     {
-      slug: 'afterimage', enter: 'echo', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/afterimage-v1.0.0/Afterimage-1.0.0.zip', sha: '93cc4d5c2fd35b3806e42689a865e7e48b5014f3e6a17fc3bff965b5052e5db9', name: 'Afterimage', cat: 'apps', kind: 'App', platform: 'Windows', style: 'echo', ratio: '4 / 5',
+      slug: 'afterimage', icon: 'img/icons/afterimage.png', enter: 'echo', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/afterimage-v1.0.0/Afterimage-1.0.0.zip', sha: '93cc4d5c2fd35b3806e42689a865e7e48b5014f3e6a17fc3bff965b5052e5db9', name: 'Afterimage', cat: 'apps', kind: 'App', platform: 'Windows', style: 'echo', ratio: '4 / 5',
       title: 't-echo', layout: 'at-left', page: '#0C0809', accent: '#FFC9DA',
       font: "'DM Serif Display', serif", titleCss: 'font-style:italic;text-transform:lowercase;',
       blurb: 'Remembers everything you copy. Ctrl + Shift + V brings any of it back.',
@@ -1222,7 +1246,7 @@
       sparks: [[62, 26, 12, '4.4s', '.6s'], [84, 64, 16, '5.6s', '2.2s']]
     },
     {
-      slug: 'halo', enter: 'ignite', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/halo-v1.0.0/Halo-1.0.0.zip', sha: '93a7cebb4dce8e55935e92f46580cb3a8f32183f68a27a13d2789418f1e1d360', name: 'Halo', cat: 'apps', kind: 'App', platform: 'Windows', style: 'halo', ratio: '1 / 1',
+      slug: 'halo', icon: 'img/icons/halo.png', enter: 'ignite', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/halo-v1.0.0/Halo-1.0.0.zip', sha: '93a7cebb4dce8e55935e92f46580cb3a8f32183f68a27a13d2789418f1e1d360', name: 'Halo', cat: 'apps', kind: 'App', platform: 'Windows', style: 'halo', ratio: '1 / 1',
       title: 't-halo', layout: 'at-center', page: '#030308', accent: '#AFC4FF',
       font: "'Caveat Brush', cursive", titleCss: 'text-transform:lowercase;',
       blurb: 'A soft ring of light follows your mouse, every click ripples, and your shortcuts show on screen.',
@@ -1233,7 +1257,7 @@
       sparks: [[26, 30, 14, '4.6s', '.4s'], [74, 68, 18, '5.2s', '2s'], [80, 24, 10, '3.8s', '1.2s']]
     },
     {
-      slug: 'veil', enter: 'unveil', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/veil-v1.0.0/Veil-1.0.0.zip', sha: 'f017909b782da0fd5714cae67a0461aad2e2ec8b6ef0d3613177f0b0995b0103', name: 'Veil', cat: 'apps', kind: 'App', platform: 'Windows', style: 'veil', ratio: '4 / 5',
+      slug: 'veil', icon: 'img/icons/veil.png', enter: 'unveil', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/veil-v1.0.0/Veil-1.0.0.zip', sha: 'f017909b782da0fd5714cae67a0461aad2e2ec8b6ef0d3613177f0b0995b0103', name: 'Veil', cat: 'apps', kind: 'App', platform: 'Windows', style: 'veil', ratio: '4 / 5',
       title: 't-veil', layout: 'at-right', page: '#0A0910', accent: '#DCD2FF',
       font: "'Italiana', serif", titleCss: 'letter-spacing:0.2em;',
       blurb: 'Ctrl + Alt + V drops a calm curtain over every screen. Press it again to lift it.',
@@ -1244,7 +1268,7 @@
       sparks: [[30, 24, 12, '5s', '1s'], [18, 70, 16, '4.2s', '2.6s']]
     },
     {
-      slug: 'undertow', enter: 'wave', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/undertow-v1.0.0/Undertow-1.0.0.zip', sha: 'f6826352164c848d421418446af1810c154c0b574476bd4f93ca931162221a31', name: 'Undertow', cat: 'apps', kind: 'App', platform: 'Windows', style: 'tide', ratio: '4 / 5',
+      slug: 'undertow', icon: 'img/icons/undertow.png', enter: 'wave', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/undertow-v1.0.0/Undertow-1.0.0.zip', sha: 'f6826352164c848d421418446af1810c154c0b574476bd4f93ca931162221a31', name: 'Undertow', cat: 'apps', kind: 'App', platform: 'Windows', style: 'tide', ratio: '4 / 5',
       title: 't-tide', layout: 'at-left', page: '#04101C', accent: '#A9DCFF',
       font: "'Instrument Serif', serif", titleCss: 'font-style:italic;font-weight:400;',
       blurb: 'Pulls loose files out of your Downloads and onto their own shelves. Every sort can be undone.',
@@ -1255,7 +1279,7 @@
       sparks: [[70, 22, 14, '4.6s', '.8s'], [88, 60, 12, '5.4s', '2.4s']]
     },
     {
-      slug: 'poltergeist', enter: 'levitate', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/poltergeist-v1.0.0/Poltergeist-1.0.0.zip', sha: '3de55d7710268c719a69c49349a3d44f43007ec08157094b83128bd6aa7d08b7', name: 'Poltergeist', cat: 'apps', kind: 'App', platform: 'Windows', style: 'float', ratio: '4 / 5',
+      slug: 'poltergeist', icon: 'img/icons/poltergeist.png', enter: 'levitate', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/poltergeist-v1.0.0/Poltergeist-1.0.0.zip', sha: '3de55d7710268c719a69c49349a3d44f43007ec08157094b83128bd6aa7d08b7', name: 'Poltergeist', cat: 'apps', kind: 'App', platform: 'Windows', style: 'float', ratio: '4 / 5',
       title: 't-float', layout: 'at-center', page: '#06060B', accent: '#C9D4FF',
       font: "'Syne', sans-serif", titleCss: 'font-weight:800;',
       blurb: 'Catches windows that jump in front of you or flash on screen by themselves, and names the program that did it.',
@@ -1429,6 +1453,14 @@
     field.setWord(introWord);
     setTagline(cat ? coverLine(cat) : DEFAULT_TAG);
     buildRail();
+    fillDock(cat);
+  }
+  // Every app's icon in a row under the tab name: a quick way to jump straight to one
+  function fillDock(cat) {
+    const dock = document.getElementById('cover-dock');
+    const list = cat ? projects.filter(p => p.cat === cat && p.icon) : [];
+    dock.hidden = list.length < 3;
+    dock.innerHTML = list.map((p, i) => `<button type="button" data-open="${p.slug}" title="${p.name}" aria-label="Open ${p.name}" style="--d:${i * 35}ms"><img src="${p.icon}" alt="" width="44" height="44"></button>`).join('');
   }
   const tabsEl = document.getElementById('tabs');
   const tabInd = tabsEl.querySelector('.ind');
@@ -1544,6 +1576,13 @@
     </div>`;
   }
   const onPhone = matchMedia('(pointer: coarse)').matches && !/Windows NT|Macintosh|CrOS|Linux x86/.test(navigator.userAgent);
+  // The details are always dark, so a dark accent (from a paper or light world) would vanish there
+  function lightEnough(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return true;
+    const n = parseInt(m[1], 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.45;
+  }
   function detail(p) {
     const remix = p.cat === 'remixes';
     const phoneNote = onPhone && !p.noDownload ? `<p class="note phone-note"><i class="ph ph-device-mobile" aria-hidden="true"></i>This one runs on a Windows PC. On your phone? Share the link to yourself and grab it later.</p>` : '';
@@ -1557,7 +1596,7 @@
     const note = remix
       ? `<p class="note"><i class="ph ph-info" aria-hidden="true"></i>Back up your saves first. This download contains no Minecraft files: the installer copies them from your own Minecraft. Fan mod, not affiliated with Mojang, Microsoft or the game's makers.</p>`
       : p.platform === 'Windows' ? `<p class="note"><i class="ph ph-shield-warning" aria-hidden="true"></i>Windows may warn you because this app isn't signed. Click More info, then Run anyway.</p>` : '';
-    return `<div class="d" style="--accent:${p.accent}">
+    return `<div class="d" style="--accent:${lightEnough(p.accent) ? p.accent : '#F2F0FF'}">
       <button class="icon-btn close" type="button" aria-label="Close"><i class="ph ph-x" aria-hidden="true"></i></button>
       <div class="d-media">
         ${cover(p)}
@@ -1570,6 +1609,7 @@
         <button class="icon-btn lb-next" type="button" aria-label="Next screenshot"><i class="ph ph-caret-right" aria-hidden="true"></i></button>
       </div>
       <div class="d-info">
+        ${p.icon ? `<img class="d-icon" src="${p.icon}" alt="" width="64" height="64">` : ''}
         <p class="d-credits">${p.kind} for ${remix ? p.game : p.platform}${p.sample ? ' (sample)' : ''}</p>
         <h2 class="d-title" style="font-family:${p.font};${p.titleCss || ''}">${p.name}</h2>
         ${p.by ? `<p class="d-by">Made by ${p.by}</p>` : ''}
@@ -1692,7 +1732,7 @@
       (!q || [p.name, p.blurb, p.kind, p.platform, p.game || ''].join(' ').toLowerCase().includes(q)));
     document.getElementById('index-count').textContent = list.length === 1 ? '1 thing' : `${list.length} things`;
     indexGrid.innerHTML = list.length ? list.map(p => `<button class="index-card" type="button" data-index-open="${p.slug}">
-        ${cover(p)}<strong>${p.name}${p.fresh ? ' \u00B7 new' : ''}</strong><span class="meta">${p.blurb}</span></button>`).join('')
+        <span class="index-art">${cover(p)}${p.icon ? `<img class="index-icon" src="${p.icon}" alt="" width="40" height="40" loading="lazy">` : ''}</span><strong>${p.name}${p.fresh ? ' \u00B7 new' : ''}</strong><span class="meta">${p.blurb}</span></button>`).join('')
       : '<p class="index-empty">Nothing matches that. Try another word.</p>';
   }
   function openIndex() {
