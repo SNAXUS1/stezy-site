@@ -27,7 +27,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&text=GhostLineGHOSTLINE%20&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@700..900&text=Shadow&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&text=Phantom&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&text=LinkFuse&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Monoton&text=LINKFUSElinkfuse&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@1&text=afterimageA&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poiret+One&text=wispW&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&text=tetherT0123456789%3A&display=swap" rel="stylesheet">
@@ -87,7 +87,7 @@
   body[data-scene="ghost-line"] { --page: #04050A; --chrome: #EEF1FF; --chrome-muted: #9BA3C2; --g1: #26346F; --g2: #0B1028; --g-o: 0.75; --b1x: 0vw; --b1y: -48vh; --b2x: 30vw; --b2y: 40vh; }
   body[data-scene="shadow"] { --page: #EFB3D4; --chrome: #160A12; --chrome-muted: #5C2E4A; --g1: #FAD7EA; --g2: #D47FB0; --g-o: 0.9; --b1x: -30vw; --b1y: -30vh; --b2x: 36vw; --b2y: 38vh; }
   body[data-scene="phantom"] { --page: #040822; --chrome: #EEF2FF; --chrome-muted: #9EAAD6; --g1: #1C3AD0; --g2: #0B1666; --g-o: 0.75; --b1x: 0vw; --b1y: 46vh; --b2x: -40vw; --b2y: -40vh; }
-  body[data-scene="linkfuse"] { --page: #07070C; --chrome: #E6EAF5; --chrome-muted: #9AA1B8; --g1: #5161A6; --g2: #2C3158; --g-o: 0.55; --b1x: -34vw; --b1y: 34vh; --b2x: 38vw; --b2y: -36vh; }
+  body[data-scene="linkfuse"] { --page: #06070E; --chrome: #EEF0FF; --chrome-muted: #A3A6C8; --g1: #3B2A9E; --g2: #6A2A7A; --g-o: 0.55; --b1x: -30vw; --b1y: 30vh; --b2x: 34vw; --b2y: -30vh; }
   body[data-scene="static"] { --page: #050407; --chrome: #F5F5FF; --chrome-muted: #A6A3BC; --g1: #3443FF; --g2: #FF2E93; --g-o: 0.5; --b1x: -48vw; --b1y: 0vh; --b2x: 50vw; --b2y: 6vh; }
   body[data-scene="prism"] { --page: #F3F0EA; --chrome: #16131C; --chrome-muted: #5E5866; --g1: #FFD1E0; --g2: #CDE6FF; --g-o: 0.9; --b1x: -34vw; --b1y: -36vh; --b2x: 38vw; --b2y: 36vh; }
   body[data-scene="ledger"] { --page: #F2EBDD; --chrome: #2A2118; --chrome-muted: #6E5F4E; --g1: #F7E3C8; --g2: #E8D2B0; --g-o: 0.8; --b1x: -30vw; --b1y: -34vh; --b2x: 36vw; --b2y: 36vh; }
@@ -524,24 +524,26 @@
   .scene-phantom { color: #EEF2FF; align-items: center; text-align: center; --accent: #A9C0FF; }
   .t-melt { font-family: 'Bagel Fat One', sans-serif; font-size: clamp(90px, 15vw, 260px); line-height: 1; color: #F3EEFF; filter: url(#f-melt-lg); }
 
-  /* LinkFuse: chrome script */
-  .scene-linkfuse { color: #E6EAF5; align-items: flex-end; text-align: right; --accent: #E3E8F4; }
-  .t-chrome {
-    font-family: 'Pinyon Script', cursive; font-size: clamp(96px, 13.5vw, 250px); line-height: 1.3; padding: 0 0.12em;
-    filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.75));
-    margin-right: clamp(150px, 15vw, 240px);
+  /* LinkFuse: every letter is several lines running side by side, like connections fused into one */
+  .scene-linkfuse { color: #EEF0FF; align-items: center; text-align: center; --accent: #C9B4FF; }
+  .t-fuse {
+    font-family: 'Monoton', sans-serif; font-weight: 400; font-size: clamp(64px, 11.5vw, 210px); line-height: 1.15; letter-spacing: 0.01em;
+    filter: drop-shadow(0 0 0.12em rgba(183, 140, 255, 0.55)) drop-shadow(0 0 0.4em rgba(120, 110, 255, 0.25));
   }
-  .t-chrome .half {
-    padding: 0.2em 0.24em; margin: -0.2em -0.24em;
+  .t-fuse .half {
+    padding: 0.1em 0.04em; margin: -0.1em -0.04em;
     background:
-      linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.95) 50%, transparent 60%) 140% 0 / 260% 100% no-repeat,
-      linear-gradient(180deg, #FFFFFF 0%, #DCE4F4 30%, #6B7894 50%, #EEF3FC 60%, #9AA6C0 82%, #F4F7FF 100%);
+      linear-gradient(90deg, transparent 0, rgba(255, 255, 255, 0.95) 50%, transparent 100%) -40% 0 / 30% 100% no-repeat,
+      linear-gradient(90deg, #8FD3FF, #B78CFF);
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
-  .js .scene-linkfuse .title .half { transition: background-position 1.3s var(--ease-in-out) 0.6s; }
-  .js .scene-linkfuse .title .half:last-child { transition-delay: 0.85s; }
-  .js .scene-linkfuse.is-active .title .half { background-position: -40% 0, 0 0; }
-  .chrome-note { position: relative; z-index: 1; margin: -0.6em clamp(190px, 18vw, 290px) 0 0; max-width: 22ch; font-size: 13px; line-height: 1.45; color: rgba(230, 234, 245, 0.62); text-align: left; align-self: flex-end; }
+  .t-fuse .half:last-child { background-image: linear-gradient(90deg, transparent 0, rgba(255, 255, 255, 0.95) 50%, transparent 100%), linear-gradient(90deg, #B78CFF, #FF7AD9); }
+  .scene-linkfuse.is-active .t-fuse .half { animation: packet 1.5s cubic-bezier(0.45, 0, 0.25, 1) 0.95s both; }
+  .scene-linkfuse.is-active .t-fuse .half:last-child { animation-delay: 1.35s; }
+  @keyframes packet { from { background-position: -40% 0, 0 0; } to { background-position: 140% 0, 0 0; } }
+  .scene-linkfuse .enter-fuse .half:first-child::after { background: radial-gradient(closest-side, #fff, rgba(214, 190, 255, 0.85) 35%, rgba(255, 122, 217, 0.25) 70%, transparent); }
+  .chrome-note { position: relative; z-index: 1; margin: 0.5em auto 0; max-width: 44ch; font-size: 15px; line-height: 1.45; color: rgba(214, 216, 245, 0.7); text-align: center; }
+  .scene-linkfuse .info { text-align: left; }
 
   /* Poltergeist: letters levitating in the light of a TV full of static */
   .scene-poltergeist { color: #EEF0FF; align-items: center; text-align: center; --accent: #C9D4FF; }
@@ -868,9 +870,16 @@
   .cv-melt { background: radial-gradient(1.5px 1.5px at 12% 18%, #fff, transparent), radial-gradient(1px 1px at 28% 74%, #cfe0ff, transparent), radial-gradient(1px 1px at 46% 12%, #fff, transparent), radial-gradient(1.5px 1.5px at 66% 86%, #dfe8ff, transparent), radial-gradient(1px 1px at 82% 30%, #fff, transparent), radial-gradient(70% 50% at 50% 60%, rgba(40,70,200,.35), transparent 70%), #060A22; color: #F3EEFF; }
   .cv-melt .small { color: rgba(220,228,255,.65); }
   .art-melt { font-family: 'Bagel Fat One', sans-serif; font-size: 19cqi; line-height: 1; filter: url(#f-melt); }
-  .cv-chrome { background: radial-gradient(38% 30% at 18% 74%, rgba(150,170,235,.38), transparent 70%), radial-gradient(30% 40% at 84% 18%, rgba(200,205,255,.2), transparent 70%), #08080D; color: #DCE3F2; }
-  .cv-chrome .small { color: rgba(220,227,242,.6); }
-  .art-chrome { font-family: 'Pinyon Script', cursive; font-size: 23cqi; line-height: 1.35; background: linear-gradient(180deg, #FFFFFF 0%, #DCE4F4 30%, #6B7894 50%, #EEF3FC 60%, #9AA6C0 82%, #F4F7FF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0.5cqi 1.2cqi rgba(0,0,0,.75)); }
+  .cv-fuse {
+    background:
+      linear-gradient(176deg, transparent 47%, rgba(143, 211, 255, 0.35) 47.6%, transparent 48.4%) ,
+      linear-gradient(180deg, transparent 49.4%, rgba(183, 140, 255, 0.4) 50%, transparent 50.6%),
+      linear-gradient(184deg, transparent 47%, rgba(255, 122, 217, 0.35) 47.6%, transparent 48.4%),
+      radial-gradient(45% 35% at 62% 50%, rgba(183, 140, 255, 0.35), transparent 70%), #07070F;
+    color: #EEF0FF;
+  }
+  .cv-fuse .small { color: rgba(214, 216, 245, 0.6); }
+  .art-fuse { font-family: 'Monoton', sans-serif; font-size: 13cqi; line-height: 1.2; background: linear-gradient(90deg, #8FD3FF, #B78CFF 50%, #FF7AD9); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 1.6cqi rgba(183, 140, 255, 0.55)); }
   .cv-veil { background: radial-gradient(60% 50% at 50% 60%, rgba(90,80,220,.4), transparent 70%), radial-gradient(45% 40% at 90% 5%, rgba(200,110,210,.3), transparent 70%), #0A0910; color: #EEEAFF; }
   .cv-veil .small { color: rgba(238,234,255,.6); }
   .art-veil { font-family: 'Italiana', serif; text-transform: uppercase; font-size: 18cqi; line-height: 1; letter-spacing: 0.18em; margin-right: -0.18em; text-shadow: 0 0 4cqi rgba(190,170,255,.5); }
@@ -1034,6 +1043,8 @@
   }
   .index-art { position: relative; display: block; }
   .index-icon { position: absolute; left: 12px; bottom: 12px; width: 40px; height: 40px; border-radius: 11px; box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.7); }
+  /* Keep the cover's bottom line clear of the app icon in the corner */
+  .index-art:has(.index-icon) .cover .small.bottom { padding-left: 44px; }
   .d-icon { display: block; width: 64px; height: 64px; border-radius: 17px; margin: 0 0 16px; box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6); }
   .cover-dock { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; max-width: 760px; margin: 26px auto 0; padding: 0 12px; }
   .cover-dock[hidden] { display: none; }
@@ -1071,8 +1082,7 @@
     .credits .pick-tag { display: flex; width: fit-content; margin: 10px 0 0; }
     .rail button { font-size: 0; letter-spacing: 0; padding: 7px 0; }
     .rail button::after { width: 18px; }
-    .scene-linkfuse { align-items: center; text-align: center; }
-    .t-chrome { margin-right: 0; font-size: 19vw; }
+    .t-fuse { font-size: 13.5vw; }
     .t-smoke { font-size: 21vw; }
     .t-ink { font-size: 22vw; }
     .t-melt { font-size: 18vw; }
@@ -1236,7 +1246,7 @@
       sparks: []
     },
     {
-      slug: 'ghost-line', pick: true, enter: 'smoke', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/ghost-line-v6.0.0/GhostLine-6.0.0.zip', sha: 'bb0e35c419d3af4cdd03fa8607072aa9f46c4379a276b97fe07cb06a08533a18', name: 'Ghost Line', cat: 'games', kind: 'Game', platform: 'Windows', style: 'smoke', ratio: '4 / 5',
+      slug: 'ghost-line', icon: 'img/icons/ghost-line.png', pick: true, enter: 'smoke', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/ghost-line-v6.0.0/GhostLine-6.0.0.zip', sha: 'bb0e35c419d3af4cdd03fa8607072aa9f46c4379a276b97fe07cb06a08533a18', name: 'Ghost Line', cat: 'games', kind: 'Game', platform: 'Windows', style: 'smoke', ratio: '4 / 5',
       title: 't-smoke', layout: 'at-center', page: '#04050A', accent: '#D6E0FF',
       font: "'Anton', sans-serif", titleCss: 'text-transform:uppercase;',
       blurb: "Draw a track, evolve an AI driver on it, then race it against a friend's.",
@@ -1246,7 +1256,7 @@
       version: '6.0.0', size: '88 MB', updated: '1 Sep 2026', web: false
     },
     {
-      slug: 'shadow', enter: 'stamp', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/shadow-v0.6.0/Shadow-0.6.0.zip', sha: '9b4566af8ac32d004455bd2d3fb43c6911d3ef54f3391c3ed407166e9224efce', name: 'Shadow', cat: 'games', kind: 'Game', platform: 'Windows', style: 'ink', ratio: '1 / 1',
+      slug: 'shadow', icon: 'img/icons/shadow.png', enter: 'stamp', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/shadow-v0.6.0/Shadow-0.6.0.zip', sha: '9b4566af8ac32d004455bd2d3fb43c6911d3ef54f3391c3ed407166e9224efce', name: 'Shadow', cat: 'games', kind: 'Game', platform: 'Windows', style: 'ink', ratio: '1 / 1',
       title: 't-ink', layout: 'at-right', page: '#EFB3D4', accent: '#FF9BD0',
       font: "'Grenze Gotisch', serif", titleCss: 'font-weight:900;',
       blurb: 'A skeleton teaches itself to run 100 metres. Nothing is animated.',
@@ -1421,7 +1431,7 @@
       sparks: [[22, 30, 14, '4.4s', '.6s'], [78, 26, 18, '5s', '2s'], [64, 72, 12, '4s', '3.2s']]
     },
     {
-      slug: 'phantom', enter: 'neon', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/phantom-v0.1.0/Phantom-0.1.0.zip', sha: '71db282a41ccb2c5dd69f4f36607b32d4fe8a6626e79bce4ddbe4718e49de240', name: 'Phantom', cat: 'apps', kind: 'App', platform: 'Windows', style: 'melt', ratio: '3 / 4',
+      slug: 'phantom', icon: 'img/icons/phantom.png', enter: 'neon', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/phantom-v0.1.0/Phantom-0.1.0.zip', sha: '71db282a41ccb2c5dd69f4f36607b32d4fe8a6626e79bce4ddbe4718e49de240', name: 'Phantom', cat: 'apps', kind: 'App', platform: 'Windows', style: 'melt', ratio: '3 / 4',
       title: 't-melt', layout: 'at-left', page: '#040822', accent: '#A9C0FF',
       font: "'Bagel Fat One', sans-serif",
       blurb: "Finds the disk space Windows can't account for, and indexes a full drive in seconds.",
@@ -1432,19 +1442,19 @@
       sparks: [[18, 26, 22, '3.6s', '0s'], [78, 22, 28, '4.4s', '1.2s'], [70, 64, 18, '3.2s', '2s'], [28, 62, 14, '5s', '.6s'], [50, 16, 12, '4s', '2.6s']]
     },
     {
-      slug: 'linkfuse', pick: true, enter: 'fuse', legacy: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/linkfuse-v3.0.0/LinkFuse-3.0.0.zip', sha: 'd2f9cbc93def264bfd3bceb6e5b0ce03131465ffbe5f96c345c3148a65a065a3', name: 'LinkFuse', cat: 'apps', kind: 'App', platform: 'Windows', style: 'chrome', ratio: '4 / 5',
-      title: 't-chrome', layout: 'at-left', page: '#07070C', accent: '#E3E8F4',
-      font: "'Pinyon Script', cursive", titleCss: 'font-size:clamp(48px,5.4vw,78px);',
+      slug: 'linkfuse', pick: true, icon: 'img/icons/linkfuse.png', enter: 'fuse', fresh: 'Updated', download: 'https://github.com/SNAXUS1/stezy-site/releases/download/linkfuse-v4.0.0/LinkFuse-4.0.0.zip', sha: '5ad59c361bf067cc9dbe4e03bd8d9d03fdb8b86aacd5dc83055fc7d9a08750d6', name: 'LinkFuse', cat: 'apps', kind: 'App', platform: 'Windows', style: 'fuse', ratio: '4 / 5',
+      title: 't-fuse', layout: 'at-left', page: '#06070E', accent: '#C9B4FF',
+      font: "'Monoton', sans-serif", titleCss: 'font-size:clamp(34px,4.2vw,60px);',
       note: 'Every connection you have, working as one.',
-      blurb: 'Merges your Ethernet, Wi-Fi and phone tethering into one faster connection.',
-      lede: 'LinkFuse pools every internet connection on your PC and spreads your traffic across all of them, with instant failover if one drops. Parallel downloads, streams and browser tabs add up to the combined speed. Fully local: no accounts and no relay servers.',
-      how: ['Download the zip, unzip it and open LinkFuse.exe.', 'Choose which connections to pool.', 'Press Merge. Browsers use it straight away; other apps can use its built-in proxy.'],
-      shots: ['img/linkfuse/dashboard.webp'],
-      version: '3.0.0', size: '70 MB', updated: '29 Jul 2026', web: false,
+      blurb: 'Fuses your Ethernet, Wi-Fi and phone into one faster, steadier connection.',
+      lede: "LinkFuse spreads what your PC does across every internet connection it has: Ethernet, Wi-Fi, a phone on USB. They add up, and if one drops the others carry on. Version 4 is a full rebuild with a new look, and its Every app mode now really works, so games and launchers get fused too, not just your browser. It tests its own network before keeping it and steps aside by itself if anything goes wrong. It all runs on your PC: no accounts, no servers.",
+      how: ['Download the zip, unzip it and open LinkFuse.exe.', 'Press Fuse my connections. Your browsers are fused straight away, no admin needed.', 'For games and everything else, pick Every app at the top and restart it as admin.'],
+      shots: ['img/linkfuse/main.webp', 'img/linkfuse/traffic.webp', 'img/linkfuse/link.webp'],
+      version: '4.0.0', size: '70 MB', updated: '11 Oct 2026', web: false,
       sparks: [[64, 30, 26, '3.8s', '.4s'], [86, 52, 16, '4.6s', '1.8s'], [40, 40, 12, '5.2s', '3s']]
     },
     {
-      slug: 'schedule-steve', enter: 'blocks', name: 'Schedule Steve', cat: 'remixes', kind: 'Mod', platform: 'Schedule I', legacy: true,
+      slug: 'schedule-steve', icon: 'img/icons/schedule-steve.png', enter: 'blocks', name: 'Schedule Steve', cat: 'remixes', kind: 'Mod', platform: 'Schedule I', legacy: true,
       download: 'https://github.com/SNAXUS1/stezy-site/releases/download/minecraft-merge-v0.3/MinecraftMerge_v0.3.zip', sha: '8a9f386dee515cfd861da21aaed136eaeb0fb313625a533de0d0a45368f8e8a6',
       game: 'Schedule I + Minecraft: Java Edition 1.21.10', by: 'STEZY', style: 'vinyl', ratio: '1 / 1',
       title: 't-remix', layout: 'at-left', page: '#06080A', accent: '#9BE38F', label: '#3E8E32',
@@ -1481,9 +1491,6 @@
     ] },
     phantom: { opacity: 1, components: [
       { type: 'Aurora', id: 'aurora', props: { colorA: '#2234e8', colorB: '#7aa2ff', colorC: '#d4ddff', intensity: 100, curtainCount: 4, speed: 2.5 } }
-    ] },
-    linkfuse: { opacity: 0.75, components: [
-      { type: 'Satin', id: 'satin', props: { color: '#14161e', highlightColor: '#c9d1e8', foldCount: 6, foldDirection: 70, foldDepth: 0.55, speed: 0.6 } }
     ] },
     halo: { opacity: 0.9, components: [
       { type: 'Godrays', id: 'rays', props: { center: { x: 0.5, y: 0.46 }, density: 0.25, intensity: 0.7, spotty: 0.6, speed: 0.35, rayColor: '#2f5bff', backgroundColor: 'transparent' } }
@@ -1537,7 +1544,7 @@
       <h2 class="title ${p.title}${p.enter ? ' split enter-' + p.enter : ''}" id="title-${p.slug}" data-text="${p.name}" style="--n:${p.name.replace(/ /g, '').length}">${p.enter ? splitName(p) : p.name}</h2>
       ${p.note ? `<p class="chrome-note">${p.note}</p>` : ''}
       <div class="info ${p.layout}">
-        <p class="credits">${p.kind} &middot; ${p.platform} &middot; v${p.version}${p.pick ? pickTag() : ''}${p.sample ? '<span class="sample-tag">Sample</span>' : ''}${p.legacy ? '<span class="sample-tag">Made before this site</span>' : ''}${p.fresh ? '<span class="sample-tag">New</span>' : ''}${p.by ? `<span class="made-by">Made by ${p.by}</span>` : ''}</p>
+        <p class="credits">${p.kind} &middot; ${p.platform} &middot; v${p.version}${p.pick ? pickTag() : ''}${p.sample ? '<span class="sample-tag">Sample</span>' : ''}${p.legacy ? '<span class="sample-tag">Made before this site</span>' : ''}${p.fresh ? `<span class="sample-tag">${p.fresh === true ? 'New' : p.fresh}</span>` : ''}${p.by ? `<span class="made-by">Made by ${p.by}</span>` : ''}</p>
         <p class="desc">${p.blurb}</p>
         <div class="actions">${action}</div>
       </div>`;
@@ -1597,7 +1604,7 @@
   function fillDock(cat) {
     const dock = document.getElementById('cover-dock');
     const list = cat ? projects.filter(p => p.cat === cat && p.icon) : [];
-    dock.hidden = list.length < 3;
+    dock.hidden = list.length === 0;
     dock.innerHTML = list.map((p, i) => `<button type="button" data-open="${p.slug}" title="${p.name}" aria-label="Open ${p.name}" style="--d:${i * 35}ms"><img src="${p.icon}" alt="" width="44" height="44">${p.pick ? `<i class="pk dock-pk">${SPARK}</i>` : ''}</button>`).join('');
   }
   const tabsEl = document.getElementById('tabs');
@@ -1950,7 +1957,7 @@
       (!q || [p.name, p.blurb, p.kind, p.platform, p.game || ''].join(' ').toLowerCase().includes(q)));
     document.getElementById('index-count').textContent = list.length === 1 ? '1 thing' : `${list.length} things`;
     indexGrid.innerHTML = list.length ? list.map(p => `<button class="index-card" type="button" data-index-open="${p.slug}">
-        <span class="index-art">${cover(p)}${p.icon ? `<img class="index-icon" src="${p.icon}" alt="" width="40" height="40" loading="lazy">` : ''}${p.pick ? `<i class="pk index-pk" title="STEZY's pick">${SPARK}</i>` : ''}</span><strong>${p.name}${p.fresh ? ' \u00B7 new' : ''}</strong><span class="meta">${p.blurb}</span></button>`).join('')
+        <span class="index-art">${cover(p)}${p.icon ? `<img class="index-icon" src="${p.icon}" alt="" width="40" height="40" loading="lazy">` : ''}${p.pick ? `<i class="pk index-pk" title="STEZY's pick">${SPARK}</i>` : ''}</span><strong>${p.name}${p.fresh ? ' \u00B7 ' + (p.fresh === true ? 'new' : p.fresh.toLowerCase()) : ''}</strong><span class="meta">${p.blurb}</span></button>`).join('')
       : '<p class="index-empty">Nothing matches that. Try another word.</p>';
   }
   let indexThread = null;
@@ -2103,12 +2110,12 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'bokeh', poltergeist: 'float', 'ledger': 'ink', 'hush': 'bokeh', 'nocturne': 'fireflies', 'specter': 'stars', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl', echo: 'echo', reaper: 'reap' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'lanes', poltergeist: 'float', 'ledger': 'ink', 'hush': 'bokeh', 'nocturne': 'fireflies', 'specter': 'stars', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl', echo: 'echo', reaper: 'reap' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
       phantom: [[244, 247, 255], [140, 170, 255]],
-      linkfuse: [[226, 231, 246], [140, 155, 215]],
+      linkfuse: [[143, 211, 255], [255, 122, 217]],
       poltergeist: [[232, 236, 255], [150, 165, 255]],
       'ledger': [[42, 33, 24], [192, 57, 43]],
       'hush': [[255, 214, 210], [255, 77, 94]],
@@ -2284,19 +2291,34 @@
         case 'bokeh': return d.big && d.c < 0.35 ? 0.16 : d.a * 0.2;
         case 'echo': return d.a * 0.22;
         case 'reap': return d.a * 0.32;
+        case 'lanes': return d.big ? d.a * 0.12 : 0.3 + d.a * 0.6;
         case 'halo': return d.c < 0.12 ? (mouse.on ? 0.9 : 0.6) : d.c < 0.24 ? d.a * 0.4 : d.c < 0.62 ? Math.min(0.95, 0.4 + d.a) : d.a * 0.3;
         default: return d.a;
       }
     }
     const lerp = (a, b, t) => a + (b - a) * t;
 
-    let lastMask = '';
+    let lastMask = '', lastKind = '', laneEpoch = 0;
+    // Where a mote at progress lp sits: along its own lane, then in the shared beam
+    function lanePoint(d, lp, t, fx, fy, sp) {
+      const lane = d.c < 0.34 ? -1 : d.c < 0.67 ? 0 : 1, ly = fy + lane * sp;
+      const x = -20 + lp * (w + 40);
+      if (x < fx) {
+        const u = Math.max(0, x / fx), e = u * u * (3 - 2 * u);
+        return [x, ly + (fy - ly) * e + d.hg * 5 * (1 - e * 0.8)];
+      }
+      const v = (x - fx) / (w - fx);
+      return [x, fy + d.hg * 2.2 + Math.sin(x * 0.016 - t * 0.0028 + lane * 2.1) * 6 * lane * Math.min(1, v * 4)];
+    }
     function step(t) {
       const flash = flashing();
       if (wasFlashing && !flash) dots.forEach(d => { d.vx += (Math.random() - 0.5) * 5; d.vy += (Math.random() - 0.5) * 5; });
       wasFlashing = flash;
       const kind = kindNow();
+      if (kind === 'lanes' && lastKind !== 'lanes') laneEpoch++;
+      lastKind = kind;
       const cx = w / 2, cy = h * 0.46, R = Math.min(w, h) * 0.3;
+      const lfx = w * 0.5, lfy = h * (w < 700 ? 0.58 : 0.6), lsp = Math.min(h * 0.13, w < 700 ? 90 : 120);
       // Centre and radius of the spinning record in the Remix scenes
       const vcx = w < 700 ? w * 0.5 : w * 0.68, vcy = h * (w < 700 ? 0.4 : 0.47), VR = Math.min(h * 0.78, w * (w < 700 ? 0.92 : 0.58)) / 2;
       // Smooth the inputs that drive depth and the cursor light
@@ -2382,6 +2404,19 @@
           const tx = vcx + Math.cos(d.ang) * VR * (0.25 + d.ring * 0.75), ty = vcy + Math.sin(d.ang) * VR * (0.25 + d.ring * 0.75);
           d.vx = (d.vx + (tx - d.x) * 0.012) * 0.9;
           d.vy = (d.vy + (ty - d.y) * 0.012) * 0.9;
+        } else if (kind === 'lanes' && !d.big) {
+          // LinkFuse: three lanes (by colour) bend into one fuse point and leave as one braided beam
+          if (d.hg === undefined) d.hg = gauss();
+          if (d.le !== laneEpoch) { d.le = laneEpoch; d.lp = Math.min(1, Math.max(0, (d.x + 20) / (w + 40))); }
+          d.lp += (0.0007 + d.s * 0.0014) * (0.45 + d.z * 0.9);
+          if (d.lp > 1) {
+            d.lp -= 1;
+            const [nx, ny] = lanePoint(d, d.lp, t, lfx, lfy, lsp);
+            d.x = nx; d.y = ny; d.vx = d.vy = 0;
+          }
+          const [tx, ty] = lanePoint(d, d.lp, t, lfx, lfy, lsp);
+          d.vx = (d.vx + (tx - d.x) * 0.045) * 0.8;
+          d.vy = (d.vy + (ty - d.y) * 0.045) * 0.8;
         } else if (kind === 'halo' && d.c < 0.12 && mouse.on) {
           // The cursor's own halo, like the app: a small, tight ring that goes wherever the mouse goes
           if (d.hg === undefined) d.hg = gauss();
@@ -2425,6 +2460,7 @@
             // Fireflies: slow, lazy, blinking
             case 'fireflies': ax = Math.sin(t * 0.0005 + d.ph * 2) * 0.22; ay = Math.cos(t * 0.0004 + d.ph) * 0.16; break;
             case 'glitch': ax = 0.12; ay = 0; if (Math.random() < 0.004) d.x += (Math.random() - 0.5) * 60; break;
+            case 'lanes': ax = 0.12; ay = Math.sin(t * 0.0004 + d.ph) * 0.05; break;
             // Ash drifting down through the dark
             case 'reap': ax = Math.sin(t * 0.0004 + d.ph) * 0.08 + 0.04; ay = 0.1 + d.s * 0.16; break;
             // Dust hanging in the dark, only seen when a ping washes over it
@@ -2451,8 +2487,9 @@
           if (dist2 < rr * rr) { const dist = Math.sqrt(dist2) || 1, f = (1 - dist / rr) * push; d.vx += (dx / dist) * f; d.vy += (dy / dist) * f; }
         }
         d.x += d.vx; d.y += d.vy;
-        if (!(kind === 'form' && isLetter(d)) && !(kind === 'halo' && d.c < 0.62) && kind !== 'vinyl') {
-          if (d.x < -10) d.x = w + 10; else if (d.x > w + 10) d.x = -10;
+        if (!(kind === 'form' && isLetter(d)) && !(kind === 'halo' && d.c < 0.62) && kind !== 'vinyl' && !(kind === 'lanes' && !d.big)) {
+          if (d.x < -10) d.x = w + 10;
+          else if (d.x > w + 10) d.x = -10;
           if (d.y < -10) d.y = h + 10; else if (d.y > h + 10) d.y = -10;
         }
         d.al = lerp(d.al, targetAlpha(d, kind), 0.06);
@@ -2561,7 +2598,7 @@
         ctx.restore();
       }
       // Additive light where particles overlap, so the name glows on dark backgrounds
-      ctx.globalCompositeOperation = (kind === 'form' && root.dataset.theme === 'dark') || kind === 'halo' || kind === 'echo' || kind === 'reap' ? 'lighter' : 'source-over';
+      ctx.globalCompositeOperation = (kind === 'form' && root.dataset.theme === 'dark') || kind === 'halo' || kind === 'echo' || kind === 'reap' || kind === 'lanes' ? 'lighter' : 'source-over';
       fctx.globalCompositeOperation = 'lighter';
       const reach = 180;
       for (const d of dots) {
