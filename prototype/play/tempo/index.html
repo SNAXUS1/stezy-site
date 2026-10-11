@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>TEMPO live demo · STEZY</title>
+<meta name="description" content="Try TEMPO, game performance for Windows, right in your browser with made-up data.">
+<meta name="theme-color" content="#08090B">
+<link rel="canonical" href="https://stezy.lt/play/tempo/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="STEZY">
+<meta property="og:title" content="TEMPO live demo">
+<meta property="og:description" content="Game performance, measured properly. Try the interface right in your browser.">
+<meta property="og:url" content="https://stezy.lt/play/tempo/">
+<meta property="og:image" content="https://stezy.lt/img/share/tempo.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/img/icons/tempo.png" type="image/png">
+<style>
+  /* The website demo: no window buttons, a clear "made-up data" tag, and ways to download or go back */
+  .winbtns { display: none !important; }
+  .demo-bar { display: flex; align-items: center; gap: 8px; margin-right: 6px; app-region: no-drag; }
+  .demo-tag { padding: 6px 11px; border-radius: 999px; font: 500 10px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line2); white-space: nowrap; }
+  .demo-bar a { display: inline-flex; align-items: center; height: 32px; padding: 0 14px; border-radius: 999px; font: 600 12.5px/1 var(--body); text-decoration: none; white-space: nowrap; }
+  .demo-back { color: var(--ink); box-shadow: inset 0 0 0 1px var(--line2); }
+  .demo-back:hover { background: rgba(255,255,255,.06); }
+  .demo-dl { color: var(--acc-ink); background: var(--acc); }
+  .demo-dl:hover { filter: brightness(1.08); }
+  @media (max-width: 1240px) { .demo-tag { display: none; } }
+</style>
+<script>window.TEMPO_DEMO = { art: '/img/', version: '1.0.0' };</script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-page="play" data-state="off">
+  <canvas class="grain" id="grain" aria-hidden="true"></canvas>
+  <div class="paper" aria-hidden="true"></div>
+
+  <header class="bar">
+    <div class="mark">
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5 L12 3.5 L20.5 20.5" fill="none" stroke="var(--acc)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><path class="mark-needle" d="M12 15 L17.2 7.2" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="15" r="1.9" fill="var(--ink)"/></svg>
+      <span class="word">TEMPO</span>
+    </div>
+    <nav class="nav" id="nav"><span class="nav-pill" id="nav-pill" aria-hidden="true"></span>
+      <button type="button" data-go="play" class="on">Play</button>
+      <button type="button" data-go="boost">Boost</button>
+      <button type="button" data-go="sessions">Sessions</button>
+      <button type="button" data-go="overlay">Overlay</button>
+      <button type="button" data-go="look">Look</button>
+    </nav>
+    <span class="sp"></span>
+    <span class="status" id="status" hidden><i></i><span id="status-text"></span></span>
+    <div class="demo-bar"><span class="demo-tag">Live demo · made-up data</span><a class="demo-back" href="/#tempo">stezy.lt</a><a class="demo-dl" href="https://github.com/SNAXUS1/stezy-site/releases/download/tempo-v1.0.0/TEMPO-1.0.0.zip">Download</a></div>
+    <div class="winbtns">
+      <button type="button" class="win" data-win="min" aria-label="Minimise"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1.1"/></svg></button>
+      <button type="button" class="win" data-win="max" aria-label="Maximise"><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></button>
+      <button type="button" class="win close" data-win="close" aria-label="Close"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.1"/></svg></button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ======================= PLAY ======================= -->
+    <section class="page" id="page-play">
+      <div class="cols">
+        <aside class="col l">
+          <div id="left-off">
+            <div class="lab">Your games <b id="games-count"></b></div>
+            <div class="games" id="games"></div>
+            <button type="button" class="add" id="add-game"><span>+ Add a game</span><span>Any game's .exe</span></button>
+          </div>
+          <div id="left-on" hidden>
+            <div class="lab" id="applied-lab">Boost on</div>
+            <div id="applied"></div>
+            <div class="ch"><div class="t">Measuring every frame<span>Straight from Windows, nothing touches the game</span></div><span class="ok">&#10003;</span></div>
+            <div class="ch"><div class="t">Overlay<span id="ov-line">Minimal, top left</span></div><span class="ok" id="ov-ok">&#10003;</span></div>
+            <p class="note" id="applied-note">Every change is written down before it's made, and put back the moment TEMPO turns off, even after a crash. Nothing is ever closed.</p>
+            <p class="note">Ctrl Alt O shows or hides the overlay. Ctrl Alt T turns TEMPO off.</p>
+          </div>
+        </aside>
+
+        <div class="c" id="center">
+          <div class="hero" id="hero"></div><div class="wash"></div>
+          <div class="dial" id="dial">
+            <svg id="dial-svg" viewBox="0 0 372 372" width="372" height="372" aria-hidden="true"></svg>
+            <div class="read" id="read-off"><button type="button" class="power" id="power"><b>TURN ON</b><small>CTRL ALT T</small></button></div>
+            <div class="read" id="read-wait" hidden><div class="wait-t">WAITING</div><div class="unit" id="wait-sub">OPEN THE GAME</div></div>
+            <div class="read" id="read-live" hidden><div class="big" id="big">0</div><div class="unit">FPS&nbsp;&nbsp;·&nbsp;&nbsp;1% LOW <em id="big-low">0</em></div></div>
+          </div>
+          <div class="title-row" id="title-row"></div>
+          <div class="chips" id="chips"></div>
+          <button type="button" class="quiet" id="learn" hidden>Measure only, without the boost</button>
+          <button type="button" class="stop" id="stop" hidden>Turn off</button>
+          <p class="mode-note" id="mode-note" hidden></p>
+        </div>
+
+        <aside class="col r">
+          <div id="right-off"></div>
+          <div id="right-on" hidden>
+            <div class="lab">Right now</div>
+            <div id="meters"></div>
+            <div class="holder" id="holder" hidden><div class="k">Holding you back right now</div><div class="v" id="holder-v"></div><p id="holder-p"></p></div>
+            <div class="bg-apps" id="bg-apps"></div>
+          </div>
+        </aside>
+      </div>
+      <div class="strip" id="strip" hidden>
+        <div class="lab">Frame times · last 10 s <b id="strip-now"></b></div>
+        <canvas id="strip-canvas"></canvas>
+      </div>
+    </section>
+
+    <!-- ======================= BOOST ======================= -->
+    <section class="page" id="page-boost" hidden>
+      <div class="bst">
+        <div class="set">
+          <div class="h2">BOOST</div>
+          <p class="lead">What TEMPO changes while it's on. Every change is written down first and put back the moment it turns off, even after a crash. Nothing is ever closed.</p>
+          <div class="rowx"><span>Apps step back<small>The apps you pick get lower priority and Windows' efficiency mode while you play. Music and voice are never touched.</small></span><span class="st-chip" id="bs-apps"></span><button type="button" class="tog" data-set="boost.stepBack" aria-label="Apps step back"></button></div>
+          <div class="rowx"><span>Game first<small>Your game gets the processor before other apps.</small></span><span class="st-chip"></span><button type="button" class="tog" data-set="boost.gameFirst" aria-label="Game first"></button></div>
+          <div class="rowx"><span>Windows Game Mode<small>Windows puts the game first and holds back updates and notifications.</small></span><span class="st-chip" id="bs-gm"></span><button type="button" class="tog" data-set="boost.gameMode" aria-label="Windows Game Mode"></button></div>
+          <div class="rowx"><span>Pause background recording<small>The Xbox Game Bar's always-on recording stops while you play.</small></span><span class="st-chip" id="bs-rec"></span><button type="button" class="tog" data-set="boost.recording" aria-label="Pause background recording"></button></div>
+          <div class="rowx"><span>High performance power<small>Your processor stays at full speed. Skipped on battery.</small></span><span class="st-chip" id="bs-pw"></span><button type="button" class="tog" data-set="boost.powerPlan" aria-label="High performance power"></button></div>
+          <div class="compare" id="bs-compare"></div>
+        </div>
+        <div class="apps-pane">
+          <div class="lab">Apps that step back <b id="apps-count"></b></div>
+          <p class="note" style="margin:0 0 12px">Running now, busiest first. Tap one to choose. Stepping back never closes an app or stops it working; it just waits its turn behind the game.</p>
+          <div class="apps" id="apps"></div>
+          <div class="lab" style="margin-top:22px">Never touched</div>
+          <div class="apps" id="protected"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= SESSIONS ======================= -->
+    <section class="page" id="page-sessions" hidden>
+      <div class="sess">
+        <div class="sess-list">
+          <div class="h2">SESSIONS</div>
+          <p class="lead">Every time TEMPO was on during a game. Measured, never guessed.</p>
+          <div id="sess-list"></div>
+        </div>
+        <div class="sess-detail" id="sess-detail"></div>
+      </div>
+    </section>
+
+    <!-- ======================= OVERLAY ======================= -->
+    <section class="page" id="page-overlay" hidden>
+      <div class="ovp">
+        <div class="set">
+          <div class="h2">OVERLAY</div>
+          <p class="lead">Your fps on top of the game. It's its own little window, so it never touches the game itself.</p>
+          <div class="rowx"><span>Show the overlay<small>Ctrl Alt O while playing</small></span><button type="button" class="tog" data-set="overlay" aria-label="Show the overlay"></button></div>
+          <div class="rowx"><span>Style</span><div class="seg" data-set="overlayStyle"><button type="button" data-v="minimal">Minimal</button><button type="button" data-v="detailed">Detailed</button><button type="button" data-v="bar">Bar</button></div></div>
+          <div class="rowx"><span>Box behind<small>0% is just the numbers</small></span><div class="slider"><input type="range" min="0" max="100" step="5" data-set="overlayBox" data-scale="100" aria-label="Box behind"><output></output></div></div>
+          <div class="rowx"><span>Size</span><div class="slider"><input type="range" min="60" max="180" step="5" data-set="overlaySize" data-scale="100" aria-label="Size"><output></output></div></div>
+          <div class="rowx"><span>Corner</span><div class="seg" data-set="overlayCorner"><button type="button" data-v="tl">Top left</button><button type="button" data-v="tr">Top right</button><button type="button" data-v="bc">Bottom</button><button type="button" data-v="bl">Bottom left</button></div></div>
+          <div class="rowx"><span>Number colour</span><div class="seg" data-set="overlayNumbers"><button type="button" data-v="accent">Accent</button><button type="button" data-v="white">White</button><button type="button" data-v="byfps">By fps</button></div></div>
+          <div class="rowx col"><span>Show</span><div class="tags" id="ov-show"></div></div>
+          <div class="rowx"><span>Hide it from recordings<small>Clips and streams won't show it</small></span><button type="button" class="tog" data-set="overlayHideFromCapture" aria-label="Hide it from recordings"></button></div>
+        </div>
+        <div class="ov-preview" id="ov-preview">
+          <div class="ov-game" id="ov-game"></div>
+          <div class="ov-sample" id="ov-sample"></div>
+          <div class="ov-cap">Preview · your real numbers show once you play</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= LOOK ======================= -->
+    <section class="page" id="page-look" hidden>
+      <div class="lk">
+        <div class="set">
+          <div class="h2">MAKE IT YOURS</div>
+          <p class="lead">Colours apply to TEMPO and its overlay straight away.</p>
+          <div class="lab">Accent</div>
+          <div class="sw" id="swatches"></div>
+          <div class="lab" style="margin-top:22px">Background</div>
+          <div class="tiles" id="tiles"></div>
+          <div class="rowx" style="margin-top:22px"><span>Game art behind the dial<small>Tinted takes on your accent</small></span><div class="seg" data-set="artStyle"><button type="button" data-v="tinted">Tinted</button><button type="button" data-v="natural">Natural</button><button type="button" data-v="off">Off</button></div></div>
+          <div class="rowx"><span>Grain</span><div class="slider"><input type="range" min="0" max="100" step="5" data-set="grain" data-scale="100" aria-label="Grain"><output></output></div></div>
+          <div class="rowx"><span>Motion<small>Calm keeps things still</small></span><div class="seg" data-set="motion"><button type="button" data-v="full">Full</button><button type="button" data-v="calm">Calm</button><button type="button" data-v="off">Off</button></div></div>
+          <div class="rowx"><span>Turn off when the game closes<small>So nothing stays on by accident</small></span><button type="button" class="tog" data-set="autoOff" aria-label="Turn off when the game closes"></button></div>
+        </div>
+        <div class="look-pv">
+          <div class="lab">Preview</div>
+          <div class="mini" id="look-mini"><div class="hero" id="look-hero"></div><div class="wash"></div><svg id="look-dial" viewBox="0 0 372 372" width="280" height="280" aria-hidden="true"></svg><div class="mini-power"><b>TURN ON</b></div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>TEMPO itself <span class="a" id="self-cost">0%</span></span>
+    <span>Administrator</span>
+    <span id="hw"></span>
+    <span class="sp"></span>
+    <span id="version"></span>
+    <button type="button" class="link" data-open="https://stezy.lt/">stezy.lt</button>
+  </footer>
+
+  <div class="toast" id="toast" hidden></div>
+  <script>
+    function fit() {
+      var z = Math.min(1, innerWidth / 1180, innerHeight / 720);
+      document.body.style.zoom = z < 1 ? z.toFixed(3) : '';
+      document.body.style.height = z < 1 ? Math.min(innerHeight / z, 860) + 'px' : '';
+    }
+    fit();
+    addEventListener('resize', fit);
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>

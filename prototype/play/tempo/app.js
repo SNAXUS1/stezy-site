@@ -1,0 +1,762 @@
+'use strict';
+// TEMPO's window. Talks to the app through window.chrome.webview; in a normal browser mock.js plays the app's part.
+(() => {
+  const host = window.chrome && window.chrome.webview;
+  const send = msg => host ? host.postMessage(msg) : window.__mockSend && window.__mockSend(msg);
+  const $ = id => document.getElementById(id);
+  const body = document.body;
+
+  const S = {
+    settings: {}, games: [], sessions: [], hw: {}, version: '',
+    st: { state: 'off' }, live: null, page: 'play', sessSel: null, apps: null, boostStatus: {},
+  };
+  // settings can be nested ("boost.stepBack")
+  const getSet = k => k.split('.').reduce((o, p) => o == null ? undefined : o[p], S.settings);
+  function putSet(k, v) { const ps = k.split('.'); let o = S.settings; ps.slice(0, -1).forEach(p => { o[p] = o[p] || {}; o = o[p]; }); o[ps[ps.length - 1]] = v; }
+  const DEFAULT_ON = new Set(['overlay', 'autoOff', 'artBehindDial', 'boost.stepBack', 'boost.gameFirst', 'boost.gameMode', 'boost.recording', 'boost.powerPlan']);
+  const isOn = k => { const v = getSet(k); return v === true || (v === undefined && DEFAULT_ON.has(k)); };
+  const BOOST_KEYS = ['boost.stepBack', 'boost.gameFirst', 'boost.gameMode', 'boost.recording', 'boost.powerPlan'];
+  const boostCount = () => BOOST_KEYS.filter(isOn).length;
+
+  // ------------------------------------------------------------------ helpers
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmt = (n, d = 0) => (n == null || isNaN(n)) ? '–' : Number(n).toFixed(d);
+  const gb = b => (b / 1073741824).toFixed(1);
+  const sel = () => S.games.find(g => g.id === S.settings.selectedGame) || null;
+  const gameOf = id => S.games.find(g => g.id === id);
+  const sessionsOf = id => S.sessions.filter(s => s.gameId === id);
+  const dur = sec => { sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60; return h ? `${h} h ${m} min` : m ? `${m} min` : `${sec} s`; };
+  const when = iso => {
+    const d = new Date(iso), now = new Date();
+    const t = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === now.toDateString()) return 'Today ' + t;
+    const y = new Date(now); y.setDate(now.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return 'Yesterday ' + t;
+    return d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + t;
+  };
+  function toast(text) {
+    const t = $('toast');
+    t.textContent = text;
+    t.hidden = false;
+    clearTimeout(toast.t);
+    toast.t = setTimeout(() => t.hidden = true, 4200);
+  }
+  const hexRgb = h => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ''); if (!m) return [212, 255, 63]; const n = parseInt(m[1], 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+
+  // ------------------------------------------------------------------ theme
+  const ACCENTS = [['Volt', '#D4FF3F'], ['Violet', '#B79BFF'], ['Ice', '#6FE3FF'], ['Ember', '#FF7A3D'], ['Rose', '#FF6FAE'], ['Gold', '#FFD15C'], ['Mint', '#5CFFB5'], ['Mono', '#F2F3F5']];
+  const BGS = [['graphite', 'Graphite', '#08090B'], ['black', 'True black', '#000000'], ['midnight', 'Midnight', '#070A14']];
+  function applyTheme() {
+    const st = S.settings;
+    const [r, g, b] = hexRgb(st.accent);
+    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    const root = document.documentElement.style;
+    root.setProperty('--acc', st.accent || '#D4FF3F');
+    root.setProperty('--acc-rgb', `${r}, ${g}, ${b}`);
+    root.setProperty('--acc-ink', lum > 0.45 ? `rgb(${Math.round(r * .06)}, ${Math.round(g * .06)}, ${Math.round(b * .06)})` : '#FFFFFF');
+    root.setProperty('--grain', String((st.grain ?? .35) * .22));
+    body.dataset.bg = st.background || 'graphite';
+    body.dataset.art = st.artStyle || (st.artBehindDial === false ? 'off' : 'tinted');
+    body.dataset.motion = st.motion || 'full';
+    drawDialTicks();
+    drawLookDial();
+  }
+
+  // grain: one random tile, drawn once
+  (function grain() {
+    const c = $('grain'), w = 512, h = 512;
+    c.width = w; c.height = h;
+    const g = c.getContext('2d'), im = g.createImageData(w, h);
+    for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = Math.random() * 120; }
+    g.putImageData(im, 0, 0);
+    c.style.width = '100%'; c.style.height = '100%';
+    c.style.imageRendering = 'pixelated';
+  })();
+
+  // ------------------------------------------------------------------ dial
+  const NS = 'http://www.w3.org/2000/svg';
+  const D = { C: 186, R: 158, max: 165, hz: 144 };
+  const dial = { shown: 0, target: 0, ghost: 0, raf: 0 };
+  const pt = (deg, r, C = D.C) => { const t = (deg - 90) * Math.PI / 180; return [C + r * Math.cos(t), C + r * Math.sin(t)]; };
+  const ang = v => 225 + 270 * Math.min(Math.max(v, 0), D.max) / D.max;
+  function arcPath(v0, v1, r) {
+    const [x0, y0] = pt(ang(v0), r), [x1, y1] = pt(ang(v1), r);
+    return `M${x0.toFixed(2)},${y0.toFixed(2)} A${r},${r} 0 ${ang(v1) - ang(v0) > 180 ? 1 : 0} 1 ${x1.toFixed(2)},${y1.toFixed(2)}`;
+  }
+  function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; }
+
+  function dialInto(svg, opts) {
+    svg.innerHTML = '';
+    const acc = S.settings.accent || '#D4FF3F';
+    const defs = el('defs', {}, svg);
+    const lg = el('linearGradient', { id: svg.id + '-g', x1: 0, y1: 1, x2: 1, y2: 0 }, defs);
+    el('stop', { offset: 0, 'stop-color': acc, 'stop-opacity': .45 }, lg);
+    el('stop', { offset: 1, 'stop-color': acc }, lg);
+    const f = el('filter', { id: svg.id + '-f', x: '-30%', y: '-30%', width: '160%', height: '160%' }, defs);
+    el('feGaussianBlur', { stdDeviation: 8 }, f);
+    el('circle', { cx: D.C, cy: D.C, r: D.R + 22, fill: 'none', stroke: 'rgba(255,255,255,.035)' }, svg);
+    el('path', { d: arcPath(0, D.max, D.R), fill: 'none', stroke: 'rgba(255,255,255,.06)', 'stroke-width': 12, 'stroke-linecap': 'round' }, svg);
+    const step = D.max > 200 ? 5 : 2.5, major = D.max > 200 ? 60 : 30;
+    for (let v = 0; v <= D.max + .01; v += step) {
+      const isMajor = v % major === 0 && v < D.hz - 8, mid = v % 10 === 0;
+      const [x0, y0] = pt(ang(v), D.R - 18), [x1, y1] = pt(ang(v), D.R - (isMajor ? 30 : mid ? 25 : 22));
+      el('line', { x1: x0, y1: y0, x2: x1, y2: y1, stroke: isMajor ? '#565D67' : mid ? '#30353D' : '#1F2329', 'stroke-width': isMajor ? 1.5 : 1 }, svg);
+      if (isMajor && opts.labels !== false) { const [tx, ty] = pt(ang(v), D.R - 44); el('text', { x: tx, y: ty + 3.5, 'text-anchor': 'middle', 'font-family': 'Geist Mono', 'font-size': 10, fill: '#59606A' }, svg).textContent = v; }
+    }
+    const [h0x, h0y] = pt(ang(D.hz), D.R - 12), [h1x, h1y] = pt(ang(D.hz), D.R + 12);
+    el('line', { x1: h0x, y1: h0y, x2: h1x, y2: h1y, stroke: '#ECEEF1', 'stroke-width': 2, 'stroke-linecap': 'round' }, svg);
+    if (opts.labels !== false) { const [lx, ly] = pt(ang(D.hz), D.R + 22); el('text', { x: lx + 2, y: ly + 4, 'font-family': 'Geist Mono', 'font-size': 9.5, fill: '#8B929C' }, svg).textContent = `${D.hz} Hz`; }
+    return svg;
+  }
+
+  function drawDialTicks() {
+    D.hz = S.hw.hz || 144;
+    D.max = Math.max(165, Math.ceil((D.hz + 20) / 15) * 15);
+    const svg = dialInto($('dial-svg'), {});
+    const acc = S.settings.accent || '#D4FF3F';
+    dial.glow = el('path', { d: '', fill: 'none', stroke: acc, 'stroke-width': 30, 'stroke-linecap': 'round', opacity: .12 }, svg);
+    dial.glow2 = el('path', { d: '', fill: 'none', stroke: acc, 'stroke-width': 20, 'stroke-linecap': 'round', opacity: .16 }, svg);
+    dial.arc = el('path', { d: '', fill: 'none', stroke: 'url(#dial-svg-g)', 'stroke-width': 12, 'stroke-linecap': 'round' }, svg);
+    dial.tip = el('circle', { r: 4, fill: '#08090B', cx: -99, cy: -99 }, svg);
+    dial.ghostLine = el('line', { stroke: acc, 'stroke-width': 2.2, 'stroke-linecap': 'round', opacity: 0 }, svg);
+    dial.ghostText = el('text', { 'font-family': 'Geist Mono', 'font-size': 9.5, fill: acc, 'text-anchor': 'end', opacity: 0 }, svg);
+    dial.needle = el('line', { x1: D.C, y1: D.C + 50, x2: D.C, y2: D.C - 104, stroke: '#ECEEF1', 'stroke-width': 3, 'stroke-linecap': 'round', opacity: 0 }, svg);
+    dial.pivot = el('circle', { cx: D.C, cy: D.C + 50, r: 6, fill: '#ECEEF1', opacity: 0 }, svg);
+    dial.shown = 0;
+    setGhost(dial.ghost);
+    kick();
+  }
+
+  function setGhost(v) {
+    dial.ghost = v || 0;
+    if (!dial.ghostLine) return;
+    if (!v) { dial.ghostLine.setAttribute('opacity', 0); dial.ghostText.setAttribute('opacity', 0); return; }
+    const live = S.st.state === 'live';
+    const [x0, y0] = pt(ang(v), D.R - 9), [x1, y1] = pt(ang(v), D.R + 9), [tx, ty] = pt(ang(v), D.R + 22);
+    Object.entries({ x1: x0, y1: y0, x2: x1, y2: y1, opacity: live ? .45 : .95 }).forEach(([k, val]) => dial.ghostLine.setAttribute(k, val));
+    dial.ghostText.setAttribute('x', tx - 4); dial.ghostText.setAttribute('y', ty);
+    dial.ghostText.setAttribute('opacity', 1);
+    dial.ghostText.setAttribute('fill', live ? '#59606A' : (S.settings.accent || '#D4FF3F'));
+    dial.ghostText.textContent = (live ? 'before ' : 'last ') + Math.round(v);
+  }
+
+  function kick() { if (!dial.raf) dial.raf = requestAnimationFrame(frame); }
+  function frame(t) {
+    dial.raf = 0;
+    if (t - (dial.last || 0) < 31) { kick(); return; }
+    dial.last = t;
+    const st = S.st.state;
+    const target = st === 'live' ? dial.target : 0;
+    const k = body.dataset.motion === 'off' ? 1 : 0.28;
+    dial.shown += (target - dial.shown) * k;
+    if (Math.abs(target - dial.shown) < 0.05) dial.shown = target;
+    if (dial.arc) {
+      if (dial.shown > 0.3) {
+        const d = arcPath(0, dial.shown, D.R);
+        dial.arc.setAttribute('d', d); dial.glow.setAttribute('d', d); dial.glow2.setAttribute('d', d);
+        const [nx, ny] = pt(ang(dial.shown), D.R);
+        dial.tip.setAttribute('cx', nx); dial.tip.setAttribute('cy', ny);
+      } else { dial.arc.setAttribute('d', ''); dial.glow.setAttribute('d', ''); dial.glow2.setAttribute('d', ''); dial.tip.setAttribute('cx', -99); }
+      // waiting: a metronome needle keeps time while you open the game
+      const waiting = st === 'waiting';
+      dial.needle.setAttribute('opacity', waiting ? 1 : 0);
+      dial.pivot.setAttribute('opacity', waiting ? 1 : 0);
+      if (waiting) {
+        const a = body.dataset.motion === 'off' ? 0 : Math.sin(t / 1000 * Math.PI) * 32;
+        dial.needle.setAttribute('transform', `rotate(${a.toFixed(2)} ${D.C} ${D.C + 50})`);
+      }
+    }
+    if (st === 'waiting' || dial.shown !== target) kick();
+  }
+
+  function drawLookDial() {
+    const svg = $('look-dial');
+    if (!svg) return;
+    dialInto(svg, { labels: false });
+    const last = sessionsOf(S.settings.selectedGame)[0];
+    if (last) {
+      const [x0, y0] = pt(ang(last.avgFps), D.R - 9), [x1, y1] = pt(ang(last.avgFps), D.R + 9);
+      el('line', { x1: x0, y1: y0, x2: x1, y2: y1, stroke: S.settings.accent, 'stroke-width': 2.2, 'stroke-linecap': 'round' }, svg);
+    }
+  }
+
+  // ------------------------------------------------------------------ pages
+  function go(page) {
+    S.page = page;
+    body.dataset.page = page;
+    document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('on', b.dataset.go === page));
+    for (const p of ['play', 'boost', 'sessions', 'overlay', 'look']) $('page-' + p).hidden = p !== page;
+    movePill();
+    if (page === 'boost') { renderBoost(); send({ t: 'apps' }); }
+    if (page === 'sessions') renderSessions();
+    if (page === 'overlay') renderOverlayPage();
+    if (page === 'look') renderLook();
+    if (page === 'play') { renderPlay(); drawStrip(); } // redraw charts in the current colours
+  }
+  $('nav').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
+  function movePill() {
+    const b = document.querySelector('.nav button.on'), pill = $('nav-pill');
+    if (!b || !pill) return;
+    pill.style.width = b.offsetWidth + 'px';
+    pill.style.transform = `translateX(${b.offsetLeft}px)`;
+  }
+  addEventListener('resize', movePill);
+  document.querySelectorAll('[data-win]').forEach(b => b.addEventListener('click', () => send({ t: b.dataset.win })));
+  document.addEventListener('click', e => { const o = e.target.closest('[data-open]'); if (o) send({ t: 'open', url: o.dataset.open }); });
+
+  // ------------------------------------------------------------------ games
+  function artStyle(g, kind) { const u = g && g.art && (g.art[kind] || (kind === 'header' && g.art.capsule)); return u ? `background-image:url('${u}')` : ''; }
+  function renderGames() {
+    const list = $('games');
+    const id = S.settings.selectedGame;
+    $('games-count').textContent = S.games.length ? `${S.games.length} found` : '';
+    list.innerHTML = S.games.map(g => {
+      const n = sessionsOf(g.id).length;
+      const status = n ? `${n} session${n === 1 ? '' : 's'}` : g.source === 'custom' ? 'Added by you' : 'Not measured yet';
+      const art = g.art.header || g.art.capsule
+        ? `<span class="art" style="${artStyle(g, 'header')}"></span>`
+        : `<span class="art">${g.art.icon ? `<img src="${g.art.icon}" alt="">` : ''}</span>`;
+      return `<button type="button" class="g${g.id === id ? ' sel' : ''}" data-game="${esc(g.id)}">${art}<span><span class="nm">${esc(g.name)}</span><span class="st">${status}</span></span><span class="hide" data-hide="${esc(g.id)}" title="Hide from this list">&#10005;</span></button>`;
+    }).join('') + `<button type="button" class="g${id === 'any' || !id ? ' sel' : ''}" data-game="any"><span class="art" style="display:grid;place-items:center;color:var(--muted);font-size:18px">&#9675;</span><span><span class="nm">Any game</span><span class="st">TEMPO picks the game in front</span></span></button>`;
+  }
+  $('games').addEventListener('click', e => {
+    const h = e.target.closest('[data-hide]');
+    if (h) { e.stopPropagation(); send({ t: 'hideGame', game: h.dataset.hide }); return; }
+    const b = e.target.closest('[data-game]');
+    if (!b || S.st.state !== 'off') return;
+    S.settings.selectedGame = b.dataset.game;
+    send({ t: 'select', game: b.dataset.game });
+    renderPlay();
+  });
+  $('add-game').addEventListener('click', () => send({ t: 'addGame' }));
+
+  // ------------------------------------------------------------------ play
+  const MODES = [
+    [/Legacy/i, 'Old-style exclusive fullscreen', 'Windows lets nothing sit on top in this mode, so the overlay can\'t show. Your fps is still measured. The game\'s borderless option (or its other fullscreen setting) lets the overlay through.'],
+    [/Independent Flip/i, 'Fullscreen, on Windows\' fast path', 'As fast as exclusive fullscreen, and the overlay can show on top.'],
+    [/Composed/i, 'Windowed or borderless', 'Windows draws the game through its compositor. The overlay shows on top.'],
+  ];
+  const modeOf = m => MODES.find(([re]) => re.test(m || ''));
+
+  function renderPlay() {
+    const st = S.st.state;
+    body.dataset.state = st;
+    const g = st === 'off' ? sel() : gameOf(S.st.game) || null;
+    // hero art and title
+    const hero = g && (g.art.hero || g.art.header);
+    $('hero').style.backgroundImage = hero ? `url('${hero}')` : '';
+    const name = st !== 'off' && S.st.gameName ? S.st.gameName : g ? g.name : 'Any game';
+    $('title-row').innerHTML = g && g.art.logo && st !== 'live'
+      ? `<img src="${g.art.logo}" alt="${esc(name)}">`
+      : `<span class="tn">${esc(name)}</span>${st === 'live' && S.st.since ? `<span class="since" id="since"></span>` : ''}`;
+    // dial
+    $('read-off').hidden = st !== 'off';
+    $('read-wait').hidden = st !== 'waiting';
+    $('read-live').hidden = st !== 'live';
+    $('wait-sub').textContent = g ? `OPEN ${g.name.toUpperCase().slice(0, 28)}` : 'OPEN ANY GAME';
+    $('stop').hidden = st === 'off';
+    $('stop').textContent = st === 'live' ? 'Turn off and save this session' : 'Turn off';
+    const last = g && sessionsOf(g.id)[0];
+    setGhost(st === 'live' ? (last && last.avgFps) : st === 'off' ? (last && last.avgFps) : 0);
+    // chips
+    const auto = S.settings.autoOff !== false;
+    const ovs = { minimal: 'Minimal', detailed: 'Detailed', bar: 'Bar' }[S.settings.overlayStyle] || 'Minimal';
+    const bc = boostCount();
+    $('chips').innerHTML = (st === 'off'
+      ? `<button type="button" class="chip" data-go-page="boost"><span class="d"></span>${bc ? `Boost · ${bc} change${bc === 1 ? '' : 's'}` : 'Boost off'}</button>`
+      : '') +
+      `<button type="button" class="chip${auto ? '' : ' offc'}" id="chip-auto"><span class="ck">${auto ? '&#10003;' : '&#9675;'}</span>Turns off with the game</button>` +
+      `<button type="button" class="chip" data-go-page="overlay">Overlay · ${S.settings.overlay === false ? 'off' : ovs}</button>`;
+    $('left-off').hidden = st !== 'off';
+    $('left-on').hidden = st === 'off';
+    $('learn').hidden = st !== 'off' || !boostCount();
+    const applied = S.st.applied || [];
+    $('applied-lab').textContent = S.st.learn ? 'Measuring only' : applied.length ? `Boost on · ${applied.length}` : 'Boost on';
+    $('applied').innerHTML = S.st.learn
+      ? `<div class="ch dim"><div class="t">No changes this time<span>A clean baseline, so the boost can be measured against it.</span></div></div>`
+      : applied.length ? applied.map(a => `<div class="ch"><div class="t">${esc(a)}</div><span class="ok">&#10003;</span></div>`).join('')
+        : `<div class="ch dim"><div class="t">Nothing needed changing<span>Everything the boost does was already set up on this PC.</span></div></div>`;
+    $('applied-note').hidden = !!S.st.learn;
+    $('ov-line').textContent = S.settings.overlay === false ? 'Off (Ctrl Alt O)' : `${ovs}, ${{ tl: 'top left', tr: 'top right', bc: 'bottom', bl: 'bottom left', br: 'bottom right' }[S.settings.overlayCorner] || 'top left'}`;
+    $('right-off').hidden = st !== 'off';
+    $('right-on').hidden = st === 'off';
+    $('strip').hidden = st !== 'live';
+    $('status').hidden = st === 'off';
+    $('status-text').textContent = st === 'live' ? `On · ${name}` : 'On · waiting';
+    if (st === 'off') renderLastSession(g);
+    if (st !== 'live') { $('mode-note').hidden = true; $('holder').hidden = true; }
+    if (st === 'waiting') { $('meters').innerHTML = ''; $('bg-apps').innerHTML = '<p class="note">Open the game. TEMPO starts measuring the moment it draws its first frames.</p>'; }
+    renderGames();
+    kick();
+  }
+  document.addEventListener('click', e => {
+    if (e.target.closest('#chip-auto')) { S.settings.autoOff = !(S.settings.autoOff !== false); send({ t: 'set', key: 'autoOff', value: S.settings.autoOff }); renderPlay(); syncControls(); }
+    const p = e.target.closest('[data-go-page]');
+    if (p) go(p.dataset.goPage);
+  });
+  $('power').addEventListener('click', () => send({ t: 'on', game: S.settings.selectedGame || 'any' }));
+  $('learn').addEventListener('click', () => send({ t: 'on', game: S.settings.selectedGame || 'any', learn: true }));
+  $('stop').addEventListener('click', () => send({ t: 'off' }));
+
+  function blockedText(g) {
+    const name = g ? esc(g.name) : 'This game';
+    const fix = g && g.forcesFullscreen
+      ? `Your Steam launch options for ${name} include <b>-fullscreen</b>, which forces it. Remove it (Steam, right-click ${name}, Properties, Launch options) and the game uses its own borderless setting.`
+      : `Switch the game's display mode to borderless (sometimes called fullscreen windowed) and the counter shows.`;
+    return `<b>The counter is hidden by exclusive fullscreen.</b> ${name} draws straight to the screen, so Windows shows nothing on top of it. Your fps is still measured. ${fix} TEMPO will measure whether borderless costs you anything.`;
+  }
+
+  function limiterText(kind, share) {
+    const pct = Math.round(share * 100);
+    if (kind === 'cpu') return ['PROCESSOR', `Your graphics card waits for it on ${pct}% of frames, so lower graphics settings won't help much.`];
+    if (kind === 'gpu') return ['GRAPHICS CARD', `It's flat out on ${pct}% of frames. A lower resolution or lighter settings would help.`];
+    if (kind === 'cap') return ['FPS LIMIT', `${pct}% of frames wait for a limit (an fps cap or V-Sync), so neither part is maxed out.`];
+    return ['', ''];
+  }
+
+  function lbar(s) {
+    const parts = [['Processor', s.cpuLimited, 'var(--acc)'], ['Graphics card', s.gpuLimited, '#59606A'], ['FPS limit', s.capped, '#3D434B']];
+    const top = parts.slice().sort((a, b) => b[1] - a[1])[0];
+    parts.forEach(p => { if (p !== top) p[2] = p[0] === 'FPS limit' ? '#2A2F36' : '#3D434B'; else p[2] = 'var(--acc)'; });
+    return `<div class="lbar">${parts.filter(p => p[1] > 0.005).map(p => `<i style="flex:${p[1]};background:${p[2]}"></i>`).join('')}</div>
+      <div class="leg">${parts.map(p => `<span>${p === top ? `<b>${p[0]}</b>` : p[0]} ${Math.round(p[1] * 100)}%</span>`).join('')}</div>`;
+  }
+
+  function tips(s) {
+    const out = [];
+    if (s.overlayBlocked) out.push(blockedText(gameOf(s.gameId)));
+    const prot = new Set((S.settings.protectedApps || []).map(x => x.toLowerCase()));
+    const shell = new Set(['explorer.exe', 'searchhost.exe', 'shellexperiencehost.exe', 'startmenuexperiencehost.exe']);
+    const movable = (s.background || []).filter(b => !prot.has(b.name.toLowerCase()) && !shell.has(b.name.toLowerCase()));
+    if (s.cpuLimited > 0.5 && s.backgroundCpu >= 4 && s.background.length)
+      out.push(`<b>Other apps</b> used ${fmt(s.backgroundCpu)}% of your processor. TEMPO never closes anything: with the boost on, ${movable.length ? `apps like ${movable.slice(0, 2).map(b => esc(b.name.replace(/\.exe$/i, ''))).join(' and ')} step back for the game while you play` : 'the apps you pick step back while you play'}, and music and voice apps (Discord, Spotify) are left exactly as they are.`);
+    const ramAvg = s.avgRamFreeGb || 0;
+    if ((s.minRamFreeGb > 0 && s.minRamFreeGb < 1.2) || (ramAvg > 0 && ramAvg < 2.5))
+      out.push(`<b>Memory got tight:</b> ${ramAvg ? `${fmt(ramAvg, 1)} GB free on average, ` : ''}${fmt(s.minRamFreeGb, 1)} GB at the lowest. Windows starts swapping to disk around there, which causes stutters; browser tabs are usually the biggest users.`);
+    if (s.maxGpuTemp >= 83) out.push(`<b>Your graphics card got hot:</b> ${fmt(s.maxGpuTemp)} °C at the peak. Most cards slow themselves down above about 83 °C. Dust in the fans or a slow fan curve are the usual reasons.`);
+    if (s.gpuLimited > 0.5) out.push(`<b>Graphics card bound:</b> a lower resolution, FSR or lighter settings would raise your fps.`);
+    if (s.cpuLimited > 0.5 && s.gpuLimited < 0.3) out.push(`<b>Processor bound:</b> lowering graphics settings won't help much; fewer background apps and the game's CPU-heavy settings (view distance, physics, effects) will.`);
+    if (s.capped > 0.5) out.push(`<b>Held by a limit:</b> an fps cap or V-Sync is doing its job. Raise or remove it if you want more.`);
+    return out;
+  }
+
+  function renderLastSession(g) {
+    const box = $('right-off');
+    const list = g ? sessionsOf(g.id) : S.sessions;
+    const s = list[0];
+    if (!s) {
+      box.innerHTML = `<div class="lab">Last session</div><div class="empty"><b>Nothing measured yet</b>Turn TEMPO on and play a normal session. You'll get your real average, the dips you feel, and what holds your fps back on this PC.</div>`;
+      return;
+    }
+    const prev = list[1];
+    const delta = prev ? Math.round(s.avgFps - prev.avgFps) : null;
+    box.innerHTML = `
+      <div class="lab">Last session <b>${when(s.started)} · ${dur(s.seconds)}</b></div>
+      <div class="avg"><span class="n">${fmt(s.avgFps)}</span><span class="u">FPS AVERAGE</span>${delta != null ? `<span class="delta${delta < 0 ? ' neg' : ''}">${delta >= 0 ? '+' : ''}${delta} vs before</span>` : ''}</div>
+      <div class="trio"><div><div class="k">1% LOW</div><div class="v">${fmt(s.low1)}</div></div><div><div class="k">0.1% LOW</div><div class="v">${fmt(s.low01)}</div></div><div><div class="k">FRAME</div><div class="v">${fmt(s.avgFrameMs, 1)}<small>ms</small></div></div></div>
+      <canvas class="chart" id="last-chart"></canvas>
+      <div class="axis"><span>0</span><span>${dur(s.seconds / 2)}</span><span>${dur(s.seconds)}</span></div>
+      <div class="lab" style="margin-bottom:0">What held you back</div>
+      ${lbar(s)}
+      ${compareHtml(g && g.id)}
+      ${tips(s).slice(0, 2).map(t => `<p class="facts" style="margin-bottom:8px">${t}</p>`).join('')}`;
+    drawSeries($('last-chart'), s.series, prev && prev.series);
+  }
+
+  // boosted sessions against plain ones for the same game, weighted by how long each was played
+  function compare(gameId) {
+    const list = gameId ? sessionsOf(gameId) : [];
+    const boosted = list.filter(s => !s.learn && s.changes && s.changes.length);
+    const base = list.filter(s => !s.changes || !s.changes.length);
+    if (!boosted.length || !base.length) return null;
+    const w = (arr, k) => arr.reduce((a, s) => a + s[k] * s.seconds, 0) / Math.max(1, arr.reduce((a, s) => a + s.seconds, 0));
+    return { n1: boosted.length, n0: base.length, fps: w(boosted, 'avgFps') - w(base, 'avgFps'), low: w(boosted, 'low1') - w(base, 'low1') };
+  }
+  function compareHtml(gameId) {
+    const c = compare(gameId);
+    if (!c) return '';
+    const sign = v => (v >= 0 ? '+' : '') + v.toFixed(1);
+    return `<div class="cmp"><div class="lab" style="margin:0 0 6px">Boost against no boost</div>
+      <div class="cmp-row"><span><b>${sign(c.fps)}</b> fps average</span><span><b>${sign(c.low)}</b> at the 1% lows</span></div>
+      <p class="note" style="margin-top:6px">${c.n1} boosted and ${c.n0} plain session${c.n0 === 1 ? '' : 's'}. Matches differ, so this gets more reliable the more you play.</p></div>`;
+  }
+
+  function drawSeries(c, series, before) {
+    if (!c || !series || series.length < 2) return;
+    const dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+    c.width = w * dpr; c.height = h * dpr;
+    const g = c.getContext('2d');
+    g.scale(dpr, dpr);
+    const all = series.concat(before || []);
+    const lo = Math.max(0, Math.min(...all) * 0.85), hi = Math.max(...all) * 1.08;
+    const y = v => h - 3 - (v - lo) / (hi - lo || 1) * (h - 8);
+    const line = (arr, color, width, dash, fill) => {
+      g.beginPath();
+      arr.forEach((v, i) => { const x = i / (arr.length - 1) * w; i ? g.lineTo(x, y(v)) : g.moveTo(x, y(v)); });
+      g.setLineDash(dash || []);
+      g.strokeStyle = color; g.lineWidth = width; g.lineJoin = 'round'; g.stroke();
+      if (fill) { g.lineTo(w, h); g.lineTo(0, h); g.closePath(); g.fillStyle = fill; g.fill(); }
+    };
+    const rgb = getComputedStyle(document.documentElement).getPropertyValue('--acc-rgb');
+    if (before && before.length > 1) line(before, '#3A4048', 1.3, [3, 2]);
+    line(series, S.settings.accent, 1.6, null, `rgba(${rgb}, .08)`);
+  }
+
+  // ------------------------------------------------------------------ live
+  let sinceTimer = 0;
+  function onLive(l) {
+    S.live = l;
+    if (S.st.state !== 'live') { if (l.sys) $('self-cost').textContent = `${fmt(l.sys.tempo, 1)}% processor`; return; }
+    dial.target = l.fps || 0;
+    $('big').textContent = l.fps ? Math.round(l.fps) : '–';
+    $('big-low').textContent = l.low1 ? Math.round(l.low1) : '–';
+    kick();
+    const s = l.sys;
+    const sysKey = s ? JSON.stringify(s) : '';
+    if (s && sysKey !== S.sysKey) { // system readings change once a second; skip rebuilding them in between
+      S.sysKey = sysKey;
+      $('self-cost').textContent = `${fmt(s.tempo, 1)}% processor`;
+      const m = (label, val, pct, hot) => `<div class="meter"><div class="row"><span>${label}</span><b>${val}</b></div><div class="track"><i class="${hot ? 'a' : ''}" style="width:${Math.max(0, Math.min(100, pct))}%"></i></div></div>`;
+      const vr = s.vramTotal ? s.vramUsed / s.vramTotal * 100 : 0;
+      const ramUsed = s.ramTotal ? (1 - s.ramAvail / s.ramTotal) * 100 : 0;
+      $('meters').innerHTML =
+        m('Busiest processor core', `${fmt(s.cpuMax)}%`, s.cpuMax, l.limiter === 'cpu') +
+        m('Processor overall', `${fmt(s.cpu)}%`, s.cpu, false) +
+        (s.gpu != null ? m('Graphics card', `${fmt(s.gpu)}%`, s.gpu, l.limiter === 'gpu') : '') +
+        (s.vramTotal ? m('Graphics memory', `${gb(s.vramUsed)} / ${gb(s.vramTotal)} GB`, vr, vr > 92) : '') +
+        m('Memory free', `${gb(s.ramAvail)} GB`, ramUsed, s.ramAvail < 2.2 * 1073741824) +
+        (s.temp != null ? m('Graphics card heat', `${fmt(s.temp)} °C`, (s.temp - 30) / 60 * 100, s.temp > 83) : '');
+      $('bg-apps').innerHTML = s.top && s.top.length
+        ? `<div class="lab" style="margin:4px 0 6px">Also using your processor</div>` + s.top.slice(0, 4).map(p => `<div class="row${(S.settings.protectedApps || []).some(x => x.toLowerCase() === p.name.toLowerCase()) ? ' kept' : ''}"><span>${esc(p.name.replace(/\.exe$/i, ''))}</span><b>${fmt(p.cpu, 1)}%</b></div>`).join('')
+        : '';
+    }
+    if (l.limiter) {
+      const [v, p] = limiterText(l.limiter, l.share);
+      $('holder').hidden = false;
+      $('holder-v').textContent = v;
+      $('holder-p').textContent = p;
+    }
+    const mo = modeOf(l.mode);
+    $('mode-note').hidden = !mo && l.overlay !== 'blocked';
+    if (l.overlay === 'blocked') $('mode-note').innerHTML = blockedText(gameOf(S.st.game));
+    else if (mo) $('mode-note').innerHTML = `<b>${mo[1]}.</b> ${mo[2]}`;
+    if (l.overlay === 'blocked' && !S.blockedTold) { S.blockedTold = true; toast('The game\'s exclusive fullscreen is hiding the fps counter. Your fps is still measured.'); }
+    $('strip-now').textContent = l.frameMs ? `${fmt(1000 / Math.max(l.fps, 1), 1)} ms now` : '';
+    drawStrip();
+  }
+
+  function drawStrip() {
+    const c = $('strip-canvas');
+    if (!c || $('strip').hidden || !S.live || !S.live.recent) return;
+    const fr = S.live.recent;
+    const dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+    if (!w) return;
+    if (c.width !== w * dpr) { c.width = w * dpr; c.height = h * dpr; }
+    const g = c.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    const p99 = fr.slice().sort((a, b) => b - a)[Math.floor(fr.length * 0.01)] || 0;
+    const hi = Math.max(34, p99 * 1.25, Math.max(...fr) * 1.05);
+    const y = v => h - 2 - v / hi * (h - 6);
+    const guide = (v, color, label) => {
+      g.setLineDash([2, 3]); g.strokeStyle = color; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(0, y(v)); g.lineTo(w, y(v)); g.stroke(); g.setLineDash([]);
+      g.fillStyle = color; g.font = '9px "Geist Mono"'; g.textAlign = 'right'; g.fillText(label, w, y(v) - 4);
+    };
+    guide(1000 / D.hz, 'rgba(236,238,241,.35)', `${D.hz} Hz · ${(1000 / D.hz).toFixed(1)} ms`);
+    if (p99) guide(p99, 'rgba(255,181,71,.55)', `1% low · ${p99.toFixed(1)} ms`);
+    const rgb = getComputedStyle(document.documentElement).getPropertyValue('--acc-rgb');
+    g.beginPath();
+    fr.forEach((v, i) => { const x = i / Math.max(1, fr.length - 1) * w; i ? g.lineTo(x, y(v)) : g.moveTo(x, y(v)); });
+    g.strokeStyle = S.settings.accent; g.lineWidth = 1.4; g.lineJoin = 'round'; g.stroke();
+    g.lineTo(w, h); g.lineTo(0, h); g.closePath(); g.fillStyle = `rgba(${rgb}, .07)`; g.fill();
+  }
+
+  function tickSince() {
+    const e = $('since');
+    if (e && S.st.since) { const s = (Date.now() - new Date(S.st.since)) / 1000; e.textContent = `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')} in`; }
+  }
+  setInterval(tickSince, 1000);
+
+  // ------------------------------------------------------------------ sessions page
+  function renderSessions() {
+    const list = $('sess-list');
+    if (!S.sessions.length) {
+      list.innerHTML = `<div class="empty"><b>No sessions yet</b>They appear here after you play with TEMPO on.</div>`;
+      $('sess-detail').innerHTML = '';
+      return;
+    }
+    if (!S.sessSel || !S.sessions.find(s => s.id === S.sessSel.id && s.gameId === S.sessSel.gameId)) S.sessSel = S.sessions[0];
+    list.innerHTML = S.sessions.map(s => {
+      const g = gameOf(s.gameId);
+      const on = S.sessSel && s.id === S.sessSel.id && s.gameId === S.sessSel.gameId;
+      const boosted = s.changes && s.changes.length;
+      return `<button type="button" class="sess-item${on ? ' sel' : ''}" data-sid="${esc(s.gameId)}|${esc(s.id)}"><span class="art" style="${artStyle(g, 'header')}"></span><span><span class="nm">${esc(s.gameName)}<em class="tag${boosted ? ' b' : ''}">${boosted ? 'BOOST' : 'PLAIN'}</em></span><span class="st">${when(s.started)} · ${dur(s.seconds)}</span></span><span class="fps">${fmt(s.avgFps)}<small>FPS AVG</small></span></button>`;
+    }).join('');
+    renderSessionDetail(S.sessSel);
+  }
+  $('sess-list').addEventListener('click', e => {
+    const b = e.target.closest('[data-sid]');
+    if (!b) return;
+    const [gid, id] = b.dataset.sid.split('|');
+    S.sessSel = S.sessions.find(s => s.gameId === gid && s.id === id);
+    renderSessions();
+  });
+
+  function renderSessionDetail(s) {
+    const box = $('sess-detail');
+    if (!s) { box.innerHTML = ''; return; }
+    const same = S.sessions.filter(x => x.gameId === s.gameId);
+    const prev = same[same.indexOf(s) + 1];
+    const mo = modeOf(s.presentMode);
+    box.innerHTML = `
+      <button type="button" class="sd-del" id="sd-del">Delete</button>
+      <div class="sd-head"><div class="h2">${esc(s.gameName.toUpperCase())}</div></div>
+      <div class="sd-sub">${when(s.started)} · ${dur(s.seconds)} · ${Number(s.frames).toLocaleString()} frames measured</div>
+      <div class="sd-grid">
+        <div><div class="k">AVERAGE</div><div class="v">${fmt(s.avgFps)}<small>fps</small></div></div>
+        <div><div class="k">1% LOW</div><div class="v">${fmt(s.low1)}<small>fps</small></div></div>
+        <div><div class="k">0.1% LOW</div><div class="v">${fmt(s.low01)}<small>fps</small></div></div>
+        <div><div class="k">FRAME TIME</div><div class="v">${fmt(s.avgFrameMs, 1)}<small>ms</small></div></div>
+      </div>
+      <canvas class="sd-chart" id="sd-chart"></canvas>
+      <div class="axis"><span>0</span><span>${dur(s.seconds / 2)}</span><span>${dur(s.seconds)}</span></div>
+      ${prev ? `<p class="facts" style="margin-bottom:12px">Dashed line: the session before (${fmt(prev.avgFps)} fps average).</p>` : ''}
+      <div class="lab" style="margin-bottom:0">What held you back</div>
+      ${lbar(s)}
+      <div class="sd-cols">
+        <div>
+          ${s.changes && s.changes.length ? `<div class="lab">The boost this session</div>${s.changes.map(c => `<p class="facts">&#10003; ${esc(c)}</p>`).join('')}<div style="height:16px"></div>` : `<div class="lab">The boost this session</div><p class="facts" style="margin-bottom:16px">Off. A plain session, useful as a baseline.</p>`}
+          ${compareHtml(s.gameId)}
+          <div class="lab">Worth knowing</div>
+          ${tips(s).map(t => `<p class="facts" style="margin-bottom:9px">${t}</p>`).join('') || '<p class="facts">Nothing stood out. A clean session.</p>'}
+          ${mo ? `<p class="facts" style="margin-top:6px"><b>${mo[1]}.</b> ${mo[2]}</p>` : ''}
+        </div>
+        <div>
+          <div class="lab">The PC during it</div>
+          <p class="facts">Graphics card <b>${fmt(s.avgGpu)}%</b> busy on average${s.maxGpuTemp ? `, up to <b>${fmt(s.maxGpuTemp)} °C</b>` : ''}<br>
+          Busiest processor core <b>${fmt(s.avgCpuMaxCore)}%</b> on average<br>
+          Memory free <b>${s.avgRamFreeGb ? fmt(s.avgRamFreeGb, 1) + ' GB' : '–'}</b> on average, <b>${fmt(s.minRamFreeGb, 1)} GB</b> at the lowest<br>
+          Graphics memory <b>${fmt(s.avgVramGb, 1)} of ${fmt(s.vramTotalGb, 0)} GB</b><br>
+          TEMPO itself <b>${fmt(s.tempoCpu, 1)}%</b> of your processor</p>
+          ${s.background && s.background.length ? `<div class="lab" style="margin-top:16px">Other apps using the processor</div><div class="bg-apps" style="margin-top:0">` + s.background.map(b => `<div class="row${(S.settings.protectedApps || []).some(p => p.toLowerCase() === b.name.toLowerCase()) ? ' kept' : ''}"><span>${esc(b.name.replace(/\.exe$/i, ''))}</span><b>${fmt(b.cpu, 1)}%</b></div>`).join('') + '</div>' : ''}
+        </div>
+      </div>`;
+    drawSeries($('sd-chart'), s.series, prev && prev.series);
+    $('sd-del').addEventListener('click', () => {
+      if ($('sd-del').dataset.armed) { send({ t: 'deleteSession', game: s.gameId, id: s.id }); return; }
+      $('sd-del').dataset.armed = '1';
+      $('sd-del').textContent = 'Delete this session?';
+    });
+  }
+
+  // ------------------------------------------------------------------ settings controls
+  function syncControls() {
+    document.querySelectorAll('.tog[data-set]').forEach(t => t.classList.toggle('on', isOn(t.dataset.set)));
+    document.querySelectorAll('.seg[data-set]').forEach(sg => sg.querySelectorAll('button').forEach(b => b.classList.toggle('on', (getSet(sg.dataset.set) ?? (sg.dataset.set === 'artStyle' ? 'tinted' : '')) === b.dataset.v)));
+    document.querySelectorAll('input[type=range][data-set]').forEach(r => {
+      const v = Math.round((S.settings[r.dataset.set] ?? 0) * (+r.dataset.scale || 1));
+      r.value = v;
+      paintRange(r);
+    });
+  }
+  function paintRange(r) {
+    const p = (r.value - r.min) / (r.max - r.min) * 100;
+    r.style.setProperty('--p', p + '%');
+    const out = r.parentElement.querySelector('output');
+    if (out) out.textContent = r.dataset.set === 'overlaySize' ? `${(r.value / 100).toFixed(2).replace(/0$/, '')}×` : `${r.value}%`;
+  }
+  function set(key, value) {
+    putSet(key, value);
+    send({ t: 'set', key, value });
+    if (['accent', 'background', 'artBehindDial', 'artStyle', 'grain', 'motion'].includes(key)) applyTheme();
+    if (key.startsWith('boost') || key === 'protectedApps') renderBoost();
+    syncControls();
+    if (S.page === 'overlay') renderOverlaySample();
+    if (S.page === 'look') renderLook();
+    if (S.page === 'play') renderPlay();
+  }
+  document.addEventListener('click', e => {
+    const t = e.target.closest('.tog[data-set]');
+    if (t) { const k = t.dataset.set; set(k, !isOn(k)); return; }
+    const b = e.target.closest('.seg[data-set] button');
+    if (b) set(b.closest('.seg').dataset.set, b.dataset.v);
+  });
+  document.querySelectorAll('input[type=range][data-set]').forEach(r => {
+    r.addEventListener('input', () => { paintRange(r); S.settings[r.dataset.set] = r.value / (+r.dataset.scale || 1); if (r.dataset.set === 'grain') applyTheme(); if (S.page === 'overlay') renderOverlaySample(); });
+    r.addEventListener('change', () => set(r.dataset.set, r.value / (+r.dataset.scale || 1)));
+  });
+
+  // boost page
+  function renderBoost() {
+    if (S.page !== 'boost') return;
+    const st = S.boostStatus || {};
+    const chip = (id, text) => { const e = $(id); if (e) { e.textContent = text || ''; e.hidden = !text; } };
+    chip('bs-gm', st.gameMode ? 'already on' : '');
+    chip('bs-rec', st.recordingOff ? 'already off' : '');
+    chip('bs-pw', st.onBattery ? 'on battery' : st.powerHigh ? 'already on' : st.powerAvailable === false ? 'not on this PC' : '');
+    const want = new Set((getSet('boost.stepBackApps') || []).map(x => x.toLowerCase()));
+    const prot = new Set((S.settings.protectedApps || []).map(x => x.toLowerCase()));
+    const apps = S.apps || [];
+    const running = apps.filter(a => !prot.has(a.name.toLowerCase()));
+    const picked = running.filter(a => want.has(a.name.toLowerCase())).length;
+    chip('bs-apps', `${picked} running`);
+    $('apps-count').textContent = `${picked} picked`;
+    const row = (a, on, lock) => `<button type="button" class="app${on ? ' on' : ''}${lock ? ' lock' : ''}" data-app="${esc(a.name)}"${lock ? ' data-lock="1"' : ''}><span class="nm">${esc(a.name.replace(/\.exe$/i, ''))}</span><span class="cpu">${a.cpu ? fmt(a.cpu, 1) + '%' : ''}</span><span class="pick">${lock ? 'Never touched' : on ? 'Steps back' : 'Leave alone'}</span></button>`;
+    $('apps').innerHTML = S.apps == null ? '<p class="note">Looking at what\'s running…</p>'
+      : running.length ? running.slice(0, 40).map(a => row(a, want.has(a.name.toLowerCase()), false)).join('') : '<p class="note">Nothing else is running.</p>';
+    const protList = (S.settings.protectedApps || []).map(n => apps.find(a => a.name.toLowerCase() === n.toLowerCase()) || { name: n, cpu: 0 });
+    const shownProt = protList.filter(p => apps.some(a => a.name.toLowerCase() === p.name.toLowerCase()));
+    $('protected').innerHTML = (shownProt.length ? shownProt : protList.slice(0, 3)).map(a => row(a, false, true)).join('') +
+      `<p class="note" style="margin-top:8px">Music and voice apps are left exactly as they are, so calls and music never stutter. Tap one to let it step back too.</p>`;
+    const g = sel();
+    $('bs-compare').innerHTML = compareHtml(g && g.id);
+    syncControls();
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-app]');
+    if (!b) return;
+    const name = b.dataset.app;
+    if (b.dataset.lock) {
+      set('protectedApps', (S.settings.protectedApps || []).filter(n => n.toLowerCase() !== name.toLowerCase()));
+      return;
+    }
+    const list = (getSet('boost.stepBackApps') || []).slice();
+    const i = list.findIndex(n => n.toLowerCase() === name.toLowerCase());
+    if (i >= 0) list.splice(i, 1); else list.push(name);
+    set('boost.stepBackApps', list);
+    send({ t: 'set', key: 'boost.apps', value: list });
+  });
+
+  // overlay page
+  const SHOW = [['fps', 'FPS'], ['low1', '1% low'], ['frametime', 'Frame time'], ['graph', 'Graph'], ['cpu', 'Processor'], ['gpu', 'Graphics card'], ['heat', 'Heat']];
+  function renderOverlayPage() {
+    const shown = new Set(S.settings.overlayShow || []);
+    $('ov-show').innerHTML = SHOW.map(([k, label]) => `<button type="button" data-show="${k}" class="${shown.has(k) || k === 'fps' ? 'on' : ''}"${k === 'fps' ? ' disabled' : ''}>${label}</button>`).join('');
+    const g = sel() || S.games[0];
+    const hero = g && (g.art.hero || g.art.header);
+    $('ov-game').style.backgroundImage = hero ? `url('${hero}')` : '';
+    syncControls();
+    renderOverlaySample();
+  }
+  $('ov-show').addEventListener('click', e => {
+    const b = e.target.closest('[data-show]');
+    if (!b || b.dataset.show === 'fps') return;
+    const shown = new Set(S.settings.overlayShow || []);
+    shown.has(b.dataset.show) ? shown.delete(b.dataset.show) : shown.add(b.dataset.show);
+    set('overlayShow', [...shown]);
+    renderOverlayPage();
+  });
+  function renderOverlaySample() {
+    const st = S.settings, box = $('ov-sample'), area = $('ov-preview');
+    const l = S.live && S.live.fps ? S.live : { fps: 58, low1: 39, frameMs: 17.2, limiter: 'cpu', sys: { cpuMax: 97, gpu: 61, temp: 66 } };
+    const fps = Math.round(l.fps), sys = l.sys || {};
+    const shown = new Set(st.overlayShow || []);
+    const color = st.overlayNumbers === 'white' ? '#F5F6F8' : st.overlayNumbers === 'byfps' ? (fps >= 60 ? st.accent : fps >= 30 ? '#FFB547' : '#FF5A3C') : st.accent;
+    const parts = [];
+    if (shown.has('low1')) parts.push(`1% ${Math.round(l.low1)}`);
+    if (shown.has('frametime')) parts.push(`${(1000 / fps).toFixed(1)} ms`);
+    if (shown.has('cpu')) parts.push(`CPU ${Math.round(sys.cpuMax ?? 0)}%`);
+    if (shown.has('gpu') && sys.gpu != null) parts.push(`GPU ${Math.round(sys.gpu)}%`);
+    if (shown.has('heat') && sys.temp != null) parts.push(`HEAT ${Math.round(sys.temp)}°`);
+    const s = st.overlaySize || 1, a = st.overlayBox || 0;
+    const boxCss = a > 0 ? `background:rgba(6,7,9,${(a * .92).toFixed(2)});border:1px solid rgba(255,255,255,${Math.min(.16, a / 4).toFixed(2)});` : '';
+    const outline = a < .47 ? ' o-out' : '';
+    let html;
+    if (st.overlayStyle === 'detailed') {
+      html = `<div class="${outline}" style="width:${250 * s}px;padding:${12 * s}px;border-radius:${14 * s}px;${boxCss}">
+        <div style="display:flex;align-items:baseline;gap:${6 * s}px"><span class="o-n" style="color:${color};font-size:${40 * s}px">${fps}</span><span class="o-u" style="font-size:${9.5 * s}px">FPS</span>
+        <span class="o-m" style="margin-left:auto;text-align:right;font-size:${10.5 * s}px;line-height:1.5">${parts.slice(0, 2).join('<br>')}</span></div>
+        <svg width="${226 * s}" height="${30 * s}" style="display:block;margin-top:${8 * s}px"><polyline fill="none" stroke="${color}" stroke-width="${1.3 * s}" points="${Array.from({ length: 60 }, (_, i) => `${i / 59 * 226 * s},${(18 + Math.sin(i / 3) * 3 + (i % 17 === 0 ? -9 : 0)) * s}`).join(' ')}"/></svg>
+        <div class="o-m" style="display:flex;gap:${18 * s}px;margin-top:${6 * s}px;font-size:${10.5 * s}px">${parts.slice(2).map(p => `<span>${p}</span>`).join('')}</div></div>`;
+    } else if (st.overlayStyle === 'bar') {
+      html = `<div class="${outline}" style="display:flex;align-items:center;gap:${13 * s}px;padding:${7 * s}px ${16 * s}px;border-radius:${22 * s}px;${boxCss}">
+        <span class="o-n" style="color:${color};font-size:${26 * s}px">${fps}</span><span class="o-u" style="font-size:${9.5 * s}px">FPS</span>
+        ${parts.map(p => `<span style="width:1px;height:${16 * s}px;background:rgba(255,255,255,.18)"></span><span class="o-m" style="font-size:${10.5 * s}px">${p}</span>`).join('')}
+        ${l.limiter ? `<span style="width:1px;height:${16 * s}px;background:rgba(255,255,255,.18)"></span><span class="o-m" style="color:#FFB547;font-size:${10.5 * s}px">${{ cpu: 'processor-limited', gpu: 'graphics-limited', cap: 'at its limit' }[l.limiter]}</span>` : ''}</div>`;
+    } else {
+      html = `<div class="${outline}" style="padding:${6 * s}px ${10 * s}px;border-radius:${12 * s}px;${boxCss}">
+        <div style="display:flex;align-items:baseline;gap:${6 * s}px"><span class="o-n" style="color:${color};font-size:${32 * s}px">${fps}</span><span class="o-u" style="font-size:${9.5 * s}px">FPS</span>${parts.map(p => `<span class="o-m" style="margin-left:${6 * s}px;font-size:${10.5 * s}px">${p}</span>`).join('')}</div>
+        ${shown.has('graph') ? `<svg width="${200 * s}" height="${26 * s}" style="display:block;margin-top:${4 * s}px"><polyline fill="none" stroke="${color}" stroke-width="${1.3 * s}" points="${Array.from({ length: 60 }, (_, i) => `${i / 59 * 200 * s},${(16 + Math.sin(i / 3) * 3 + (i % 17 === 0 ? -9 : 0)) * s}`).join(' ')}"/></svg>` : ''}</div>`;
+    }
+    box.innerHTML = html;
+    const m = 18;
+    const c = st.overlayCorner || 'tl';
+    box.style.left = box.style.right = box.style.top = box.style.bottom = box.style.transform = '';
+    if (c === 'tr' || c === 'br') box.style.right = m + 'px'; else if (c === 'bc') { box.style.left = '50%'; box.style.transform = 'translateX(-50%)'; } else box.style.left = m + 'px';
+    if (c === 'bl' || c === 'br' || c === 'bc') box.style.bottom = (m + 28) + 'px'; else box.style.top = m + 'px';
+    area.dataset.on = st.overlay !== false;
+    box.style.opacity = st.overlay === false ? .25 : 1;
+  }
+
+  // look page
+  function renderLook() {
+    const acc = (S.settings.accent || '').toUpperCase();
+    const known = ACCENTS.some(([, h]) => h === acc);
+    $('swatches').innerHTML = ACCENTS.map(([n, h]) => `<button type="button" class="swatch${h === acc ? ' on' : ''}" data-acc="${h}"><i style="background:${h}"></i>${n}</button>`).join('') +
+      `<label class="swatch${known ? '' : ' on'}"><i class="own"${known ? '' : ` style="background:${acc}"`}></i>Own<input type="color" id="own-color" value="${known ? '#ff5ad2' : acc.toLowerCase()}"></label>`;
+    $('tiles').innerHTML = BGS.map(([k, n, c]) => `<button type="button" class="tile${(S.settings.background || 'graphite') === k ? ' on' : ''}" data-bg="${k}"><div class="pv" style="background:${c}"></div>${n}</button>`).join('');
+    const g = sel() || S.games[0];
+    const hero = g && (g.art.hero || g.art.header);
+    $('look-hero').style.backgroundImage = hero ? `url('${hero}')` : '';
+    drawLookDial();
+    syncControls();
+  }
+  $('swatches').addEventListener('click', e => { const b = e.target.closest('[data-acc]'); if (b) set('accent', b.dataset.acc); });
+  $('swatches').addEventListener('input', e => { if (e.target.id === 'own-color') { S.settings.accent = e.target.value.toUpperCase(); applyTheme(); } });
+  $('swatches').addEventListener('change', e => { if (e.target.id === 'own-color') set('accent', e.target.value.toUpperCase()); });
+  $('tiles').addEventListener('click', e => { const b = e.target.closest('[data-bg]'); if (b) set('background', b.dataset.bg); });
+
+  // ------------------------------------------------------------------ messages from the app
+  function onMsg(m) {
+    switch (m.t) {
+      case 'init':
+        Object.assign(S, { settings: m.settings, games: m.games, sessions: m.sessions || [], hw: m.hw || {}, version: m.version });
+        $('version').textContent = 'v' + m.version;
+        $('hw').textContent = [S.hw.cpu, S.hw.gpu && `${S.hw.gpu}${S.hw.vram && !/GB/i.test(S.hw.gpu) ? ` ${S.hw.vram}GB` : ''}`, S.hw.ram && `${S.hw.ram} GB`, S.hw.hz && `${S.hw.hz} Hz`].filter(Boolean).join(' · ');
+        S.boostStatus = m.boostStatus || {};
+        applyTheme();
+        syncControls();
+        renderPlay();
+        movePill();
+        if (m.restored) toast(`TEMPO put back ${m.restored} change${m.restored === 1 ? '' : 's'} left from last time it was on.`);
+        break;
+      case 'state': {
+        const was = S.st.state;
+        if (m.state === 'off') S.blockedTold = false;
+        S.st = m;
+        if (m.state !== 'live') { dial.target = 0; S.live = null; }
+        if (m.error && m.state !== 'off') toast('Frame timing had a problem: ' + m.error);
+        renderPlay();
+        if (was === 'off' && m.state === 'waiting') toast('TEMPO is on. Open your game now.');
+        break;
+      }
+      case 'live': onLive(m); break;
+      case 'session': {
+        const s = m.session;
+        S.sessions = [s].concat(S.sessions.filter(x => !(x.id === s.id && x.gameId === s.gameId)));
+        toast(`Session saved: ${fmt(s.avgFps)} fps average, ${fmt(s.low1)} at the 1% lows.`);
+        renderPlay();
+        if (S.page === 'sessions') renderSessions();
+        break;
+      }
+      case 'sessions': S.sessions = m.sessions; S.sessSel = null; renderSessions(); renderPlay(); break;
+      case 'games': S.games = m.games; if (m.select) S.settings.selectedGame = m.select; renderPlay(); break;
+      case 'settings': S.settings = m.settings; applyTheme(); syncControls(); renderPlay(); if (S.page === 'overlay') renderOverlaySample(); break;
+      case 'toast': toast(m.text); break;
+      case 'apps': S.apps = m.apps; S.boostStatus = m.boostStatus || S.boostStatus; renderBoost(); break;
+    }
+  }
+  window.__deliver = onMsg;
+  if (host) host.addEventListener('message', e => onMsg(e.data));
+
+  function start() { send({ t: 'ready' }); }
+  if (host) start();
+  else {
+    // a plain browser: load the stand-in for the app (design previews)
+    const s = document.createElement('script');
+    s.src = 'mock.js';
+    s.onload = start;
+    document.body.appendChild(s);
+  }
+})();
