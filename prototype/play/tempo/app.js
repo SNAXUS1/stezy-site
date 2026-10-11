@@ -185,7 +185,8 @@
     S.page = page;
     body.dataset.page = page;
     document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('on', b.dataset.go === page));
-    for (const p of ['play', 'boost', 'sessions', 'overlay', 'look']) $('page-' + p).hidden = p !== page;
+    for (const p of ['play', 'boost', 'sessions', 'checkup', 'overlay', 'look']) $('page-' + p).hidden = p !== page;
+    if (page === 'checkup') { renderCheckup(); send({ t: 'checkup' }); }
     movePill();
     if (page === 'boost') { renderBoost(); send({ t: 'apps' }); }
     if (page === 'sessions') renderSessions();
@@ -270,6 +271,8 @@
     $('left-off').hidden = st !== 'off';
     $('left-on').hidden = st === 'off';
     $('learn').hidden = st !== 'off' || !boostCount();
+    $('play').hidden = st !== 'off' || !(g && g.canLaunch);
+    if (g && g.canLaunch) $('play').innerHTML = `<svg width="10" height="12" viewBox="0 0 10 12" aria-hidden="true"><path d="M0 0L10 6L0 12Z" fill="currentColor"/></svg>Turn on and open ${esc(g.name)}`;
     const applied = S.st.applied || [];
     $('applied-lab').textContent = S.st.learn ? 'Measuring only' : applied.length ? `Boost on · ${applied.length}` : 'Boost on';
     $('applied').innerHTML = S.st.learn
@@ -296,6 +299,8 @@
   });
   $('power').addEventListener('click', () => send({ t: 'on', game: S.settings.selectedGame || 'any' }));
   $('learn').addEventListener('click', () => send({ t: 'on', game: S.settings.selectedGame || 'any', learn: true }));
+  $('play').addEventListener('click', () => send({ t: 'on', game: S.settings.selectedGame || 'any', launch: true }));
+  $('update').addEventListener('click', () => send({ t: 'open', url: $('update').dataset.url }));
   $('stop').addEventListener('click', () => send({ t: 'off' }));
 
   function blockedText(g) {
@@ -353,14 +358,14 @@
     box.innerHTML = `
       <div class="lab">Last session <b>${when(s.started)} · ${dur(s.seconds)}</b></div>
       <div class="avg"><span class="n">${fmt(s.avgFps)}</span><span class="u">FPS AVERAGE</span>${delta != null ? `<span class="delta${delta < 0 ? ' neg' : ''}">${delta >= 0 ? '+' : ''}${delta} vs before</span>` : ''}</div>
-      <div class="trio"><div><div class="k">1% LOW</div><div class="v">${fmt(s.low1)}</div></div><div><div class="k">0.1% LOW</div><div class="v">${fmt(s.low01)}</div></div><div><div class="k">FRAME</div><div class="v">${fmt(s.avgFrameMs, 1)}<small>ms</small></div></div></div>
+      <div class="trio"><div><div class="k">1% LOW</div><div class="v">${fmt(s.low1)}</div></div><div><div class="k">0.1% LOW</div><div class="v">${fmt(s.low01)}</div></div><div><div class="k">STUTTERS</div><div class="v">${s.hitches != null ? s.hitches : '–'}${s.hitches != null ? `<small>${fmt(s.hitchesPerMin, 1)}/min</small>` : ''}</div></div></div>
       <canvas class="chart" id="last-chart"></canvas>
       <div class="axis"><span>0</span><span>${dur(s.seconds / 2)}</span><span>${dur(s.seconds)}</span></div>
       <div class="lab" style="margin-bottom:0">What held you back</div>
       ${lbar(s)}
       ${compareHtml(g && g.id)}
       ${tips(s).slice(0, 2).map(t => `<p class="facts" style="margin-bottom:8px">${t}</p>`).join('')}`;
-    drawSeries($('last-chart'), s.series, prev && prev.series);
+    drawSeries($('last-chart'), s.series, prev && prev.series, s);
   }
 
   // boosted sessions against plain ones for the same game, weighted by how long each was played
@@ -381,13 +386,27 @@
       <p class="note" style="margin-top:6px">${c.n1} boosted and ${c.n0} plain session${c.n0 === 1 ? '' : 's'}. Matches differ, so this gets more reliable the more you play.</p></div>`;
   }
 
-  function drawSeries(c, series, before) {
+  // Fullscreen fast path against windowed or borderless, from the user's own sessions of this game
+  function modeCompareHtml(gameId) {
+    const list = sessionsOf(gameId);
+    const fast = list.filter(s => /^Hardware: /.test(s.presentMode || '')), comp = list.filter(s => /Composed/.test(s.presentMode || ''));
+    if (!fast.length || !comp.length) return '';
+    const w = (arr, k) => arr.reduce((a, s) => a + s[k] * s.seconds, 0) / Math.max(1, arr.reduce((a, s) => a + s.seconds, 0));
+    const d = w(comp, 'avgFps') - w(fast, 'avgFps'), dl = w(comp, 'low1') - w(fast, 'low1');
+    const sign = v => (v >= 0 ? '+' : '') + v.toFixed(1);
+    return `<div class="cmp"><div class="lab" style="margin:0 0 6px">Borderless against fullscreen</div>
+      <div class="cmp-row"><span><b>${sign(d)}</b> fps average</span><span><b>${sign(dl)}</b> at the 1% lows</span></div>
+      <p class="note" style="margin-top:6px">${comp.length} windowed or borderless and ${fast.length} fullscreen session${fast.length === 1 ? '' : 's'}. Near zero means borderless costs you nothing, and the fps counter can sit on top.</p></div>`;
+  }
+
+  function drawSeries(c, series, before, sess) {
     if (!c || !series || series.length < 2) return;
+    const low = sess && sess.seriesLow && sess.seriesLow.length === series.length ? sess.seriesLow : null;
     const dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
     c.width = w * dpr; c.height = h * dpr;
     const g = c.getContext('2d');
     g.scale(dpr, dpr);
-    const all = series.concat(before || []);
+    const all = series.concat(before || []).concat(low || []);
     const lo = Math.max(0, Math.min(...all) * 0.85), hi = Math.max(...all) * 1.08;
     const y = v => h - 3 - (v - lo) / (hi - lo || 1) * (h - 8);
     const line = (arr, color, width, dash, fill) => {
@@ -399,7 +418,17 @@
     };
     const rgb = getComputedStyle(document.documentElement).getPropertyValue('--acc-rgb');
     if (before && before.length > 1) line(before, '#3A4048', 1.3, [3, 2]);
+    if (low) line(low, `rgba(${rgb}, .32)`, 1, null);
     line(series, S.settings.accent, 1.6, null, `rgba(${rgb}, .08)`);
+    // the worst stutters, as small marks along the bottom
+    if (sess && sess.worstHitches && sess.seconds) {
+      g.setLineDash([]);
+      g.fillStyle = '#FFB547';
+      for (const ht of sess.worstHitches) {
+        const x = Math.min(w - 2, Math.max(2, ht.t / sess.seconds * w));
+        g.beginPath(); g.moveTo(x, h - 0); g.lineTo(x - 3.5, h - 6); g.lineTo(x + 3.5, h - 6); g.closePath(); g.fill();
+      }
+    }
   }
 
   // ------------------------------------------------------------------ live
@@ -517,17 +546,19 @@
         <div><div class="k">AVERAGE</div><div class="v">${fmt(s.avgFps)}<small>fps</small></div></div>
         <div><div class="k">1% LOW</div><div class="v">${fmt(s.low1)}<small>fps</small></div></div>
         <div><div class="k">0.1% LOW</div><div class="v">${fmt(s.low01)}<small>fps</small></div></div>
-        <div><div class="k">FRAME TIME</div><div class="v">${fmt(s.avgFrameMs, 1)}<small>ms</small></div></div>
+        <div><div class="k">STUTTERS</div><div class="v">${s.hitches != null ? s.hitches : '–'}<small>${s.hitches != null ? fmt(s.hitchesPerMin, 1) + '/min' : ''}</small></div></div>
       </div>
       <canvas class="sd-chart" id="sd-chart"></canvas>
       <div class="axis"><span>0</span><span>${dur(s.seconds / 2)}</span><span>${dur(s.seconds)}</span></div>
-      ${prev ? `<p class="facts" style="margin-bottom:12px">Dashed line: the session before (${fmt(prev.avgFps)} fps average).</p>` : ''}
+      <p class="facts" style="margin-bottom:12px">${s.seriesLow ? 'The faint line is the slowest moment of each stretch, the dips you feel.' : ''}${s.worstHitches && s.worstHitches.length ? ' Orange marks are the worst stutters.' : ''}${prev ? ` Dashed: the session before (${fmt(prev.avgFps)} fps average).` : ''}</p>
+      ${s.worstHitches && s.worstHitches.length ? `<div class="lab" style="margin-bottom:6px">Worst stutters</div><div class="hitches">${s.worstHitches.map(h => `<span><b>${Math.round(h.ms)} ms</b> at ${Math.floor(h.t / 60)}:${String(Math.floor(h.t % 60)).padStart(2, '0')}</span>`).join('')}</div>` : ''}
       <div class="lab" style="margin-bottom:0">What held you back</div>
       ${lbar(s)}
       <div class="sd-cols">
         <div>
           ${s.changes && s.changes.length ? `<div class="lab">The boost this session</div>${s.changes.map(c => `<p class="facts">&#10003; ${esc(c)}</p>`).join('')}<div style="height:16px"></div>` : `<div class="lab">The boost this session</div><p class="facts" style="margin-bottom:16px">Off. A plain session, useful as a baseline.</p>`}
           ${compareHtml(s.gameId)}
+          ${modeCompareHtml(s.gameId)}
           <div class="lab">Worth knowing</div>
           ${tips(s).map(t => `<p class="facts" style="margin-bottom:9px">${t}</p>`).join('') || '<p class="facts">Nothing stood out. A clean session.</p>'}
           ${mo ? `<p class="facts" style="margin-top:6px"><b>${mo[1]}.</b> ${mo[2]}</p>` : ''}
@@ -542,7 +573,7 @@
           ${s.background && s.background.length ? `<div class="lab" style="margin-top:16px">Other apps using the processor</div><div class="bg-apps" style="margin-top:0">` + s.background.map(b => `<div class="row${(S.settings.protectedApps || []).some(p => p.toLowerCase() === b.name.toLowerCase()) ? ' kept' : ''}"><span>${esc(b.name.replace(/\.exe$/i, ''))}</span><b>${fmt(b.cpu, 1)}%</b></div>`).join('') + '</div>' : ''}
         </div>
       </div>`;
-    drawSeries($('sd-chart'), s.series, prev && prev.series);
+    drawSeries($('sd-chart'), s.series, prev && prev.series, s);
     $('sd-del').addEventListener('click', () => {
       if ($('sd-del').dataset.armed) { send({ t: 'deleteSession', game: s.gameId, id: s.id }); return; }
       $('sd-del').dataset.armed = '1';
@@ -586,6 +617,26 @@
     r.addEventListener('input', () => { paintRange(r); S.settings[r.dataset.set] = r.value / (+r.dataset.scale || 1); if (r.dataset.set === 'grain') applyTheme(); if (S.page === 'overlay') renderOverlaySample(); });
     r.addEventListener('change', () => set(r.dataset.set, r.value / (+r.dataset.scale || 1)));
   });
+
+  // checkup page: the PC's own findings plus what the sessions showed
+  function renderCheckup() {
+    if (S.page !== 'checkup') return;
+    const items = (S.checkup || []).slice();
+    const last = S.sessions[0];
+    if (last) {
+      if (last.maxGpuTemp >= 83) items.push({ level: 'tip', title: `Your graphics card reached ${fmt(last.maxGpuTemp)} °C in ${esc(last.gameName)}`, text: 'Most cards slow themselves down above about 83 °C. Dust in the fans or a slow fan curve are the usual reasons.' });
+      else if (last.maxGpuTemp > 0) items.push({ level: 'ok', title: `Graphics card heat: ${fmt(last.maxGpuTemp)} °C at the peak`, text: `Cool enough in your last ${esc(last.gameName)} session.` });
+      if (last.vramTotalGb > 0 && last.avgVramGb / last.vramTotalGb > 0.9) items.push({ level: 'tip', title: 'Graphics memory was nearly full', text: `${fmt(last.avgVramGb, 1)} of ${fmt(last.vramTotalGb, 0)} GB on average. Lower texture quality is the setting that frees it, and stops the stutters a full card causes.` });
+      if (last.hitchesPerMin >= 2) items.push({ level: 'tip', title: `${fmt(last.hitchesPerMin, 1)} stutters a minute in ${esc(last.gameName)}`, text: 'Stutters usually come from loading (a slow or full drive), memory running out, or shaders compiling the first time you see something. They often settle after a few matches.' });
+    } else items.push({ level: 'info', title: 'Play a session with TEMPO on', text: 'Heat, memory and stutters from your games show up here too.' });
+    const st = S.boostStatus || {};
+    if (st.gameMode === false) items.push({ level: 'info', title: 'Windows Game Mode is off', text: "TEMPO's boost turns it on while you play and back off afterwards." });
+    const order = { warn: 0, tip: 1, info: 2, ok: 3 };
+    items.sort((a, b) => order[a.level] - order[b.level]);
+    const icon = l => l === 'ok' ? '&#10003;' : l === 'warn' ? '!' : l === 'tip' ? '&#8599;' : 'i';
+    $('ckp-list').innerHTML = S.checkup == null ? '<p class="note">Looking at your PC…</p>' : items.map(f =>
+      `<div class="find ${f.level}"><span class="ic">${icon(f.level)}</span><div><div class="t">${f.title}</div><p>${f.text}</p></div></div>`).join('');
+  }
 
   // boost page
   function renderBoost() {
@@ -744,6 +795,8 @@
       case 'games': S.games = m.games; if (m.select) S.settings.selectedGame = m.select; renderPlay(); break;
       case 'settings': S.settings = m.settings; applyTheme(); syncControls(); renderPlay(); if (S.page === 'overlay') renderOverlaySample(); break;
       case 'toast': toast(m.text); break;
+      case 'checkup': S.checkup = (m.findings || []).map(f => ({ level: f.level, title: esc(f.title), text: esc(f.text) })); S.boostStatus = m.boostStatus || S.boostStatus; renderCheckup(); break;
+      case 'update': { const u = $('update'); u.hidden = false; u.dataset.url = m.url; u.textContent = `Update ${m.version}`; break; }
       case 'apps': S.apps = m.apps; S.boostStatus = m.boostStatus || S.boostStatus; renderBoost(); break;
     }
   }

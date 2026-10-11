@@ -27,14 +27,17 @@
     frames: Math.round(avg * mins * 60), avgFps: avg, low1, low01, avgFrameMs: Math.round(10000 / avg) / 10, cpuLimited: cpu, gpuLimited: gpu, capped: cap,
     presentMode: 'Composed: Flip', avgGpu: 71, maxGpuTemp: 74, avgCpuMaxCore: 91, minRamFreeGb: 2.8, avgRamFreeGb: 4.1, avgVramGb: 4.6, vramTotalGb: 6, tempoCpu: 0.4,
     background: bg, backgroundCpu: bg.reduce((a, b) => a + b.cpu, 0), series: series(220, avg, avg * .14), changes, overlayBlocked: false,
+    hitches: Math.round(mins * 0.6), hitchesPerMin: 0.6, worstHitches: [{ t: mins * 9, ms: 74 }, { t: mins * 23, ms: 61 }, { t: mins * 41, ms: 88 }],
   });
   const bgApps = [{ pid: 0, name: 'opera.exe', cpu: 3.1 }, { pid: 0, name: 'Discord.exe', cpu: 1.4 }, { pid: 0, name: 'Spotify.exe', cpu: 1.2 }];
   const boostList = ['Game Mode on', 'Background recording paused', '2 apps stepped back', 'Game gets the processor first'];
+  const withLow = s => { s.seriesLow = s.series.map(v => Math.round(v * (0.62 + rnd() * 0.18) * 10) / 10); return s; };
   const sessions = q.get('empty') ? [] : [
     mk('20261011-2114', 1.5, 31, 71.2, 47.3, 33.1, .62, .33, .05, bgApps, boostList),
     mk('20261010-1902', 26, 44, 66.4, 41.0, 28.6, .70, .26, .04, bgApps.concat([{ pid: 0, name: 'OneDrive.exe', cpu: 1.1 }]), []),
     mk('20261009-2040', 49, 38, 65.8, 39.5, 26.2, .71, .25, .04, bgApps, []),
-  ];
+  ].map(withLow);
+  games.forEach(g => { g.canLaunch = true; });
   const settings = {
     accent: q.get('acc') || '#D4FF3F', background: 'graphite', artBehindDial: true, artStyle: q.get('art') || 'tinted', grain: .35, motion: 'full',
     overlay: true, overlayStyle: q.get('ov') || 'minimal', overlayBox: +(q.get('box') || 0), overlaySize: 1, overlayCorner: 'tl', overlayNumbers: 'accent',
@@ -82,6 +85,12 @@
       setState('off');
     }
     if (m.t === 'apps') deliver({ t: 'apps', apps, boostStatus });
+    if (m.t === 'checkup') setTimeout(() => deliver({ t: 'checkup', boostStatus, findings: [
+      { id: 'refresh-1', level: 'ok', title: 'Your screen runs at its full 144 Hz', text: '1920 × 1080, as fast as it goes.' },
+      { id: 'ram-channel', level: 'tip', title: 'One memory stick: 16 GB in single channel', text: 'With one stick the processor gets its data at half the speed it could. In processor-heavy games a second matching stick (same size and speed) is often worth 10 to 30% more fps. Your PC has 2 slots.' },
+      { id: 'driver', level: 'ok', title: 'Graphics driver from June 2026', text: 'NVIDIA GeForce GTX 1060 6GB is up to date enough.' },
+      { id: 'disk', level: 'tip', title: 'C: is nearly full: 21 GB free', text: 'Games load and stream textures from it. A nearly full drive gets slower and games can stutter while loading.' },
+      { id: 'windowed', level: 'ok', title: 'Optimizations for windowed games are on', text: 'Borderless games get the same fast path as fullscreen.' }] }), 500);
     if (m.t === 'select') settings.selectedGame = m.game;
     if (m.t === 'open' && site) window.open(m.url, '_blank', 'noopener');
     if (m.t === 'addGame' && site) deliver({ t: 'toast', text: 'In the real TEMPO this opens a file picker for any game\'s .exe.' });

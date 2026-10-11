@@ -28,7 +28,7 @@
   .demo-dl:hover { filter: brightness(1.08); }
   @media (max-width: 1240px) { .demo-tag { display: none; } }
 </style>
-<script>window.TEMPO_DEMO = { art: '/img/', version: '1.0.0' };</script>
+<script>window.TEMPO_DEMO = { art: '/img/', version: '1.1.0' };</script>
 <link rel="stylesheet" href="app.css">
 </head>
 <body data-page="play" data-state="off">
@@ -44,12 +44,14 @@
       <button type="button" data-go="play" class="on">Play</button>
       <button type="button" data-go="boost">Boost</button>
       <button type="button" data-go="sessions">Sessions</button>
+      <button type="button" data-go="checkup">Checkup</button>
       <button type="button" data-go="overlay">Overlay</button>
       <button type="button" data-go="look">Look</button>
     </nav>
     <span class="sp"></span>
+    <button type="button" class="update" id="update" hidden></button>
     <span class="status" id="status" hidden><i></i><span id="status-text"></span></span>
-    <div class="demo-bar"><span class="demo-tag">Live demo · made-up data</span><a class="demo-back" href="/#tempo">stezy.lt</a><a class="demo-dl" href="https://github.com/SNAXUS1/stezy-site/releases/download/tempo-v1.0.0/TEMPO-1.0.0.zip">Download</a></div>
+    <div class="demo-bar"><span class="demo-tag">Live demo · made-up data</span><a class="demo-back" href="/#tempo">stezy.lt</a><a class="demo-dl" href="https://github.com/SNAXUS1/stezy-site/releases/download/tempo-v1.1.0/TEMPO-1.1.0.zip">Download</a></div>
     <div class="winbtns">
       <button type="button" class="win" data-win="min" aria-label="Minimise"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1.1"/></svg></button>
       <button type="button" class="win" data-win="max" aria-label="Maximise"><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></button>
@@ -87,6 +89,7 @@
           </div>
           <div class="title-row" id="title-row"></div>
           <div class="chips" id="chips"></div>
+          <button type="button" class="play-btn" id="play" hidden></button>
           <button type="button" class="quiet" id="learn" hidden>Measure only, without the boost</button>
           <button type="button" class="stop" id="stop" hidden>Turn off</button>
           <p class="mode-note" id="mode-note" hidden></p>
@@ -140,6 +143,17 @@
           <div id="sess-list"></div>
         </div>
         <div class="sess-detail" id="sess-detail"></div>
+      </div>
+    </section>
+
+    <!-- ======================= CHECKUP ======================= -->
+    <section class="page" id="page-checkup" hidden>
+      <div class="ckp">
+        <div class="ckp-head">
+          <div class="h2">CHECKUP</div>
+          <p class="lead">The things that quietly cost fps on a gaming PC, checked on yours. TEMPO only looks here; nothing is changed.</p>
+        </div>
+        <div class="ckp-list" id="ckp-list"></div>
       </div>
     </section>
 
