@@ -507,6 +507,13 @@
   .outro-text { position: absolute; left: 0; right: 0; bottom: clamp(32px, 8vh, 80px); padding: 0 20px; }
   .outro-text p { margin: 0 auto; max-width: 44ch; font-size: clamp(17px, 1.5vw, 21px); line-height: 1.5; }
   .outro-text .fine { margin-top: 18px; font-size: 13px; color: var(--muted); }
+  .outro-text .stats { margin-top: 10px; display: flex; justify-content: center; gap: 18px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+  .outro-text .stats span:empty { display: none; }
+  .outro-text .stats b { color: var(--ink); font-weight: 600; margin-right: 4px; }
+  .outro-text .stats span { opacity: 0; transition: opacity 0.6s var(--ease-out); }
+  .outro-text .stats.in span { opacity: 1; }
+  .dl-count { margin: 14px 0 0; font-size: 13px; color: var(--muted); }
+  .dl-count b { color: var(--ink); font-weight: 600; }
   .outro-next { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 0 0 22px; }
   .outro-next .btn { height: 44px; padding: 0 20px; font-size: 14px; color: var(--ink); }
   .outro-text .outro-line {
@@ -1372,6 +1379,7 @@
         <div class="outro-next" id="outro-next"></div>
         <p class="outro-line">Stay steezy.</p>
         <p class="fine">stezy.lt &copy; 2026 &middot; made with a little help from Claude</p>
+        <p class="stats" id="site-stats" hidden><span id="st-visits"></span><span id="st-downloads"></span></p>
       </div>
     </section>
   </main>
@@ -1966,6 +1974,7 @@
             <div><dt>Updated</dt><dd>${p.updated}</dd></div>
             <div><dt>${remix ? 'Works with' : 'Works on'}</dt><dd>${remix ? p.game : p.platform}</dd></div>
           </dl>
+          <p class="dl-count" data-dl-count="${(p.download || '').match(/releases\/download\/([^/]+)\//)?.[1] || ''}" hidden></p>
           ${p.sha && !p.noDownload ? `<details class="sha"><summary>File checksum (SHA-256)</summary><code>${p.sha}</code><p>Optional. To check your download, open PowerShell in the folder and run <code>Get-FileHash</code> followed by the zip's name. The long code it prints should match this one.</p></details>` : ''}
           ${note}
         </div>
@@ -3951,6 +3960,51 @@ window.goatcounter = { no_onload: true };
   s.dataset.goatcounter = 'https://stezy.goatcounter.com/count';
   s.onload = view;
   document.head.appendChild(s);
+})();
+</script>
+<script>
+// Small print at the bottom: visits (GoatCounter's public counter) and downloads (GitHub's own counts).
+// Each part only shows once it has a real number; results are kept for 10 minutes per visitor.
+(() => {
+  const cache = (key, url, pick) => {
+    try {
+      const hit = JSON.parse(sessionStorage.getItem(key) || 'null');
+      if (hit && Date.now() - hit.t < 600000) return Promise.resolve(hit.v);
+    } catch {}
+    return fetch(url).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(pick).then(v => {
+      try { sessionStorage.setItem(key, JSON.stringify({ t: Date.now(), v })); } catch {}
+      return v;
+    });
+  };
+  const fmt = n => Number(n).toLocaleString('en-US');
+  const box = document.getElementById('site-stats');
+  let byApp = {};
+  const show = () => {
+    box.hidden = false;
+    requestAnimationFrame(() => box.classList.add('in'));
+  };
+  cache('stezy-visits', 'https://stezy.goatcounter.com/counter/TOTAL.json', d => String(d.count))
+    .then(v => { document.getElementById('st-visits').innerHTML = `<b>${v}</b>visits`; show(); })
+    .catch(() => {});
+  cache('stezy-downloads', 'https://api.github.com/repos/SNAXUS1/stezy-site/releases?per_page=100', list => {
+    const per = {};
+    for (const rel of list) per[rel.tag_name] = rel.assets.reduce((a, x) => a + x.download_count, 0);
+    return per;
+  }).then(per => {
+    byApp = per;
+    const total = Object.values(per).reduce((a, n) => a + n, 0);
+    if (total > 0) { document.getElementById('st-downloads').innerHTML = `<b>${fmt(total)}</b>downloads`; show(); }
+    fillDetail();
+  }).catch(() => {});
+  // In a project's details: every version of that app added together ("linkfuse-v4.1.0" counts all "linkfuse-v…")
+  function fillDetail() {
+    const el = document.querySelector('[data-dl-count]:not([data-dl-count=""])');
+    if (!el) return;
+    const tag = el.dataset.dlCount, stem = tag.replace(/-v[\d.]+$/, '-v');
+    const n = Object.entries(byApp).reduce((a, [t, c]) => a + (t.startsWith(stem) ? c : 0), 0);
+    if (n > 0) { el.innerHTML = `Downloaded <b>${fmt(n)}</b> ${n === 1 ? 'time' : 'times'} so far`; el.hidden = false; }
+  }
+  new MutationObserver(fillDetail).observe(document.getElementById('detail'), { childList: true });
 })();
 </script>
 </body>
