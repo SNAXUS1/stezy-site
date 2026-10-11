@@ -27,7 +27,15 @@
     frames: Math.round(avg * mins * 60), avgFps: avg, low1, low01, avgFrameMs: Math.round(10000 / avg) / 10, cpuLimited: cpu, gpuLimited: gpu, capped: cap,
     presentMode: 'Composed: Flip', avgGpu: 71, maxGpuTemp: 74, avgCpuMaxCore: 91, minRamFreeGb: 2.8, avgRamFreeGb: 4.1, avgVramGb: 4.6, vramTotalGb: 6, tempoCpu: 0.4,
     background: bg, backgroundCpu: bg.reduce((a, b) => a + b.cpu, 0), series: series(220, avg, avg * .14), changes, overlayBlocked: false,
-    hitches: Math.round(mins * 0.6), hitchesPerMin: 0.6, worstHitches: [{ t: mins * 9, ms: 74 }, { t: mins * 23, ms: 61 }, { t: mins * 41, ms: 88 }],
+    hitches: Math.round(mins * 0.6), hitchesPerMin: 0.6,
+    hitchCauses: { game: Math.round(mins * 0.3), loading: Math.round(mins * 0.15), app: Math.round(mins * 0.1) || 1, memory: Math.round(mins * 0.05) || 1 },
+    worstHitches: [
+      { t: mins * 9, ms: 74, cause: 'loading', detail: 'The game was loading from the drive (48 MB/s).' },
+      { t: mins * 23, ms: 61, cause: 'app', detail: 'opera suddenly used 22% of your processor (usually 1.4%).' },
+      { t: mins * 41, ms: 88, cause: 'memory', detail: 'Memory was nearly full (0.6 GB free) and Windows was reading 840 pages a second back from the drive.' },
+      { t: mins * 52, ms: 66, cause: 'game', detail: 'Nothing outside the game stood out, so it came from the game itself: often shaders being prepared the first time something appears.' }],
+    events: [`${new Date(Date.now() - ago * 3600e3 + 900e3).toTimeString().slice(0, 5)} memory ran short: opera, OneDrive handed back 640 MB`],
+    blockFps: [], blockLow: [], blockJitter: [], secP10: Math.round(avg * 0.78), secP50: Math.round(avg * 1.05), experimentId: '', variant: '',
   });
   const bgApps = [{ pid: 0, name: 'opera.exe', cpu: 3.1 }, { pid: 0, name: 'Discord.exe', cpu: 1.4 }, { pid: 0, name: 'Spotify.exe', cpu: 1.2 }];
   const boostList = ['Game Mode on', 'Background recording paused', '2 apps stepped back', 'Game gets the processor first'];
@@ -41,7 +49,8 @@
   const settings = {
     accent: q.get('acc') || '#D4FF3F', background: 'graphite', artBehindDial: true, artStyle: q.get('art') || 'tinted', grain: .35, motion: 'full',
     overlay: true, overlayStyle: q.get('ov') || 'minimal', overlayBox: +(q.get('box') || 0), overlaySize: 1, overlayCorner: 'tl', overlayNumbers: 'accent',
-    overlayShow: ['fps', 'low1'], overlayHideFromCapture: false, autoOff: true, selectedGame: main.id,
+    overlayShow: ['fps', 'low1'], overlayHideFromCapture: false, autoOff: true, selectedGame: main.id, phone: q.get('phone') === '1',
+    experiments: [{ id: 'e1', label: 'Shadows: Medium → Low', aLabel: 'Medium', bLabel: 'Low' }],
     protectedApps: ['Discord.exe', 'Spotify.exe', 'TeamSpeak.exe', 'Mumble.exe', 'voicemeeterpro.exe'],
     boost: { stepBack: true, gameFirst: true, gameMode: true, recording: true, powerPlan: true, stepBackApps: ['opera.exe', 'chrome.exe', 'OneDrive.exe', 'EpicGamesLauncher.exe', 'wallpaper64.exe'] },
   };
@@ -51,6 +60,39 @@
     { name: 'Code.exe', cpu: 0.2 }, { name: 'PowerToys.exe', cpu: 0.1 },
   ];
   const boostStatus = { gameMode: true, recordingOff: false, powerHigh: false, powerAvailable: true, onBattery: false };
+  // the Tune page: a running test, a finished one, suggestions and the game's own settings
+  const L = (n, ...names) => names.slice(0, n + 1).map((nm, i) => ({ value: String(i), label: nm }));
+  const gameSettings = [
+    { key: 'display', label: 'Display mode', group: 'display', load: 'none', value: 'fullscreen', help: "Borderless looks the same as fullscreen on Windows 11 and lets TEMPO's fps counter show on top. Exclusive fullscreen keeps every other window off the screen.", options: [{ value: 'fullscreen', label: 'Fullscreen' }, { value: 'borderless', label: 'Borderless' }, { value: 'windowed', label: 'Windowed' }] },
+    { key: 'FrameRateLimit', label: 'Fps limit', group: 'limit', load: 'none', value: '0', help: 'The most frames a second the game will draw. 0 means no limit.', options: [], min: 0, max: 1000 },
+    { key: 'bUseVSync', label: 'V-Sync', group: 'limit', load: 'none', value: 'False', help: 'Waits for the screen before showing each frame. Stops tearing, adds a little delay, and caps fps at the refresh rate.', options: [{ value: 'False', label: 'Off' }, { value: 'True', label: 'On' }] },
+    { key: 'sg.ShadowQuality', label: 'Shadows', group: 'quality', load: 'both', value: '1', help: 'Shadows load the graphics card a lot, and the processor a little for each thing that casts one.', options: L(3, 'Low', 'Medium', 'High', 'Epic') },
+    { key: 'sg.ViewDistanceQuality', label: 'View distance', group: 'quality', load: 'both', value: '2', help: 'How far away things are still drawn in detail. More of it means more for the processor to send to the graphics card.', options: L(3, 'Low', 'Medium', 'High', 'Epic') },
+    { key: 'sg.EffectsQuality', label: 'Effects', group: 'quality', load: 'both', value: '2', help: 'Particles, explosions and smoke. Busy fights get heavier with it.', options: L(3, 'Low', 'Medium', 'High', 'Epic') },
+    { key: 'sg.PostProcessQuality', label: 'Post-processing', group: 'quality', load: 'gpu', value: '0', help: 'Bloom, blur, colour effects. Graphics card only.', options: L(3, 'Low', 'Medium', 'High', 'Epic') },
+    { key: 'sg.AntiAliasingQuality', label: 'Anti-aliasing', group: 'quality', load: 'gpu', value: '0', help: 'Smooths jagged edges. Graphics card only.', options: L(3, 'Low', 'Medium', 'High', 'Epic') },
+    { key: 'sg.TextureQuality', label: 'Textures', group: 'quality', load: 'vram', value: '2', help: 'Sharper textures need more graphics memory, not much speed. Lower them only if graphics memory runs full.', options: L(3, 'Low', 'Medium', 'High', 'Epic') },
+  ];
+  const meas = (a, b, lo, hi, call) => ({ a, b, diff: Math.round((b - a) * 100) / 100, lo, hi, call });
+  const tunePayload = () => ({
+    t: 'tune', game: settings.selectedGame, running: false, sessions: 3,
+    config: { format: 'unreal', note: 'The Unreal Engine settings file. A few games keep their own copy and ignore it; a test session shows whether a change took.', file: 'GameUserSettings.ini', capKey: 'FrameRateLimit' },
+    settings: gameSettings,
+    suggestions: [
+      { id: 'display', kind: 'display', key: 'display', from: 'fullscreen', to: 'borderless', fromLabel: 'Fullscreen', toLabel: 'Borderless', tag: 'fix', title: 'Switch to borderless', why: "Exclusive fullscreen kept TEMPO's fps counter off your screen. On Windows 10 and 11 a borderless game gets the same fast path as fullscreen, so it usually costs nothing, and the counter can sit on top. Test it to see your own numbers." },
+      { id: 'up:sg.PostProcessQuality', kind: 'setting', key: 'sg.PostProcessQuality', from: '0', to: '1', fromLabel: 'Low', toLabel: 'Medium', tag: 'looks', title: 'Post-processing: Low → Medium', why: 'Your processor holds the game back on 62% of frames while the graphics card waits. Post-processing only uses the graphics card, so it probably looks better for free. TEMPO measures whether that\'s true on your PC.' },
+      { id: 'down:sg.ViewDistanceQuality', kind: 'setting', key: 'sg.ViewDistanceQuality', from: '2', to: '1', fromLabel: 'High', toLabel: 'Medium', tag: 'try', title: 'View distance: High → Medium', why: 'Your processor holds the game back on 62% of frames. View distance gives the processor work too, so lowering it is one of the few settings that can help. Worth a test.' },
+    ],
+    cap: { cap: 55, p10: 56, p50: 75, hz: 144, steady: false, why: 'Your fps jumps between about 56 and 75+. Capped at 55, which the game holds about 90% of the time, frames arrive evenly, which most people feel as smoother, and the graphics card runs cooler. The average goes down a little by design.' },
+    experiments: [
+      { exp: { id: 'e1', gameId: settings.selectedGame, kind: 'setting', key: 'sg.ShadowQuality', a: '1', b: '0', label: 'Shadows: Medium → Low', aLabel: 'Medium', bLabel: 'Low', status: 'running', verdict: '', outcome: '' },
+        result: { sessionsA: 2, sessionsB: 2, minutesA: 41, minutesB: 37, fps: meas(66.2, 70.1, -0.8, 8.6, 'open'), low: meas(41.5, 44.2, -2.1, 7.5, 'open'), jitter: meas(1.6, 1.5, -0.4, 0.2, 'open'), verdict: 'collecting', moreSessions: 2, summary: 'Still measuring. Matches vary a lot, so TEMPO waits until it can tell a real difference from luck.' } },
+      { exp: { id: 'e0', gameId: settings.selectedGame, kind: 'boost', key: 'boost.all', a: 'off', b: 'on', label: 'The whole boost: on or off', aLabel: 'Off', bLabel: 'On', status: 'done', verdict: 'better', outcome: '' },
+        result: { sessionsA: 3, sessionsB: 3, minutesA: 92, minutesB: 88, fps: meas(64.9, 70.3, 2.9, 7.9, 'better'), low: meas(39.8, 46.1, 3.4, 9.2, 'better'), jitter: meas(1.7, 1.5, -0.5, 0.1, 'open'), verdict: 'better', moreSessions: 0, summary: 'It helps: +5.4 fps on average and +6.3 at the 1% lows.' } },
+    ],
+    kept: [{ gameId: settings.selectedGame, key: 'bUseVSync', label: 'V-Sync: On → Off', original: 'True', value: 'False', when: new Date(Date.now() - 86400e3 * 2).toISOString() }],
+    boostOptions: settings.boost,
+  });
   const deliver = m => setTimeout(() => window.__deliver(JSON.parse(JSON.stringify(m))), 0);
   let liveTimer = 0, t0 = 0, state = 'off';
   function live() {
@@ -85,6 +127,9 @@
       setState('off');
     }
     if (m.t === 'apps') deliver({ t: 'apps', apps, boostStatus });
+    if (m.t === 'tune') setTimeout(() => deliver(tunePayload()), 250);
+    if (m.t === 'phone' || m.t === 'phoneState') { if (m.t === 'phone') settings.phone = m.on; deliver({ t: 'phone', on: !!settings.phone, urls: settings.phone ? ['http://192.168.1.20:8735/?k=3f9a1c07be5d2a8e41', 'http://172.20.10.2:8735/?k=3f9a1c07be5d2a8e41'] : [], clients: settings.phone ? 1 : 0 }); }
+    if ((m.t === 'test' || m.t === 'setNow' || m.t === 'keep' || m.t === 'putBack' || m.t === 'stopTest') && site) deliver({ t: 'toast', text: 'In the real TEMPO this sets up the test or changes the game\'s setting. This demo only shows how it looks.' });
     if (m.t === 'checkup') setTimeout(() => deliver({ t: 'checkup', boostStatus, findings: [
       { id: 'refresh-1', level: 'ok', title: 'Your screen runs at its full 144 Hz', text: '1920 × 1080, as fast as it goes.' },
       { id: 'ram-channel', level: 'tip', title: 'One memory stick: 16 GB in single channel', text: 'With one stick the processor gets its data at half the speed it could. In processor-heavy games a second matching stick (same size and speed) is often worth 10 to 30% more fps. Your PC has 2 slots.' },

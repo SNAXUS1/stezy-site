@@ -28,7 +28,7 @@
   .demo-dl:hover { filter: brightness(1.08); }
   @media (max-width: 1240px) { .demo-tag { display: none; } }
 </style>
-<script>window.TEMPO_DEMO = { art: '/img/', version: '1.1.0' };</script>
+<script>window.TEMPO_DEMO = { art: '/img/', version: '1.2.0' };</script>
 <link rel="stylesheet" href="app.css">
 </head>
 <body data-page="play" data-state="off">
@@ -43,6 +43,7 @@
     <nav class="nav" id="nav"><span class="nav-pill" id="nav-pill" aria-hidden="true"></span>
       <button type="button" data-go="play" class="on">Play</button>
       <button type="button" data-go="boost">Boost</button>
+      <button type="button" data-go="tune">Tune</button>
       <button type="button" data-go="sessions">Sessions</button>
       <button type="button" data-go="checkup">Checkup</button>
       <button type="button" data-go="overlay">Overlay</button>
@@ -51,7 +52,7 @@
     <span class="sp"></span>
     <button type="button" class="update" id="update" hidden></button>
     <span class="status" id="status" hidden><i></i><span id="status-text"></span></span>
-    <div class="demo-bar"><span class="demo-tag">Live demo · made-up data</span><a class="demo-back" href="/#tempo">stezy.lt</a><a class="demo-dl" href="https://github.com/SNAXUS1/stezy-site/releases/download/tempo-v1.1.0/TEMPO-1.1.0.zip">Download</a></div>
+    <div class="demo-bar"><span class="demo-tag">Live demo · made-up data</span><a class="demo-back" href="/#tempo">stezy.lt</a><a class="demo-dl" href="https://github.com/SNAXUS1/stezy-site/releases/download/tempo-v1.2.0/TEMPO-1.2.0.zip">Download</a></div>
     <div class="winbtns">
       <button type="button" class="win" data-win="min" aria-label="Minimise"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1.1"/></svg></button>
       <button type="button" class="win" data-win="max" aria-label="Maximise"><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></button>
@@ -122,6 +123,9 @@
           <div class="rowx"><span>Windows Game Mode<small>Windows puts the game first and holds back updates and notifications.</small></span><span class="st-chip" id="bs-gm"></span><button type="button" class="tog" data-set="boost.gameMode" aria-label="Windows Game Mode"></button></div>
           <div class="rowx"><span>Pause background recording<small>The Xbox Game Bar's always-on recording stops while you play.</small></span><span class="st-chip" id="bs-rec"></span><button type="button" class="tog" data-set="boost.recording" aria-label="Pause background recording"></button></div>
           <div class="rowx"><span>High performance power<small>Your processor stays at full speed. Skipped on battery.</small></span><span class="st-chip" id="bs-pw"></span><button type="button" class="tog" data-set="boost.powerPlan" aria-label="High performance power"></button></div>
+          <div class="rowx"><span>Free memory when it runs short<small>When memory is nearly full, the apps that stepped back hand some of theirs back, so the game doesn't stutter while Windows reads from the drive. They keep working. Not a "RAM cleaner": it only acts when memory really runs short.</small></span><span class="st-chip"></span><button type="button" class="tog" data-set="boost.memoryRelief" aria-label="Free memory when it runs short"></button></div>
+          <div class="rowx" id="bs-gpu-row"><span>Game on the strong graphics card<small>On laptops and PCs with two graphics chips, Windows sometimes runs a game on the weak built-in one. This makes the game use the strong one. Needs one session first, so TEMPO knows the game's exe.</small></span><span class="st-chip" id="bs-gpu"></span><button type="button" class="tog" data-set="boost.strongGpu" aria-label="Game on the strong graphics card"></button></div>
+          <div class="bst-test" id="bs-test"></div>
           <div class="compare" id="bs-compare"></div>
         </div>
         <div class="apps-pane">
@@ -130,6 +134,37 @@
           <div class="apps" id="apps"></div>
           <div class="lab" style="margin-top:22px">Never touched</div>
           <div class="apps" id="protected"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= TUNE ======================= -->
+    <section class="page" id="page-tune" hidden>
+      <div class="tune">
+        <div class="tune-head">
+          <div>
+            <div class="h2">TUNE</div>
+            <p class="lead" id="tune-lead">Find the settings that actually help this game on this PC. TEMPO suggests, you choose, and every test is measured over real sessions before it says anything.</p>
+          </div>
+          <div class="tune-game" id="tune-game"></div>
+        </div>
+        <div class="tune-body">
+          <div class="tune-main">
+            <div id="tune-test"></div>
+            <div class="sec-h"><span>Suggestions for your PC</span><small id="tune-why"></small></div>
+            <div id="tune-sugs"></div>
+            <div class="sec-h"><span>Fps limit</span></div>
+            <div id="tune-cap"></div>
+            <div class="sec-h"><span>Test the boost</span><small>Is each part worth it on your PC?</small></div>
+            <div id="tune-boost"></div>
+            <div class="sec-h" id="tune-past-h" hidden><span>Earlier tests</span></div>
+            <div id="tune-past"></div>
+          </div>
+          <div class="tune-side">
+            <div class="sec-h"><span id="tune-set-h">The game's own settings</span></div>
+            <div id="tune-settings"></div>
+            <div id="tune-kept"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -171,6 +206,18 @@
           <div class="rowx"><span>Number colour</span><div class="seg" data-set="overlayNumbers"><button type="button" data-v="accent">Accent</button><button type="button" data-v="white">White</button><button type="button" data-v="byfps">By fps</button></div></div>
           <div class="rowx col"><span>Show</span><div class="tags" id="ov-show"></div></div>
           <div class="rowx"><span>Hide it from recordings<small>Clips and streams won't show it</small></span><button type="button" class="tog" data-set="overlayHideFromCapture" aria-label="Hide it from recordings"></button></div>
+          <div class="phone" id="phone">
+            <div class="rowx" style="border-top:0"><span><b>On your phone</b><small>Live fps, heat and stutters on your phone, over your home Wi-Fi. Works with every game in every mode, even exclusive fullscreen, because nothing has to draw over the game.</small></span><button type="button" class="tog" id="phone-tog" aria-label="Show TEMPO on your phone"></button></div>
+            <div class="phone-on" id="phone-on" hidden>
+              <canvas id="phone-qr" width="164" height="164" aria-label="QR code with the phone address"></canvas>
+              <div class="phone-info">
+                <p class="facts"><b>Scan with your phone's camera.</b> The phone must be on the same Wi-Fi as this PC.</p>
+                <p class="addr" id="phone-addr"></p>
+                <p class="facts" id="phone-clients"></p>
+                <p class="note">The first time, Windows asks whether TEMPO may use the network: allow it on private networks. The link has a secret key, so nobody else on the network can see your numbers. Switch this off and the page stops.</p>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="ov-preview" id="ov-preview">
           <div class="ov-game" id="ov-game"></div>
@@ -213,6 +260,7 @@
   </footer>
 
   <div class="toast" id="toast" hidden></div>
+  <script src="qrcode.js"></script>
   <script>
     function fit() {
       var z = Math.min(1, innerWidth / 1180, innerHeight / 720);

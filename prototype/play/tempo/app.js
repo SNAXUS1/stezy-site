@@ -185,8 +185,10 @@
     S.page = page;
     body.dataset.page = page;
     document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('on', b.dataset.go === page));
-    for (const p of ['play', 'boost', 'sessions', 'checkup', 'overlay', 'look']) $('page-' + p).hidden = p !== page;
+    for (const p of ['play', 'boost', 'tune', 'sessions', 'checkup', 'overlay', 'look']) $('page-' + p).hidden = p !== page;
     if (page === 'checkup') { renderCheckup(); send({ t: 'checkup' }); }
+    if (page === 'tune') { renderTune(); requestTune(); }
+    if (page === 'overlay') send({ t: 'phoneState' });
     movePill();
     if (page === 'boost') { renderBoost(); send({ t: 'apps' }); }
     if (page === 'sessions') renderSessions();
@@ -202,6 +204,7 @@
     pill.style.transform = `translateX(${b.offsetLeft}px)`;
   }
   addEventListener('resize', movePill);
+  if (document.fonts) document.fonts.ready.then(movePill);
   document.querySelectorAll('[data-win]').forEach(b => b.addEventListener('click', () => send({ t: b.dataset.win })));
   document.addEventListener('click', e => { const o = e.target.closest('[data-open]'); if (o) send({ t: 'open', url: o.dataset.open }); });
 
@@ -280,6 +283,7 @@
       : applied.length ? applied.map(a => `<div class="ch"><div class="t">${esc(a)}</div><span class="ok">&#10003;</span></div>`).join('')
         : `<div class="ch dim"><div class="t">Nothing needed changing<span>Everything the boost does was already set up on this PC.</span></div></div>`;
     $('applied-note').hidden = !!S.st.learn;
+    if (S.st.experiment && st !== 'off') $('applied').insertAdjacentHTML('afterbegin', `<div class="ch test"><div class="t">Test: ${esc(S.st.experiment.label)}<span>This session plays ${S.st.variant === 'b' ? `<b>with the change</b> (${esc(S.st.experiment.bLabel)})` : `<b>as before</b> (${esc(S.st.experiment.aLabel)})`}. TEMPO swaps for the next one.</span></div><span class="ok">&#9679;</span></div>`);
     $('ov-line').textContent = S.settings.overlay === false ? 'Off (Ctrl Alt O)' : `${ovs}, ${{ tl: 'top left', tr: 'top right', bc: 'bottom', bl: 'bottom left', br: 'bottom right' }[S.settings.overlayCorner] || 'top left'}`;
     $('right-off').hidden = st !== 'off';
     $('right-on').hidden = st === 'off';
@@ -520,7 +524,8 @@
       const g = gameOf(s.gameId);
       const on = S.sessSel && s.id === S.sessSel.id && s.gameId === S.sessSel.gameId;
       const boosted = s.changes && s.changes.length;
-      return `<button type="button" class="sess-item${on ? ' sel' : ''}" data-sid="${esc(s.gameId)}|${esc(s.id)}"><span class="art" style="${artStyle(g, 'header')}"></span><span><span class="nm">${esc(s.gameName)}<em class="tag${boosted ? ' b' : ''}">${boosted ? 'BOOST' : 'PLAIN'}</em></span><span class="st">${when(s.started)} · ${dur(s.seconds)}</span></span><span class="fps">${fmt(s.avgFps)}<small>FPS AVG</small></span></button>`;
+      const testTag = s.experimentId ? `<em class="tag t">TEST ${s.variant === 'b' ? 'B' : 'A'}</em>` : '';
+      return `<button type="button" class="sess-item${on ? ' sel' : ''}" data-sid="${esc(s.gameId)}|${esc(s.id)}"><span class="art" style="${artStyle(g, 'header')}"></span><span><span class="nm">${esc(s.gameName)}<em class="tag${boosted ? ' b' : ''}">${boosted ? 'BOOST' : 'PLAIN'}</em>${testTag}</span><span class="st">${when(s.started)} · ${dur(s.seconds)}</span></span><span class="fps">${fmt(s.avgFps)}<small>FPS AVG</small></span></button>`;
     }).join('');
     renderSessionDetail(S.sessSel);
   }
@@ -551,7 +556,9 @@
       <canvas class="sd-chart" id="sd-chart"></canvas>
       <div class="axis"><span>0</span><span>${dur(s.seconds / 2)}</span><span>${dur(s.seconds)}</span></div>
       <p class="facts" style="margin-bottom:12px">${s.seriesLow ? 'The faint line is the slowest moment of each stretch, the dips you feel.' : ''}${s.worstHitches && s.worstHitches.length ? ' Orange marks are the worst stutters.' : ''}${prev ? ` Dashed: the session before (${fmt(prev.avgFps)} fps average).` : ''}</p>
-      ${s.worstHitches && s.worstHitches.length ? `<div class="lab" style="margin-bottom:6px">Worst stutters</div><div class="hitches">${s.worstHitches.map(h => `<span><b>${Math.round(h.ms)} ms</b> at ${Math.floor(h.t / 60)}:${String(Math.floor(h.t % 60)).padStart(2, '0')}</span>`).join('')}</div>` : ''}
+      ${s.hitchCauses && Object.keys(s.hitchCauses).length ? causesHtml(s) : s.worstHitches && s.worstHitches.length ? `<div class="lab" style="margin-bottom:6px">Worst stutters</div><div class="hitches">${s.worstHitches.map(h => `<span><b>${Math.round(h.ms)} ms</b> at ${Math.floor(h.t / 60)}:${String(Math.floor(h.t % 60)).padStart(2, '0')}</span>`).join('')}</div>` : ''}
+      ${s.events && s.events.length ? `<div class="lab" style="margin:16px 0 6px">What TEMPO did</div>${s.events.map(ev => `<p class="facts">${esc(ev)}</p>`).join('')}` : ''}
+      ${s.experimentId ? (() => { const ex = (S.settings.experiments || []).find(x => x.id === s.experimentId); return ex ? `<p class="facts" style="margin-top:10px"><b>Part of a test:</b> ${esc(ex.label)}, ${s.variant === 'b' ? 'with the change' : 'as before'}.</p>` : ''; })() : ''}
       <div class="lab" style="margin-bottom:0">What held you back</div>
       ${lbar(s)}
       <div class="sd-cols">
@@ -618,6 +625,212 @@
     r.addEventListener('change', () => set(r.dataset.set, r.value / (+r.dataset.scale || 1)));
   });
 
+
+  // ------------------------------------------------------------------ tune page
+  const LOAD = { gpu: 'Graphics card', cpu: 'Processor', both: 'Processor + graphics', vram: 'Graphics memory' };
+  const TAG = { fix: 'Fix', try: 'Worth a test', looks: 'Free looks' };
+  const BOOST_TESTS = [
+    ['boost.all', 'The whole boost', 'Every part of the boost against none of it.'],
+    ['boost.stepBack', 'Apps step back', 'Your picked apps waiting their turn, against running as usual.'],
+    ['boost.gameFirst', 'Game first', 'The game ahead of other apps for the processor.'],
+    ['boost.gameMode', 'Windows Game Mode', 'On against off, while you play.'],
+    ['boost.powerPlan', 'High performance power', 'Full processor speed against your normal plan.'],
+  ];
+  const VERDICT = { better: ['It helps', 'good'], worse: ['It costs you', 'bad'], same: ['No difference', 'flat'], unclear: ['Too close to call', 'flat'], collecting: ['Measuring', 'run'] };
+  const tuneGame = () => sel() || S.games[0] || null;
+  function requestTune() { const g = tuneGame(); if (g) send({ t: 'tune', game: g.id }); }
+
+  // a range bar: where the true difference most likely is (b − a), as % of a
+  function rangeBar(m, unit, invert) {
+    if (!m || !m.a) return '';
+    const pct = v => v / Math.abs(m.a) * 100 * (invert ? -1 : 1);
+    let lo = pct(m.lo), hi = pct(m.hi), d = pct(m.diff);
+    if (lo > hi) [lo, hi] = [hi, lo];
+    const span = Math.max(10, Math.ceil(Math.max(Math.abs(lo), Math.abs(hi)) / 5) * 5 + 5);
+    const x = v => (v + span) / (2 * span) * 100;
+    const cls = m.call === 'better' ? 'good' : m.call === 'worse' ? 'bad' : '';
+    return `<div class="rng ${cls}"><div class="rng-axis"><i class="z" style="left:${x(0)}%"></i><i class="band" style="left:${x(lo)}%;width:${Math.max(0.8, x(hi) - x(lo))}%"></i><i class="dot" style="left:${x(d)}%"></i></div>
+      <div class="rng-l"><span>−${span}%</span><span>${(m.diff >= 0 ? '+' : '') + m.diff.toFixed(1)} ${unit}</span><span>+${span}%</span></div></div>`;
+  }
+
+  function testCard(x, live) {
+    const e = x.exp, r = x.result, g = gameOf(e.gameId);
+    const cap = e.kind === 'cap';
+    const [vt, vc] = VERDICT[r.verdict] || VERDICT.collecting;
+    const prog = (n, m) => Math.min(1, Math.min(n / 3, m / 8));
+    const side = (name, lab, n, m, f, l, j) => `<div class="side"><div class="k">${name}</div><div class="v">${esc(lab || '')}</div>
+      <div class="pbar"><i style="width:${Math.round(prog(n, m) * 100)}%"></i></div>
+      <div class="m">${n} session${n === 1 ? '' : 's'} · ${fmt(m, 0)} min</div>
+      ${n ? `<div class="num">${fmt(f, 1)} fps · 1% ${fmt(l, 1)}${cap ? ` · ${fmt(j, 2)} ms jitter` : ''}</div>` : ''}</div>`;
+    const keepBtn = r.verdict === 'better' && e.outcome !== 'kept' && e.kind !== 'boost' ? `<button type="button" class="btn acc" data-keep="${e.id}">Keep ${esc(e.bLabel || 'it')}</button>`
+      : r.verdict === 'better' && e.kind === 'boost' && e.b === 'on' ? '' : '';
+    return `<div class="test-card ${live ? 'live' : ''}">
+      <div class="tc-top"><span class="pill ${vc}">${live && r.verdict === 'collecting' ? 'TESTING' : vt.toUpperCase()}</span><b>${esc(e.label)}</b>
+        ${e.outcome === 'kept' ? '<span class="pill good">KEPT</span>' : ''}<span class="sp"></span>
+        ${live ? `<button type="button" class="link" data-stop="${e.id}">Stop test</button>` : ''}</div>
+      <div class="tc-sides">${side('AS BEFORE', e.aLabel, r.sessionsA, r.minutesA, r.fps.a, r.low.a, r.jitter.a)}${side('WITH THE CHANGE', e.bLabel, r.sessionsB, r.minutesB, r.fps.b, r.low.b, r.jitter.b)}</div>
+      ${r.sessionsA && r.sessionsB ? `<div class="tc-rng">
+        <div><div class="k">${cap ? 'SMOOTHNESS' : 'AVERAGE FPS'}</div>${cap ? rangeBar(r.jitter, 'ms', true) : rangeBar(r.fps, 'fps')}</div>
+        <div><div class="k">1% LOWS</div>${rangeBar(r.low, 'fps')}</div></div>` : ''}
+      <p class="tc-sum">${esc(r.summary)}</p>
+      ${live && r.verdict === 'collecting' ? `<p class="note">Each time you turn TEMPO on before opening ${esc(g ? g.name : 'the game')}, it plays one side, and swaps for the next session. It needs at least 3 sessions and 8 minutes on each side, because matches differ a lot on their own. ${r.moreSessions ? `About ${r.moreSessions} more session${r.moreSessions === 1 ? '' : 's'} to go.` : ''} The shaded band shows where the real difference most likely is; once it clears zero, TEMPO says so.</p>` : ''}
+      ${keepBtn ? `<div class="tc-act">${keepBtn}</div>` : ''}
+    </div>`;
+  }
+
+  function renderTune() {
+    if (S.page !== 'tune') return;
+    const g = tuneGame();
+    $('tune-game').innerHTML = g ? `<span class="art" style="${artStyle(g, 'header')}"></span><label><span class="k">GAME</span><select id="tune-pick">${S.games.map(x => `<option value="${esc(x.id)}"${x.id === g.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : '';
+    const T = S.tune && g && S.tune.game === g.id ? S.tune : null;
+    if (!T) { $('tune-sugs').innerHTML = '<p class="note">Looking at this game…</p>'; ['tune-test', 'tune-cap', 'tune-boost', 'tune-past', 'tune-settings', 'tune-kept'].forEach(id => $(id).innerHTML = ''); return; }
+    const exps = T.experiments || [];
+    const running = exps.find(x => x.exp.status === 'running');
+    $('tune-test').innerHTML = running ? testCard(running, true) : '';
+    const past = exps.filter(x => x !== running);
+    $('tune-past-h').hidden = !past.length;
+    $('tune-past').innerHTML = past.map(x => testCard(x, false)).join('');
+
+    // what the suggestions are based on
+    const recent = sessionsOf(g.id).slice(0, 5);
+    const w = recent.reduce((a, s) => a + s.seconds, 0) || 1;
+    const cpu = recent.reduce((a, s) => a + s.cpuLimited * s.seconds, 0) / w, gpu = recent.reduce((a, s) => a + s.gpuLimited * s.seconds, 0) / w;
+    $('tune-why').textContent = recent.length ? `From your last ${recent.length} session${recent.length === 1 ? '' : 's'}: held back by the ${cpu >= gpu ? 'processor' : 'graphics card'} on ${Math.round(Math.max(cpu, gpu) * 100)}% of frames` : '';
+    const closed = !T.running;
+    const busy = T.running ? `<p class="note warn">${esc(g.name)} is running. Its settings can only change while it's closed, because it rewrites them when it exits.</p>` : '';
+    const sugs = T.suggestions || [];
+    const testBtn = (s) => running && running.exp.key === s.key ? '<span class="note">Being tested now</span>'
+      : `<button type="button" class="btn acc" data-test='${esc(JSON.stringify({ kind: s.kind === 'cap' ? 'cap' : s.kind === 'display' ? 'display' : 'setting', key: s.key, a: s.from, b: s.to, label: s.title, aLabel: s.fromLabel, bLabel: s.toLabel }))}'>Test it</button>`;
+    $('tune-sugs').innerHTML = !recent.length && !sugs.length
+      ? `<div class="empty"><b>Play a session first</b>TEMPO needs one normal session of ${esc(g.name)} with TEMPO on, so it knows what holds this game back on your PC. Then the suggestions here are made for you.</div>`
+      : !sugs.length ? `<div class="empty"><b>Nothing obvious to change</b>${T.config ? `${esc(g.name)}'s settings already suit what holds your PC back.` : `TEMPO doesn't know where ${esc(g.name)} keeps its settings, so it can't suggest exact changes. ${genericAdvice(cpu, gpu)}`}</div>`
+      : busy + sugs.map(s => `<div class="sug ${s.tag}"><div class="sug-top"><span class="pill ${s.tag}">${TAG[s.tag] || ''}</span><b>${esc(s.title)}</b></div>
+          <p>${esc(s.why)}</p>
+          <div class="sug-act">${testBtn(s)}${closed ? `<button type="button" class="btn" data-setnow='${esc(JSON.stringify({ key: s.key, value: s.to, label: s.title }))}'>Change now</button>` : ''}</div></div>`).join('');
+
+    // fps limit
+    const c = T.cap, capKey = T.config && T.config.capKey;
+    $('tune-cap').innerHTML = !c ? `<p class="note">After a session of at least two minutes, TEMPO works out a limit your PC can hold.</p>`
+      : `<div class="capc"><div class="cap-viz">${capViz(c)}</div><p>${esc(c.why)}</p>
+        ${c.cap > 0 && !c.steady ? (capKey ? `<div class="sug-act">${testBtn({ kind: 'cap', key: capKey, from: currentOf(T, capKey), to: String(c.cap), title: `Fps limit at ${c.cap}`, fromLabel: limitLabel(currentOf(T, capKey)), toLabel: String(c.cap) })}${closed ? `<button type="button" class="btn" data-setnow='${esc(JSON.stringify({ key: capKey, value: String(c.cap), label: `Fps limit at ${c.cap}` }))}'>Set it now</button>` : ''}</div>`
+          : `<p class="note">Set it in ${esc(g.name)}'s own options (often called frame rate limit or max fps). If it has none: NVIDIA Control Panel, Manage 3D settings, Max Frame Rate; or AMD Software, Gaming, the game, Frame Rate Target Control.</p>`) : ''}</div>`;
+
+    // the boost, part by part
+    $('tune-boost').innerHTML = BOOST_TESTS.map(([key, lab, txt]) => {
+      const now = running && running.exp.key === key;
+      return `<div class="brow"><div><b>${lab}</b><small>${txt}</small></div>${now ? '<span class="pill run">TESTING</span>' : `<button type="button" class="btn" data-test='${esc(JSON.stringify({ kind: 'boost', key, a: 'off', b: 'on', label: `${lab}: on or off`, aLabel: 'Off', bLabel: 'On' }))}'>Test</button>`}</div>`;
+    }).join('');
+
+    // the game's own settings
+    $('tune-set-h').textContent = T.config ? `${g.name}'s own settings` : 'The game\'s own settings';
+    if (!T.config) {
+      $('tune-settings').innerHTML = `<div class="empty"><b>Not readable yet</b>TEMPO can read and change settings for Deadlock, Counter-Strike 2, games made with Unreal Engine, and the display mode of Unity games. ${esc(g.name)} keeps its settings somewhere else, so change them in its own menu; the suggestions on the left still apply.</div>`;
+      $('tune-kept').innerHTML = '';
+    } else {
+      const groups = [['display', 'Display'], ['limit', 'Limits'], ['quality', 'Quality']];
+      $('tune-settings').innerHTML = `<p class="note" style="margin-bottom:10px">${esc(T.config.note)} <span class="mono">${esc(T.config.file)}</span></p>` + busy +
+        groups.map(([k, name]) => {
+          const list = (T.settings || []).filter(s => s.group === k);
+          if (!list.length) return '';
+          return `<div class="lab" style="margin:14px 0 6px">${name}</div>` + list.map(s => `<div class="gs" data-gs="${esc(s.key)}">
+            <div class="gs-top"><b>${esc(s.label)}</b>${LOAD[s.load] ? `<span class="load ${s.load}">${LOAD[s.load]}</span>` : ''}</div>
+            <p>${esc(s.help)}</p>
+            ${s.options && s.options.length ? `<div class="seg gs-seg">${s.options.map(o => `<button type="button" data-gv="${esc(o.value)}" class="${String(o.value).toLowerCase() === String(s.value).toLowerCase() ? 'on' : ''}">${esc(o.label)}</button>`).join('')}</div>`
+              : `<div class="gs-num"><input type="number" min="${s.min}" max="${s.max}" step="1" value="${Math.round(parseFloat(s.value) || 0)}"><span class="note">${parseFloat(s.value) ? 'fps' : 'no limit'}</span><button type="button" class="btn" data-gnum>Use</button></div>`}
+            <div class="gs-pick" hidden></div></div>`).join('');
+        }).join('');
+      const kept = T.kept || [];
+      $('tune-kept').innerHTML = kept.length ? `<div class="lab" style="margin:22px 0 6px">Changed for good by TEMPO</div>` + kept.map(k => `<div class="brow"><div><b>${esc(k.label)}</b><small>${when(k.when)} · was ${esc(k.original)}</small></div><button type="button" class="btn" data-putback="${esc(k.key)}">Put back</button></div>`).join('') : '';
+    }
+  }
+
+  function currentOf(T, key) { const s = (T.settings || []).find(x => x.key === key); return s ? s.value : ''; }
+  function limitLabel(v) { const n = parseFloat(v); return !n ? 'No limit' : String(Math.round(n)); }
+  function genericAdvice(cpu, gpu) {
+    if (cpu >= gpu && cpu > 0.5) return 'Your processor is what holds it back, so in its menu try lowering view distance, crowds, physics and effects; graphics-only settings (anti-aliasing, ambient occlusion, post-processing) cost little.';
+    if (gpu > 0.5) return 'Your graphics card is what holds it back, so in its menu try lowering shadows, lighting, reflections, or the render scale (FSR or DLSS help a lot).';
+    return '';
+  }
+  function capViz(c) {
+    const top = Math.max(c.hz || 0, c.p50 * 1.15, 60);
+    const x = v => Math.min(100, v / top * 100);
+    return `<div class="cv-axis"><i class="cv-range" style="left:${x(c.p10)}%;width:${Math.max(1, x(c.p50) - x(c.p10))}%"></i>${c.cap ? `<i class="cv-cap" style="left:${x(c.cap)}%"></i>` : ''}${c.hz ? `<i class="cv-hz" style="left:${x(c.hz)}%"></i>` : ''}</div>
+      <div class="cv-l"><span>0</span>${c.cap ? `<span style="left:${x(c.cap)}%" class="cap">limit ${Math.round(c.cap)}</span>` : ''}<span style="left:${x((c.p10 + c.p50) / 2)}%" class="mid">most of the time ${Math.round(c.p10)} to ${Math.round(c.p50)}</span>${c.hz ? `<span style="left:${x(c.hz)}%">${c.hz} Hz</span>` : ''}</div>`;
+  }
+
+  document.addEventListener('change', e => {
+    if (e.target.id === 'tune-pick') { S.settings.selectedGame = e.target.value; send({ t: 'select', game: e.target.value }); S.tune = null; renderTune(); requestTune(); renderPlay(); }
+  });
+  document.addEventListener('click', e => {
+    const t = e.target.closest('[data-test]');
+    if (t) { const d = JSON.parse(t.dataset.test); send(Object.assign({ t: 'test', game: tuneGame().id }, d)); return; }
+    const sn = e.target.closest('[data-setnow]');
+    if (sn) { const d = JSON.parse(sn.dataset.setnow); send({ t: 'setNow', game: tuneGame().id, key: d.key, value: d.value, label: d.label }); return; }
+    const st = e.target.closest('[data-stop]');
+    if (st) { send({ t: 'stopTest', id: st.dataset.stop, game: tuneGame().id }); return; }
+    const kp = e.target.closest('[data-keep]');
+    if (kp) { send({ t: 'keep', id: kp.dataset.keep }); return; }
+    const pb = e.target.closest('[data-putback]');
+    if (pb) { send({ t: 'putBack', game: tuneGame().id, key: pb.dataset.putback }); return; }
+    // a game setting: picking another value offers a test or a change for good
+    const gv = e.target.closest('[data-gv]'), gn = e.target.closest('[data-gnum]');
+    if (gv || gn) {
+      const row = (gv || gn).closest('.gs'), key = row.dataset.gs, s = (S.tune.settings || []).find(x => x.key === key);
+      if (!s) return;
+      const value = gv ? gv.dataset.gv : String(Math.max(0, Math.round(+row.querySelector('input').value || 0)));
+      if (String(value).toLowerCase() === String(s.value).toLowerCase()) return;
+      const lab = v => (s.options || []).find(o => o.value === v)?.label || limitLabel(v);
+      const title = `${s.label}: ${lab(s.value)} → ${lab(value)}`;
+      const box = row.querySelector('.gs-pick');
+      box.hidden = false;
+      box.innerHTML = `<span>${esc(title)}</span><button type="button" class="btn acc" data-test='${esc(JSON.stringify({ kind: s.key === 'display' ? 'display' : s.group === 'limit' && !s.options.length ? 'cap' : 'setting', key: s.key, a: s.value, b: value, label: title, aLabel: lab(s.value), bLabel: lab(value) }))}'>Test it</button>${S.tune.running ? '' : `<button type="button" class="btn" data-setnow='${esc(JSON.stringify({ key: s.key, value, label: title }))}'>Change now</button>`}<button type="button" class="link" data-gcancel>Cancel</button>`;
+      return;
+    }
+    const gc = e.target.closest('[data-gcancel]');
+    if (gc) { gc.closest('.gs-pick').hidden = true; }
+  });
+
+  // ------------------------------------------------------------------ the phone view
+  function renderPhone() {
+    const p = S.phone || { on: !!S.settings.phone, urls: [] };
+    $('phone-tog').classList.toggle('on', !!p.on);
+    $('phone-on').hidden = !p.on;
+    if (!p.on) return;
+    const url = (p.urls || [])[0];
+    $('phone-addr').innerHTML = url ? `<b>${esc(url.replace(/\?k=.*/, ''))}</b>${p.urls.length > 1 ? `<br><small>Other addresses: ${p.urls.slice(1).map(u => esc(u.replace(/\?k=.*/, ''))).join(', ')}</small>` : ''}` : (p.error ? esc(p.error) : 'No home network found. Connect this PC to Wi-Fi or a router.');
+    $('phone-clients').innerHTML = p.clients ? `<b style="color:var(--acc)">● Your phone is connected</b>` : 'Waiting for your phone…';
+    const c = $('phone-qr'), g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+    if (!url || typeof qrcode !== 'function') return;
+    const q = qrcode(0, 'M'); q.addData(url); q.make();
+    const n = q.getModuleCount(), cell = Math.floor((c.width - 16) / n), off = Math.floor((c.width - cell * n) / 2);
+    g.fillStyle = '#08090B';
+    for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (q.isDark(r, k)) g.fillRect(off + k * cell, off + r * cell, cell, cell);
+  }
+  $('phone-tog').addEventListener('click', () => { const on = !$('phone-tog').classList.contains('on'); S.phone = Object.assign(S.phone || {}, { on }); renderPhone(); send({ t: 'phone', on }); });
+
+  // what each kind of stutter means, and what helps
+  const CAUSE = {
+    memory: ['Memory ran out', 'Windows had to read parts of the game back from the drive.', "Close browser tabs before you play. The boost's \u201cfree memory\u201d part helps, and more memory fixes it for good."],
+    heat: ['Graphics card too hot', 'The card slowed itself down to protect itself.', 'Clean the fans and filters, give the PC room to breathe, or set a faster fan curve.'],
+    app: ['Another app', 'Something else suddenly wanted the processor.', 'The app is named below. Let it step back in the boost, or close it while you play.'],
+    loading: ['Loading from the drive', 'The game was reading data while you played.', 'Normal at the start of a match. If it happens all game, free up space or install the game on an SSD.'],
+    cpuclock: ['Processor slowed down', 'The processor dropped below its usual speed.', 'Usually heat or power saving: check the cooler, and keep the boost\'s high performance power on.'],
+    cpu: ['Processor full', 'Every core was busy at that moment.', 'Fewer background apps, and lower view distance or effects in the game.'],
+    game: ['Inside the game', 'Nothing outside the game stood out.', 'Often shaders being prepared the first time something appears; they settle after a few matches.'],
+  };
+  function causesHtml(s) {
+    const c = s.hitchCauses || {};
+    const total = Object.values(c).reduce((a, b) => a + b, 0);
+    if (!total) return '';
+    const order = Object.keys(c).sort((a, b) => c[b] - c[a]);
+    const color = k => ({ memory: '#FF6B57', heat: '#FFB547', app: '#B79BFF', loading: '#6FE3FF', cpuclock: '#FFD15C', cpu: 'var(--acc)', game: '#59606A' })[k] || '#59606A';
+    return `<div class="lab" style="margin:4px 0 8px">Why it stuttered <b>${total} stutter${total === 1 ? '' : 's'}</b></div>
+      <div class="lbar">${order.map(k => `<i style="flex:${c[k]};background:${color(k)}"></i>`).join('')}</div>
+      <div class="causes">${order.map(k => { const m = CAUSE[k] || [k, '', '']; return `<div class="cause"><i style="background:${color(k)}"></i><div><b>${m[0]}</b> <span class="mono">${c[k]}</span><p>${m[1]} ${m[2]}</p></div></div>`; }).join('')}</div>
+      ${s.worstHitches && s.worstHitches.length ? `<div class="lab" style="margin:14px 0 6px">The worst ones</div><div class="worst">${s.worstHitches.map(h => `<div class="w"><span class="mono">${Math.floor(h.t / 60)}:${String(Math.floor(h.t % 60)).padStart(2, '0')}</span><b>${Math.round(h.ms)} ms</b><span>${esc(h.detail || '')}</span></div>`).join('')}</div>` : ''}`;
+  }
+
   // checkup page: the PC's own findings plus what the sessions showed
   function renderCheckup() {
     if (S.page !== 'checkup') return;
@@ -646,6 +859,8 @@
     chip('bs-gm', st.gameMode ? 'already on' : '');
     chip('bs-rec', st.recordingOff ? 'already off' : '');
     chip('bs-pw', st.onBattery ? 'on battery' : st.powerHigh ? 'already on' : st.powerAvailable === false ? 'not on this PC' : '');
+    $('bs-gpu-row').hidden = (S.hw.adapters || 1) < 2;
+    $('bs-test').innerHTML = `<div class="brow" style="margin-top:18px"><div><b>Is it worth it on your PC?</b><small>The Tune page can test the boost, or any one part of it, over real sessions.</small></div><button type="button" class="btn" data-go-page="tune">Open Tune</button></div>`;
     const want = new Set((getSet('boost.stepBackApps') || []).map(x => x.toLowerCase()));
     const prot = new Set((S.settings.protectedApps || []).map(x => x.toLowerCase()));
     const apps = S.apps || [];
@@ -770,6 +985,7 @@
         syncControls();
         renderPlay();
         movePill();
+        renderPhone();
         if (m.restored) toast(`TEMPO put back ${m.restored} change${m.restored === 1 ? '' : 's'} left from last time it was on.`);
         break;
       case 'state': {
@@ -778,12 +994,15 @@
         S.st = m;
         if (m.state !== 'live') { dial.target = 0; S.live = null; }
         if (m.error && m.state !== 'off') toast('Frame timing had a problem: ' + m.error);
+        if (m.experimentNote && was === 'off') toast(m.experimentNote);
+        if (m.pending && m.state === 'off') toast('A game setting goes back as soon as the game closes (it rewrites its settings on exit).');
         renderPlay();
         if (was === 'off' && m.state === 'waiting') toast('TEMPO is on. Open your game now.');
         break;
       }
       case 'live': onLive(m); break;
       case 'session': {
+        if (S.page === 'tune') requestTune();
         const s = m.session;
         S.sessions = [s].concat(S.sessions.filter(x => !(x.id === s.id && x.gameId === s.gameId)));
         toast(`Session saved: ${fmt(s.avgFps)} fps average, ${fmt(s.low1)} at the 1% lows.`);
@@ -797,6 +1016,8 @@
       case 'toast': toast(m.text); break;
       case 'checkup': S.checkup = (m.findings || []).map(f => ({ level: f.level, title: esc(f.title), text: esc(f.text) })); S.boostStatus = m.boostStatus || S.boostStatus; renderCheckup(); break;
       case 'update': { const u = $('update'); u.hidden = false; u.dataset.url = m.url; u.textContent = `Update ${m.version}`; break; }
+      case 'tune': S.tune = m; renderTune(); break;
+      case 'phone': S.phone = m; renderPhone(); break;
       case 'apps': S.apps = m.apps; S.boostStatus = m.boostStatus || S.boostStatus; renderBoost(); break;
     }
   }
