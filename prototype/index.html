@@ -628,6 +628,19 @@
 
   /* Wisp: thin, airy letters with a cool glow */
   .scene-wisp { color: #E8FFF8; align-items: center; text-align: center; --accent: #9FFFE6; }
+  /* The name is drawn as a constellation by the particle field; the text itself becomes a faint glow under the stars */
+  .scene-wisp .t-wisp.in-sky { color: rgba(232, 255, 248, 0.05); text-shadow: 0 0 0.28em rgba(127, 255, 224, 0.2), 0 0 0.8em rgba(127, 184, 255, 0.1); }
+  /* A slow nebula, far behind everything */
+  .scene-wisp::before {
+    content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(28% 24% at 40% 46%, rgba(24, 150, 140, 0.2), transparent 70%),
+      radial-gradient(24% 28% at 62% 55%, rgba(40, 84, 180, 0.2), transparent 70%),
+      radial-gradient(14% 12% at 52% 40%, rgba(127, 255, 224, 0.07), transparent 70%);
+    animation: nebula 90s linear infinite;
+  }
+  @keyframes nebula { from { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.1); } to { transform: rotate(360deg) scale(1); } }
+  .scene-wisp:not(.is-active)::before { animation-play-state: paused; }
   .t-wisp {
     font-family: 'Poiret One', sans-serif; text-transform: lowercase; font-size: clamp(120px, 20vw, 360px); line-height: 1;
     text-shadow: 0 0 0.12em rgba(127, 255, 224, 0.7), 0 0 0.4em rgba(127, 184, 255, 0.35);
@@ -2119,7 +2132,7 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'lanes', poltergeist: 'float', 'ledger': 'ink', 'hush': 'bokeh', 'nocturne': 'fireflies', 'specter': 'stars', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'wander', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl', echo: 'echo', reaper: 'reap' };
+    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'lanes', poltergeist: 'float', 'ledger': 'ink', 'hush': 'bokeh', 'nocturne': 'fireflies', 'specter': 'stars', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'sky', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl', echo: 'echo', reaper: 'reap' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
@@ -2166,7 +2179,9 @@
         x: Math.random() * w, y: Math.random() * h, vx: 0, vy: 0,
         r: 0.6 + Math.random() * 1.1, a: 0.25 + Math.random() * 0.5, s: 0.15 + Math.random() * 0.45,
         ph: Math.random() * Math.PI * 2, c: Math.random(), al: 0, z: Math.pow(Math.random(), 1.6),
-        ring: 0.8 + Math.random() * 0.45, ang: Math.random() * Math.PI * 2, big: Math.random() < 0.1, q: Math.random()
+        ring: 0.8 + Math.random() * 0.45, ang: Math.random() * Math.PI * 2, big: Math.random() < 0.1, q: Math.random(),
+        // Every field any scene uses, declared up front so all particles share one shape (keeps the hot loops fast)
+        tx: 0, ty: 0, has: false, qx: 0, qy: 0, hq: false, hg: undefined, lit: 0, le: -1, lp: 0, star: -1, px: 0, py: 0
       });
       // Grouped by colour, so the canvas changes paint colour a few times per frame instead of thousands
       dots.sort((a, b) => a.c - b.c);
@@ -2176,6 +2191,8 @@
         a: 0.04 + Math.random() * 0.06, vx: (Math.random() - 0.5) * 0.16, vy: (Math.random() - 0.5) * 0.1, c: i % 2
       });
       sampleText();
+      sky.sig = '';
+      if (KIND[mode] === 'sky') sampleSky();
     }
 
     // Draw a word off-screen, letter-spaced like the brand, and return its pixels in random order
@@ -2260,6 +2277,7 @@
     function setMode(key, quiet) {
       const leavingForm = KIND[mode] === 'form' && KIND[key] !== 'form';
       mode = key;
+      if (KIND[key] === 'sky') sampleSky();
       if (key === 'outro' || key === 'intro') useWord(wordFor(key));
       const [a, b] = colorsFor(key);
       tgt = { a, b };
@@ -2323,6 +2341,7 @@
         case 'echo': return d.a * 0.22;
         case 'reap': return d.a * 0.32;
         case 'lanes': return d.big ? d.a * 0.12 : 0.3 + d.a * 0.6;
+        case 'sky': return d.star >= 0 && sky.ready ? 0.78 + d.a * 0.22 : d.a * 0.5;
         case 'halo': return d.c < 0.12 ? (mouse.on ? 0.9 : 0.6) : d.c < 0.24 ? d.a * 0.4 : d.c < 0.62 ? Math.min(0.95, 0.4 + d.a) : d.a * 0.3;
         default: return d.a;
       }
@@ -2330,6 +2349,87 @@
     const lerp = (a, b, t) => a + (b - a) * t;
 
     let lastMask = '', lastKind = '', laneEpoch = 0;
+
+    // ---- Wisp: the name as a constellation ----
+    // Stars are sampled from the real title (same font, size and place), each one held by a particle
+    // that is always in use (lowest q, so the adaptive budget never thins the name out).
+    const sky = { stars: [], links: [], adj: [], sparks: [], flare: null, flareAt: 0, ready: false, sig: '', t: 0 };
+    function sampleSky() {
+      if (reduce || !w || !dots.length) return;
+      const title = document.querySelector('#s-wisp .title');
+      if (!title || title.offsetParent === null) return;
+      if (document.fonts && !document.fonts.check("16px 'Poiret One'")) {
+        document.fonts.load("400 100px 'Poiret One'").then(() => { sky.sig = ''; if (KIND[mode] === 'sky') sampleSky(); }).catch(() => {});
+        return;
+      }
+      const r = title.getBoundingClientRect(), cs = getComputedStyle(title);
+      const text = (title.dataset.text || title.textContent).trim().toLowerCase();
+      const fsz = parseFloat(cs.fontSize);
+      const sig = [w, h, dots.length, Math.round(r.left), Math.round(r.top + scrollY), Math.round(r.width), fsz, text].join('|');
+      if (sig === sky.sig) return;
+      sky.sig = sig;
+      const W = Math.ceil(r.width), H = Math.ceil(r.height + fsz * 0.5);
+      const off = document.createElement('canvas');
+      off.width = W; off.height = H;
+      const o = off.getContext('2d', { willReadFrequently: true });
+      o.font = `${cs.fontWeight} ${fsz}px ${cs.fontFamily}`;
+      o.textBaseline = 'alphabetic';
+      o.fillStyle = '#fff';
+      const fm = o.measureText(text);
+      const asc = fm.fontBoundingBoxAscent, desc = fm.fontBoundingBoxDescent;
+      const chars = [...title.querySelectorAll('.ch')];
+      if (chars.length) {
+        // Where CSS puts the baseline: half the leading above the font's ascent
+        chars.forEach(ch => {
+          const base = ch.offsetTop + (ch.offsetHeight - (asc + desc)) / 2 + asc;
+          o.fillText(ch.textContent.toLowerCase(), ch.offsetLeft, base);
+        });
+      } else {
+        const lh = parseFloat(cs.lineHeight) || fsz;
+        o.fillText(text, (W - fm.width) / 2, (lh - (asc + desc)) / 2 + asc);
+      }
+      const data = o.getImageData(0, 0, W, H).data;
+      const step = Math.max(4, Math.round(fsz / (w < 700 ? 32 : 50)));
+      const pts = [];
+      for (let y = 0; y < H; y += step) for (let x = 0; x < W; x += step) {
+        if (data[(y * W + x) * 4 + 3] > 150) pts.push([x + (Math.random() - 0.5) * step * 0.6, y + (Math.random() - 0.5) * step * 0.6]);
+      }
+      for (let i = pts.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [pts[i], pts[j]] = [pts[j], pts[i]]; }
+      pts.length = Math.min(pts.length, w < 700 ? 340 : 780);
+      const top = r.top + scrollY;
+      sky.stars = pts.map(([x, y]) => ({ x: r.left + x, y: top + y, d: null }));
+      // Each star links to its two nearest neighbours: the lines of the constellation
+      const reachSq = (step * 2.7) ** 2, seen = new Set();
+      sky.links = []; sky.adj = sky.stars.map(() => []);
+      sky.stars.forEach((a, i) => {
+        const near = [];
+        sky.stars.forEach((b, j) => { if (i !== j) { const q = (a.x - b.x) ** 2 + (a.y - b.y) ** 2; if (q < reachSq) near.push([q, j]); } });
+        near.sort((u, v) => u[0] - v[0]);
+        near.slice(0, 2).forEach(([, j]) => {
+          const key = i < j ? i + ':' + j : j + ':' + i;
+          if (seen.has(key)) return;
+          seen.add(key); sky.links.push([i, j]); sky.adj[i].push(j); sky.adj[j].push(i);
+        });
+      });
+      dots.forEach(d => { d.star = -1; });
+      const pool = dots.slice().sort((a, b) => a.q - b.q);
+      sky.stars.forEach((st, i) => { const d = pool[i]; if (d) { d.star = i; st.d = d; } });
+      sky.sparks = [];
+      sky.ready = sky.stars.length > 24;
+      title.classList.toggle('in-sky', sky.ready);
+    }
+    // A soft round glow, drawn once per colour and stamped wherever a light needs a halo
+    let glowSprite = null, glowKey = '';
+    function sprite(rgbStr) {
+      if (glowKey === rgbStr && glowSprite) return glowSprite;
+      const c = document.createElement('canvas');
+      c.width = c.height = 64;
+      const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, `rgba(${rgbStr},1)`); gr.addColorStop(0.25, `rgba(${rgbStr},0.45)`); gr.addColorStop(1, `rgba(${rgbStr},0)`);
+      g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+      glowKey = rgbStr; glowSprite = c;
+      return c;
+    }
     // Where a mote at progress lp sits: along its own lane, then in the shared beam
     function lanePoint(d, lp, t, fx, fy, sp) {
       const lane = d.c < 0.34 ? -1 : d.c < 0.67 ? 0 : 1, ly = fy + lane * sp;
@@ -2436,6 +2536,12 @@
           const tx = vcx + Math.cos(d.ang) * VR * (0.25 + d.ring * 0.75), ty = vcy + Math.sin(d.ang) * VR * (0.25 + d.ring * 0.75);
           d.vx = (d.vx + (tx - d.x) * 0.012) * 0.9;
           d.vy = (d.vy + (ty - d.y) * 0.012) * 0.9;
+        } else if (kind === 'sky' && d.star >= 0 && sky.ready) {
+          // Wisp: one star of the name, holding its place with a slow shimmer
+          const st = sky.stars[d.star];
+          const tx = st.x + Math.sin(t * 0.0011 + d.ph) * 1.3, ty = st.y - scrollY + Math.cos(t * 0.0009 + d.ph * 1.3) * 1.3;
+          d.vx = (d.vx + (tx - d.x) * 0.05) * 0.8;
+          d.vy = (d.vy + (ty - d.y) * 0.05) * 0.8;
         } else if (kind === 'lanes' && !d.big) {
           // LinkFuse: three lanes (by colour) bend into one fuse point and leave as one braided beam
           if (d.hg === undefined) d.hg = gauss();
@@ -2482,7 +2588,7 @@
             // Grain sliding past like film through a projector
             case 'film': ax = 0.55 + d.s * 0.5; ay = Math.sin(t * 0.0009 + d.ph) * 0.04; break;
             // Little lights wandering on their own paths
-            case 'wander': ax = Math.sin(t * 0.0004 + d.ph) * 0.35; ay = Math.cos(t * 0.00033 + d.ph * 1.7) * 0.25 - 0.03; break;
+            case 'wander': case 'sky': ax = Math.sin(t * 0.0004 + d.ph) * 0.35; ay = Math.cos(t * 0.00033 + d.ph * 1.7) * 0.25 - 0.03; break;
             // Warm embers rising slowly from a lamp
             case 'embers': ax = Math.sin(t * 0.0007 + d.ph) * 0.1; ay = -0.12 - d.s * 0.3; break;
             // Specks of coloured light drifting along a slanted beam
@@ -2513,13 +2619,23 @@
           }
         }
         if (d.lit) d.lit = d.lit > 0.01 ? d.lit * (kind === 'echo' || kind === 'reap' ? 0.966 : 0.93) : 0;
+        if (kind === 'sky' && mouse.on && !(d.star >= 0 && sky.ready)) {
+          // Wisp: the lights lean toward you and circle you, like apps around you in the app
+          const dx = mouse.x - d.x, dy = mouse.y - d.y, q = dx * dx + dy * dy, R = 220;
+          if (q < R * R && q > 1) {
+            const dist = Math.sqrt(q), f = (1 - dist / R) * 0.09, pull = dist > 52 ? 1 : -1.6;
+            d.vx += (dx / dist) * f * pull - (dy / dist) * f * 0.85;
+            d.vy += (dy / dist) * f * pull + (dx / dist) * f * 0.85;
+          }
+        } else
         // Particles move out of the way of the mouse in every scene
         if (mouse.on && !(halo.on && d.c < 0.12)) {
           const dx = d.x - mouse.x, dy = d.y - mouse.y, dist2 = dx * dx + dy * dy;
-          if (dist2 < rr * rr) { const dist = Math.sqrt(dist2) || 1, f = (1 - dist / rr) * push; d.vx += (dx / dist) * f; d.vy += (dy / dist) * f; }
+          const pf = kind === 'sky' ? push * 0.3 : push;
+          if (dist2 < rr * rr) { const dist = Math.sqrt(dist2) || 1, f = (1 - dist / rr) * pf; d.vx += (dx / dist) * f; d.vy += (dy / dist) * f; }
         }
         d.x += d.vx; d.y += d.vy;
-        if (!(kind === 'form' && isLetter(d)) && !(kind === 'halo' && d.c < 0.62) && kind !== 'vinyl' && !(kind === 'lanes' && !d.big)) {
+        if (!(kind === 'form' && isLetter(d)) && !(kind === 'halo' && d.c < 0.62) && kind !== 'vinyl' && !(kind === 'lanes' && !d.big) && !(kind === 'sky' && d.star >= 0 && sky.ready)) {
           if (d.x < -10) d.x = w + 10;
           else if (d.x > w + 10) d.x = -10;
           if (d.y < -10) d.y = h + 10; else if (d.y > h + 10) d.y = -10;
@@ -2527,6 +2643,90 @@
         d.al = lerp(d.al, targetAlpha(d, kind), 0.06);
       }
       for (let i = 0; i < 3; i++) { cur.a[i] = lerp(cur.a[i], tgt.a[i], 0.05); cur.b[i] = lerp(cur.b[i], tgt.b[i], 0.05); }
+    }
+
+    const nearYou = [];
+    // Wisp: the lines of the constellation, lights travelling along them, "you", and a light coming online
+    function drawSky(t) {
+      const dt = Math.min(0.1, (t - (sky.t || t)) / 1000);
+      sky.t = t;
+      const lineRgb = cur.b.map(Math.round).join(','), coreRgb = cur.a.map(Math.round).join(',');
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 0.7;
+      ctx.strokeStyle = `rgba(${lineRgb},0.17)`;
+      ctx.beginPath();
+      for (const [i, j] of sky.links) {
+        const a = sky.stars[i].d, b = sky.stars[j].d;
+        if (!a || !b || a.px === undefined || b.px === undefined) continue;
+        ctx.moveTo(a.px, a.py); ctx.lineTo(b.px, b.py);
+      }
+      ctx.stroke();
+      const glowImg = sprite(lineRgb);
+      ctx.globalAlpha = 0.32;
+      for (let i = 0; i < sky.stars.length; i += 9) {
+        const d = sky.stars[i].d;
+        if (!d || d.px === undefined) continue;
+        const r2 = 5 + 3 * Math.sin(t * 0.0013 + d.ph);
+        ctx.drawImage(glowImg, d.px - r2, d.py - r2, r2 * 2, r2 * 2);
+      }
+      // A few lights run along the lines, from star to star
+      while (sky.sparks.length < 6) sky.sparks.push({ a: (Math.random() * sky.stars.length) | 0, b: -1, t: 1 });
+      for (const sp of sky.sparks) {
+        sp.t += dt * 2.2;
+        if (sp.t >= 1) {
+          const from = sp.b >= 0 ? sp.b : sp.a, nb = sky.adj[from];
+          sp.a = from; sp.b = nb.length ? nb[(Math.random() * nb.length) | 0] : (Math.random() * sky.stars.length) | 0; sp.t = 0;
+        }
+        const a = sky.stars[sp.a].d, b = sky.stars[sp.b].d;
+        if (!a || !b || a.px === undefined || b.px === undefined) continue;
+        const x = a.px + (b.px - a.px) * sp.t, y = a.py + (b.py - a.py) * sp.t;
+        ctx.globalAlpha = 0.55;
+        ctx.drawImage(glowImg, x - 9, y - 9, 18, 18);
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = `rgb(${coreRgb})`;
+        ctx.fillRect(x - 0.9, y - 0.9, 1.8, 1.8);
+      }
+      // You: a bright point under the mouse, linked to the lights around it
+      if (mouse.on) {
+        ctx.lineWidth = 0.8;
+        for (let i = 0; i < nearYou.length; i += 3) {
+          const f = 1 - Math.sqrt(nearYou[i + 2]) / 170;
+          ctx.globalAlpha = 0.45 * f;
+          ctx.strokeStyle = `rgb(${lineRgb})`;
+          ctx.beginPath(); ctx.moveTo(mouse.x, mouse.y); ctx.lineTo(nearYou[i], nearYou[i + 1]); ctx.stroke();
+        }
+        ctx.globalAlpha = 0.7;
+        ctx.drawImage(glowImg, mouse.x - 22, mouse.y - 22, 44, 44);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = `rgb(${coreRgb})`;
+        ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 2.6, 0, Math.PI * 2); ctx.fill();
+      }
+      nearYou.length = 0;
+      // Every few seconds a light nearby "comes online": it flares and links itself to the name
+      if (!sky.flare && t > sky.flareAt) {
+        const cand = dots.filter(d => !(d.star >= 0) && d.q <= budget && d.x > w * 0.12 && d.x < w * 0.88 && d.y > h * 0.12 && d.y < h * 0.88);
+        const d = cand[(Math.random() * cand.length) | 0];
+        if (d) {
+          let best = -1, bq = Infinity;
+          sky.stars.forEach((st, i) => { if (st.d && st.d.px !== undefined) { const q = (st.d.px - d.x) ** 2 + (st.d.py - d.y) ** 2; if (q < bq) { bq = q; best = i; } } });
+          if (best >= 0) sky.flare = { d, star: best, t0: t };
+        }
+        sky.flareAt = t + 2600 + Math.random() * 2400;
+      }
+      if (sky.flare) {
+        const k = (t - sky.flare.t0) / 1800, d = sky.flare.d, st = sky.stars[sky.flare.star].d;
+        if (k >= 1 || !st) sky.flare = null;
+        else {
+          const life = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85;
+          const grow = Math.min(1, k / 0.35);
+          ctx.globalAlpha = 0.5 * life;
+          ctx.strokeStyle = `rgb(${lineRgb})`;
+          ctx.lineWidth = 0.9;
+          ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x + (st.px - d.x) * grow, d.y + (st.py - d.y) * grow); ctx.stroke();
+          ctx.globalAlpha = 0.9 * life;
+          ctx.drawImage(glowImg, d.x - 16, d.y - 16, 32, 32);
+        }
+      }
     }
 
     function draw(t) {
@@ -2549,7 +2749,7 @@
         const k = i / 3;
         return `rgb(${Math.round(lerp(cur.a[0], cur.b[0], k))},${Math.round(lerp(cur.a[1], cur.b[1], k))},${Math.round(lerp(cur.a[2], cur.b[2], k))})`;
       });
-      const size = kind === 'form' ? 1.9 : kind === 'ink' ? 1.5 : 1;
+      const size = kind === 'form' ? 1.9 : kind === 'ink' ? 1.5 : kind === 'sky' ? 1.15 : 1;
       const rgb = c => c.map(Math.round).join(',');
 
       // Near layer: big soft lights, shifted most by the mouse
@@ -2631,16 +2831,20 @@
         ctx.restore();
       }
       // Additive light where particles overlap, so the name glows on dark backgrounds
-      ctx.globalCompositeOperation = (kind === 'form' && root.dataset.theme === 'dark') || kind === 'halo' || kind === 'echo' || kind === 'reap' || kind === 'lanes' ? 'lighter' : 'source-over';
+      ctx.globalCompositeOperation = (kind === 'form' && root.dataset.theme === 'dark') || kind === 'halo' || kind === 'echo' || kind === 'reap' || kind === 'lanes' || kind === 'sky' ? 'lighter' : 'source-over';
       fctx.globalCompositeOperation = 'lighter';
       const reach = 180;
       let lastFill = '';
+      const skyOn = kind === 'sky' && sky.ready;
       for (const d of dots) {
         if (d.q > budget) continue;
-        const letter = kind === 'form' && isLetter(d);
+        const star = skyOn && d.star >= 0;
+        const letter = (kind === 'form' && isLetter(d)) || star;
         const onRing = kind === 'halo' && d.c < 0.62 && !(d.c < 0.12 && mouse.on), near = onRing ? (Math.sin(d.ang + halo.tilt) + 1) / 2 : 0;
         const depth = letter || onRing ? 0.15 : d.z;
         const px = d.x + par.x * (4 + depth * 26), py = d.y + par.y * (3 + depth * 18);
+        if (star) { d.px = px; d.py = py; }
+        else if (skyOn && mouse.on && nearYou.length < 28) { const q = (px - mouse.x) ** 2 + (py - mouse.y) ** 2; if (q < 170 * 170) nearYou.push(px, py, q); }
         const k = kind === 'form' ? Math.max(0, Math.min(3, Math.floor((d.x / w) * 4))) : Math.min(3, Math.floor(d.c * 4));
         let tw = 1;
         if (!reduce) tw = kind === 'stars' ? 0.25 + 0.75 * Math.abs(Math.sin(t * 0.0018 + d.ph)) : 0.7 + 0.3 * Math.sin(t * 0.0015 + d.ph);
@@ -2655,10 +2859,11 @@
         c2.globalAlpha = Math.min(1, alpha);
         if (c2 !== ctx) c2.fillStyle = buckets[k];
         else if (lastFill !== buckets[k]) { lastFill = buckets[k]; ctx.fillStyle = lastFill; }
-        const sz = d.r * size * (letter ? 1 : onRing ? 0.75 + near * 0.75 : 0.55 + d.z * 0.95);
+        const sz = d.r * size * (star ? 1.5 : letter ? 1 : onRing ? 0.75 + near * 0.75 : 0.55 + d.z * 0.95);
         if (kind === 'bokeh' && d.big && d.c < 0.35) { ctx.beginPath(); ctx.arc(px, py, 3 + d.r * 5, 0, Math.PI * 2); ctx.fill(); }
         else c2.fillRect(px, py, sz, sz);
       }
+      if (skyOn) drawSky(t);
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
       fctx.globalAlpha = 1;
