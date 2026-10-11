@@ -105,7 +105,7 @@
 
   * { box-sizing: border-box; }
   /* The rail shows where you are, so the plain browser scrollbar is hidden */
-  html { background: #050509; scrollbar-width: none; }
+  html { background: var(--base, #050509); scrollbar-width: none; }
   html::-webkit-scrollbar { display: none; }
   .scene ::selection { background: var(--accent, var(--sel)); color: #0B0B14; }
   .scene-shadow ::selection { background: #160A12; color: #F7D3E6; }
@@ -115,11 +115,10 @@
   html.morph body { transition: none; }
   body {
     margin: 0;
-    background-color: var(--page);
+    background-color: transparent; /* the page colour is drawn by .page-bg */
     color: var(--ink);
     font-family: 'Hanken Grotesk', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    transition: background-color 0.9s var(--ease-in-out);
   }
   ::selection { background: var(--sel); color: #fff; }
   :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 6px; }
@@ -188,15 +187,18 @@
   @media (hover: hover) and (pointer: fine) { .credit:hover { opacity: 1; } }
   /* Scene textures live on fixed layers and fade by weight, so no section edge ever shows.
      While scrolling, the script sets the weights continuously; otherwise these fallbacks apply. */
-  @property --w-mono { syntax: '<number>'; inherits: true; initial-value: 0; }
-  @property --w-shadow { syntax: '<number>'; inherits: true; initial-value: 0; }
-  @property --w-static { syntax: '<number>'; inherits: true; initial-value: 0; }
-  body { transition: background-color 0.9s var(--ease-in-out), --w-mono 0.8s ease, --w-shadow 0.8s ease, --w-static 0.8s ease; }
-  body[data-scene="shadow"] { --w-mono: 1; --w-shadow: 1; }
-  body[data-scene="static"], body[data-scene="poltergeist"] { --w-static: 1; }
-  [data-theme="light"] body[data-scene="intro"], [data-theme="light"] body[data-scene="outro"] { --w-mono: 1; }
+  /* The weights live on the texture layers themselves (not on <body>), so changing them never re-styles the page */
+  @property --w-mono { syntax: '<number>'; inherits: false; initial-value: 0; }
+  @property --w-shadow { syntax: '<number>'; inherits: false; initial-value: 0; }
+  @property --w-static { syntax: '<number>'; inherits: false; initial-value: 0; }
+  .tex, .grain { transition: --w-mono 0.8s ease, --w-shadow 0.8s ease, --w-static 0.8s ease; }
+  body[data-scene="shadow"] :is(.tex, .grain) { --w-mono: 1; --w-shadow: 1; }
+  body[data-scene="static"] :is(.tex, .grain), body[data-scene="poltergeist"] :is(.tex, .grain) { --w-static: 1; }
+  [data-theme="light"] body[data-scene="intro"] :is(.tex, .grain), [data-theme="light"] body[data-scene="outro"] :is(.tex, .grain) { --w-mono: 1; }
+  /* The page colour on its own layer: blending it while scrolling repaints only this */
+  .page-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; background-color: var(--page); transition: background-color 0.9s var(--ease-in-out); }
   .grain {
-    position: fixed; inset: -50%; width: 200%; height: 200%;
+    position: fixed; inset: -15%; width: 130%; height: 130%;
     pointer-events: none; z-index: 50;
     background-image: var(--grain-color);
     opacity: calc(0.13 * (1 - var(--w-mono)));
@@ -210,7 +212,7 @@
   .grain.mono { background-image: var(--grain-mono); opacity: calc(0.18 * var(--w-mono)); animation-delay: -0.45s; }
   .tex { position: fixed; pointer-events: none; }
   .tex-paper { inset: 0; background-image: var(--paper); opacity: calc(0.5 * var(--w-shadow)); }
-  .tex-static { inset: -50%; width: 200%; height: 200%; background-image: var(--static); opacity: calc(0.3 * var(--w-static)); animation: grain 0.5s steps(4) infinite; }
+  .tex-static { inset: -15%; width: 130%; height: 130%; background-image: var(--static); opacity: calc(0.3 * var(--w-static)); animation: grain 0.5s steps(4) infinite; }
   .tex-tear { left: 0; right: 0; top: 0; height: 9vh; background-image: var(--static); opacity: 0; }
   body[data-scene="static"] .tex-tear { animation: tear 4.2s steps(1) infinite; }
   @keyframes grain {
@@ -850,6 +852,12 @@
     animation: twinkle var(--t, 4s) ease-in-out infinite var(--d, 0s);
   }
   @keyframes twinkle { 0%, 100% { opacity: 0; transform: scale(0.5) rotate(0deg); } 50% { opacity: 1; transform: scale(1) rotate(18deg); } }
+  /* Only the scene on screen animates its decorations. The others hold still, so the browser isn't
+     re-styling dozens of hidden sparkles and giant background words on every frame of a scroll. */
+  .scene:not(.is-active) .spark, .scene:not(.is-active) .ghost-word, .scene:not(.is-active) .pk,
+  .scene:not(.is-active) .pick-tag::after, .scene:not(.is-active) .pick-tag .pk-star { animation-play-state: paused; }
+  body:not([data-scene="intro"]) .cover-dock button, body:not([data-scene="intro"]) .cover-dock .pk { animation-play-state: paused; }
+  body:not([data-scene="static"]):not([data-scene="poltergeist"]) .tex-static { animation-play-state: paused; }
 
   /* Detail view covers (each project's art at card size) */
   .cover { position: relative; isolation: isolate; overflow: hidden; aspect-ratio: var(--r, 1); border-radius: 16px; display: grid; place-items: center; container-type: inline-size; }
@@ -1136,6 +1144,7 @@
 </style>
 </head>
 <body data-scene="intro">
+  <div class="page-bg" aria-hidden="true"></div>
   <div class="blob b1" aria-hidden="true"></div>
   <div class="blob b2" aria-hidden="true"></div>
   <div class="tex tex-paper" aria-hidden="true"></div>
@@ -2076,13 +2085,12 @@
       img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b; img.data[i + 3] = a;
     }
     x.putImageData(img, 0, 0);
-    return `url(${c.toDataURL()})`;
+    return c;
   }
-  root.style.setProperty('--grain-color', noiseTile(509, 'color'));
-  root.style.setProperty('--grain-color-2', noiseTile(367, 'color'));
-  root.style.setProperty('--grain-mono', noiseTile(509, 'mono'));
-  root.style.setProperty('--paper', noiseTile(200, 'paper'));
-  root.style.setProperty('--static', noiseTile(160, 'static'));
+  // Each tile becomes a short blob: link (encoded off the main thread). A data: URL here would be a
+  // megabyte of text inside a CSS variable, re-read every time an animated grain layer is restyled.
+  [['--grain-color', 509, 'color'], ['--grain-color-2', 367, 'color'], ['--grain-mono', 509, 'mono'], ['--paper', 200, 'paper'], ['--static', 160, 'static']]
+    .forEach(([name, size, mode]) => noiseTile(size, mode).toBlob(b => { if (b) root.style.setProperty(name, `url(${URL.createObjectURL(b)})`); }, 'image/png'));
 
   // ---------- The particle field: writes STEZY, then changes behaviour per scene ----------
   const field = (() => {
@@ -2157,8 +2165,10 @@
         x: Math.random() * w, y: Math.random() * h, vx: 0, vy: 0,
         r: 0.6 + Math.random() * 1.1, a: 0.25 + Math.random() * 0.5, s: 0.15 + Math.random() * 0.45,
         ph: Math.random() * Math.PI * 2, c: Math.random(), al: 0, z: Math.pow(Math.random(), 1.6),
-        ring: 0.8 + Math.random() * 0.45, ang: Math.random() * Math.PI * 2, big: Math.random() < 0.1
+        ring: 0.8 + Math.random() * 0.45, ang: Math.random() * Math.PI * 2, big: Math.random() < 0.1, q: Math.random()
       });
+      // Grouped by colour, so the canvas changes paint colour a few times per frame instead of thousands
+      dots.sort((a, b) => a.c - b.c);
       // The near layer: a few big, very soft lights drifting in front of everything
       lights = Array.from({ length: 9 }, (_, i) => lights[i] || {
         x: Math.random() * w, y: Math.random() * h, r: 70 + Math.random() * 140,
@@ -2282,7 +2292,27 @@
       if (!intro.burst) dots.forEach(d => { d.x = w / 2 + (Math.random() - 0.5) * w; d.y = h * 0.46 + (Math.random() - 0.5) * h * 0.6; });
     }
 
-    const isLetter = d => (flashing() ? d.hq : d.has);
+    let flashNow = false; // refreshed once per frame by step() and draw()
+    // Share of the particles in use. A PC that can't keep up gets fewer, so scrolling stays smooth;
+    // a fast one keeps every particle.
+    let budget = 1, budgetCap = 1, lastT = 0, ema = 16.7, judgeAt = 0, calm = 0;
+    function adapt(t) {
+      const dt = t - lastT;
+      lastT = t;
+      if (!(dt > 0 && dt < 250) || document.hidden || intro.on) return;
+      ema += (dt - ema) * 0.06;
+      if (t < judgeAt) return;
+      judgeAt = t + 1500;
+      if (ema > 22 && budget > 0.4) {
+        budgetCap = Math.max(0.4, budget * 0.92); // don't climb straight back to the level that stuttered
+        budget = Math.max(0.4, budget * 0.75);
+        calm = 0;
+      } else if (ema < 17.8 && budget < budgetCap && ++calm >= 6) {
+        budget = Math.min(budgetCap, budget * 1.08);
+        calm = 0;
+      }
+    }
+    const isLetter = d => (flashNow ? d.hq : d.has);
     function targetAlpha(d, kind) {
       switch (kind) {
         case 'form': return isLetter(d) ? 0.72 + d.a * 0.28 : d.a * 0.25;
@@ -2311,7 +2341,7 @@
       return [x, fy + d.hg * 2.2 + Math.sin(x * 0.016 - t * 0.0028 + lane * 2.1) * 6 * lane * Math.min(1, v * 4)];
     }
     function step(t) {
-      const flash = flashing();
+      const flash = flashNow = flashing();
       if (wasFlashing && !flash) dots.forEach(d => { d.vx += (Math.random() - 0.5) * 5; d.vy += (Math.random() - 0.5) * 5; });
       wasFlashing = flash;
       const kind = kindNow();
@@ -2392,6 +2422,7 @@
       const loose = kind === 'form' ? Math.min(1, Math.abs(off) / (h * 0.5)) : 0;
       const pull = 0.045 * (1 - loose * 0.75);
       for (const d of dots) {
+        if (d.q > budget) continue;
         if (kind === 'form' && isLetter(d)) {
           // Spring toward this particle's letter pixel
           const tx = flash ? d.qx : d.tx, ty = flash ? d.qy : d.ty + off;
@@ -2499,6 +2530,7 @@
 
     function draw(t) {
       ctx.clearRect(0, 0, w, h);
+      flashNow = flashing();
       const kind = kindNow();
       if (intro.on && performance.now() - intro.start < PULSE) {
         // The single point of light before the burst
@@ -2601,7 +2633,9 @@
       ctx.globalCompositeOperation = (kind === 'form' && root.dataset.theme === 'dark') || kind === 'halo' || kind === 'echo' || kind === 'reap' || kind === 'lanes' ? 'lighter' : 'source-over';
       fctx.globalCompositeOperation = 'lighter';
       const reach = 180;
+      let lastFill = '';
       for (const d of dots) {
+        if (d.q > budget) continue;
         const letter = kind === 'form' && isLetter(d);
         const onRing = kind === 'halo' && d.c < 0.62 && !(d.c < 0.12 && mouse.on), near = onRing ? (Math.sin(d.ang + halo.tilt) + 1) / 2 : 0;
         const depth = letter || onRing ? 0.15 : d.z;
@@ -2618,7 +2652,8 @@
         if (alpha < 0.01) continue;
         const c2 = kind === 'halo' && ((onRing && near > 0.5) || (d.c < 0.12 && mouse.on)) ? fctx : ctx;
         c2.globalAlpha = Math.min(1, alpha);
-        c2.fillStyle = buckets[k];
+        if (c2 !== ctx) c2.fillStyle = buckets[k];
+        else if (lastFill !== buckets[k]) { lastFill = buckets[k]; ctx.fillStyle = lastFill; }
         const sz = d.r * size * (letter ? 1 : onRing ? 0.75 + near * 0.75 : 0.55 + d.z * 0.95);
         if (kind === 'bokeh' && d.big && d.c < 0.35) { ctx.beginPath(); ctx.arc(px, py, 3 + d.r * 5, 0, Math.PI * 2); ctx.fill(); }
         else c2.fillRect(px, py, sz, sz);
@@ -2629,7 +2664,8 @@
       fctx.globalCompositeOperation = 'source-over';
     }
 
-    const api = { setMode, refreshColors, playIntro, skipIntro, setAnchors, flash, setWord, mode: () => mode, onFrame: null };
+    const api = { setMode, refreshColors, playIntro, skipIntro, setAnchors, flash, setWord, mode: () => mode, onFrame: null, quality: () => budget };
+    window.__particleShare = () => budget; // for checking the adaptive quality from the console
     // One bad frame must never stop the animation for good: carry on, and put back any particle that went astray
     function heal() {
       dots.forEach(d => {
@@ -2640,6 +2676,7 @@
     }
     function loop(t) {
       requestAnimationFrame(loop);
+      adapt(t);
       try { if (api.onFrame) api.onFrame(t); } catch (e) { console.warn(e); }
       try { step(t); draw(t); } catch (e) { console.warn('Particles recovered:', e); heal(); }
       if (dots.length && !Number.isFinite(dots[(t | 0) % dots.length].x)) heal();
@@ -2686,10 +2723,15 @@
     }
     // Blend the page colour continuously between neighbouring scenes
     const tagIn = [...document.querySelectorAll('.tag-in')];
+    const pageBg = document.querySelector('.page-bg');
+    const texEls = [...document.querySelectorAll('.tex, .grain')];
+    const last = {};
+    // Write a value only when it changed, so a still page costs nothing
+    const put = (key, value, write) => { if (last[key] !== value) { last[key] = value; write(value); } };
     function paint(y) {
       // The intro line and choices fade away as the visitor scrolls off the intro
       const fade = Math.max(0, 1 - y / (innerHeight * 0.35)).toFixed(3);
-      tagIn.forEach(el => { el.style.opacity = fade; });
+      put('fade', fade, v => tagIn.forEach(el => { el.style.opacity = v; }));
       let i = 0;
       while (i < tops.length - 1 && tops[i + 1] <= y) i++;
       const j = Math.min(i + 1, tops.length - 1);
@@ -2697,14 +2739,15 @@
       let k = Math.max(0, Math.min(1, ((y - tops[i]) / span - 0.2) / 0.6));
       k = k * k * (3 - 2 * k);
       const c = colors[i].map((v, n) => Math.round(v + (colors[j][n] - v) * k));
-      body.style.backgroundColor = `rgb(${c.join(',')})`;
+      put('bg', `rgb(${c.join(',')})`, v => { pageBg.style.backgroundColor = v; });
       // Fade each scene's texture by how much of that scene is on screen
       const keyI = list[i].dataset.scene, keyJ = list[j].dataset.scene;
       const weight = test => (test(keyI) ? 1 - k : 0) + (i !== j && test(keyJ) ? k : 0);
       const light = root.dataset.theme === 'light';
-      body.style.setProperty('--w-shadow', weight(s => s === 'shadow').toFixed(3));
-      body.style.setProperty('--w-static', weight(s => s === 'static' || s === 'poltergeist').toFixed(3));
-      body.style.setProperty('--w-mono', weight(s => s === 'shadow' || s === 'prism' || s === 'ledger' || (light && (s === 'intro' || s === 'outro'))).toFixed(3));
+      const setW = (name, v) => put(name, v.toFixed(2), val => texEls.forEach(el => el.style.setProperty(name, val)));
+      setW('--w-shadow', weight(s => s === 'shadow'));
+      setW('--w-static', weight(s => s === 'static' || s === 'poltergeist'));
+      setW('--w-mono', weight(s => s === 'shadow' || s === 'prism' || s === 'ledger' || (light && (s === 'intro' || s === 'outro'))));
     }
     const easeOut = t => 1 - Math.pow(1 - t, 4);
     const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -2917,25 +2960,35 @@
       }
       return lib;
     };
+    async function startFx(scene) {
+      if (scene.dataset.fx) return;
+      scene.dataset.fx = '1';
+      fxObserver.unobserve(scene);
+      const key = scene.dataset.scene;
+      const canvas = scene.querySelector('.fx');
+      const cfg = FX[key];
+      try {
+        const { createShader } = await load();
+        fxLive[key] = await createShader(canvas, { components: cfg.components || cfg.make() }, {
+          disableTelemetry: true,
+          ...(gpu ? { gpu } : {}),
+          onReady: () => canvas.classList.add('on'),
+          onError: reason => { console.warn('Effect unavailable:', reason); canvas.classList.remove('on'); }
+        });
+      } catch (e) { console.warn('Effect could not start:', e); }
+    }
     const fxObserver = new IntersectionObserver(entries => {
-      entries.forEach(async en => {
-        if (!en.isIntersecting) return;
-        fxObserver.unobserve(en.target);
-        const key = en.target.dataset.scene;
-        const canvas = en.target.querySelector('.fx');
-        const cfg = FX[key];
-        try {
-          const { createShader } = await load();
-          fxLive[key] = await createShader(canvas, { components: cfg.components || cfg.make() }, {
-            disableTelemetry: true,
-            ...(gpu ? { gpu } : {}),
-            onReady: () => canvas.classList.add('on'),
-            onError: reason => { console.warn('Effect unavailable:', reason); canvas.classList.remove('on'); }
-          });
-        } catch (e) { console.warn('Effect could not start:', e); }
-      });
+      entries.forEach(en => { if (en.isIntersecting) startFx(en.target); });
     }, { rootMargin: '100% 0px' });
     scenes.forEach(s => { if (s.querySelector('.fx')) fxObserver.observe(s); });
+    // Warm the remaining effects up while nothing is happening, so the first scroll past them doesn't
+    // have to load and compile them. Each one pauses itself while it's off screen.
+    const idle = window.requestIdleCallback || (f => setTimeout(f, 300));
+    const warmNext = () => {
+      const next = scenes.find(s => !s.hidden && s.querySelector('.fx') && !s.dataset.fx);
+      if (next) startFx(next).finally(() => setTimeout(() => idle(warmNext, { timeout: 5000 }), 1500));
+    };
+    setTimeout(() => idle(warmNext, { timeout: 5000 }), 4000);
   }
 
   function placeAnchors() {
