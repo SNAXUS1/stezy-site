@@ -3915,5 +3915,43 @@
   route(true);
 })();
 </script>
+<script>
+// Visit counts with GoatCounter (no cookies, nothing personal). The page lives on one URL, so each place
+// is counted by hand: "/", "/#apps", "/#linkfuse"... plus downloads and plays as events.
+window.goatcounter = { no_onload: true };
+(() => {
+  let last = '', timer = 0;
+  const gc = () => window.goatcounter && window.goatcounter.count ? window.goatcounter : null;
+  function view() {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const path = location.pathname + location.hash;
+      if (path === last || !gc()) return;
+      last = path;
+      gc().count({ path, title: document.title });
+    }, 800);
+  }
+  for (const k of ['pushState', 'replaceState']) {
+    const orig = history[k];
+    history[k] = function (...args) { const r = orig.apply(this, args); view(); return r; };
+  }
+  addEventListener('hashchange', view);
+  document.addEventListener('click', e => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (!a || !gc()) return;
+    const href = a.getAttribute('href');
+    const dl = href.match(/releases\/download\/([^/]+)\//);
+    const play = href.match(/^\/play\/([^/]+)/);
+    const name = dl ? 'download/' + dl[1] : play ? 'play/' + play[1] : null;
+    if (name) gc().count({ path: name, title: a.textContent.trim() || name, event: true });
+  }, true);
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://gc.zgo.at/count.js';
+  s.dataset.goatcounter = 'https://stezy.goatcounter.com/count';
+  s.onload = view;
+  document.head.appendChild(s);
+})();
+</script>
 </body>
 </html>
