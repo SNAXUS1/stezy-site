@@ -788,7 +788,8 @@
     background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 132 44'><defs><linearGradient id='b' x1='0' y1='1' x2='1' y2='0'><stop offset='0' stop-color='%23ECE7DD' stop-opacity='0'/><stop offset='.35' stop-color='%23ECE7DD' stop-opacity='.55'/><stop offset='.78' stop-color='%23F4F1EA'/><stop offset='1' stop-color='%23C9D8F0' stop-opacity='.9'/></linearGradient></defs><path d='M4 41 C 18 18, 52 4, 92 3.2 C 108 2.9, 121 4.6, 129 8.4 C 116 6.4, 104 6.2, 92 6.9 C 56 9, 24 22, 4 41 Z' fill='url(%23b)'/></svg>") center / contain no-repeat; filter: drop-shadow(0 0 0.06em rgba(143, 179, 232, 0.55));
   }
   .scene.is-active .t-reaper::before { animation: reap-moon 1.3s var(--ease-out) 0.6s both; }
-  @keyframes reap-moon { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
+  /* The reveal's clip leaves room around the crescent, so its soft glow is never cut into a box */
+  @keyframes reap-moon { from { opacity: 0; clip-path: inset(-60% 100% -60% -12%); } to { opacity: 1; clip-path: inset(-60% -12% -60% -12%); } }
   /* Reap: each letter cuts in from the left, out of a blur */
   .scene.is-active .enter-reap .ch { animation: reap-in 0.9s var(--ease-out) calc(0.12s + var(--i) * 85ms) both; }
   @keyframes reap-in {
