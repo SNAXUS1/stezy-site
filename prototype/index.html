@@ -688,7 +688,7 @@
     text-shadow: 0 0 0.25em rgba(159, 227, 201, 0.45);
   }
   /* Breathe: letters swell in slowly, then the word keeps breathing */
-  .scene.is-active .enter-breathe .ch { animation: breathe-in 2.2s cubic-bezier(0.37, 0, 0.63, 1) calc(0.15s + var(--i) * 200ms) both, breathe 8s ease-in-out calc(2.6s + var(--i) * 200ms) infinite; }
+  .scene.is-active .enter-breathe .ch { animation: breathe-in 2.2s cubic-bezier(0.37, 0, 0.63, 1) calc(0.15s + var(--i) * 200ms) both; }
   @keyframes breathe-in { from { opacity: 0; transform: scale(0.85); filter: blur(0.05em); } to { opacity: 1; transform: none; filter: none; } }
   @keyframes breathe { 0%, 100% { scale: 1; } 50% { scale: 1.04; } }
 
@@ -728,7 +728,6 @@
     text-shadow: 0 0 0.12em #FF4D5E, 0 0 0.4em rgba(255, 77, 94, 0.7); box-shadow: 0 0 0.3em rgba(255, 77, 94, 0.55), inset 0 0 0.25em rgba(255, 77, 94, 0.4);
   }
   /* On air: the sign hums, stutters once, then lights for good */
-  .scene.is-active .enter-onair { animation: onair 1.6s steps(1, end) 0.2s both; }
   @keyframes onair {
     0% { opacity: 0.12; filter: saturate(0.2); }
     18% { opacity: 1; filter: none; }
@@ -822,6 +821,158 @@
     text-shadow: 0 0 0.02em #fff, 0 0 0.08em #4D7BFF, 0 0 0.2em #2447FF, 0 0 0.45em rgba(36, 71, 255, 0.55);
     filter: url(#f-sketch-lg);
   }
+
+  /* ============ Living scenes: each name made of its app's own material ============ */
+  .deco { position: absolute; pointer-events: none; }
+  .scene:not(.is-active) .deco, .scene:not(.is-active) .deco * { animation-play-state: paused; }
+  /* A copy of the title laid exactly over it (placed by the scene script) */
+  .scene .title.title-copy { position: absolute; margin: 0; z-index: 1; pointer-events: none; }
+  .scene .title.title-copy::before, .scene .title.title-copy::after { display: none; }
+
+  /* Nocturne: almost dark; the mouse is a warm lamp, and the name only shows where it shines */
+  @property --lx { syntax: '<length>'; inherits: false; initial-value: -999px; }
+  @property --ly { syntax: '<length>'; inherits: false; initial-value: -999px; }
+  @property --lr { syntax: '<length>'; inherits: false; initial-value: 240px; }
+  .scene-nocturne .t-nocturne.dim > [aria-hidden="true"] { opacity: 0.2; }
+  .scene-nocturne .lamp-copy { filter: brightness(1.12);
+    -webkit-mask-image: radial-gradient(circle var(--lr, 240px) at var(--lx, -999px) var(--ly, -999px), #000 0%, rgba(0, 0, 0, 0.55) 45%, transparent 100%);
+    mask-image: radial-gradient(circle var(--lr, 240px) at var(--lx, -999px) var(--ly, -999px), #000 0%, rgba(0, 0, 0, 0.55) 45%, transparent 100%); }
+  .lamp-glow { left: 0; top: 0; width: 640px; height: 640px; margin: -320px 0 0 -320px; border-radius: 50%; z-index: 0; will-change: transform;
+    background: radial-gradient(closest-side, rgba(255, 196, 120, 0.2), rgba(255, 150, 70, 0.07) 45%, transparent); }
+
+  /* Undertow: deep water, light rays swaying down from the surface and caustics drifting over everything */
+  .uw-rays { inset: 0; z-index: 0; -webkit-mask-image: linear-gradient(180deg, #000, rgba(0, 0, 0, 0.5) 50%, transparent 88%); mask-image: linear-gradient(180deg, #000, rgba(0, 0, 0, 0.5) 50%, transparent 88%); }
+  .uw-rays i { position: absolute; top: -12%; height: 125%; left: var(--rx); width: var(--rw); transform-origin: 50% 0; will-change: transform;
+    background: radial-gradient(50% 100% at 50% 0%, rgba(175, 222, 255, 0.2), rgba(120, 190, 255, 0.06) 55%, transparent 80%);
+    animation: ray-sway var(--rt) ease-in-out var(--rd) infinite alternate; }
+  @keyframes ray-sway { from { transform: rotate(calc(var(--ra) - 3deg)); opacity: 0.5; } to { transform: rotate(calc(var(--ra) + 3deg)); opacity: 1; } }
+  .uw-light { inset: 0; z-index: 0; overflow: hidden; -webkit-mask-image: radial-gradient(70% 60% at 50% 48%, #000 30%, transparent 85%); mask-image: radial-gradient(70% 60% at 50% 48%, #000 30%, transparent 85%); }
+  .uw-light.front { z-index: 1; opacity: 0.3; }
+  .uw-light i { position: absolute; inset: -480px; background-image: var(--caustic); background-size: 480px 480px; opacity: 0.09; will-change: transform; animation: caustic-a 26s linear infinite; }
+  .uw-light i + i { background-size: 620px 620px; opacity: 0.07; animation: caustic-b 37s linear infinite; }
+  @keyframes caustic-a { to { transform: translate(480px, 480px); } }
+  @keyframes caustic-b { to { transform: translate(-620px, 620px); } }
+
+  /* Reaper: a cold moon, mist on the ground, and a light that catches the letters as it passes */
+  .rp-moon { right: 7%; top: 7%; width: 36vmin; height: 36vmin; border-radius: 50%; z-index: 0;
+    background: radial-gradient(circle at 44% 42%, rgba(236, 231, 221, 0.09), rgba(143, 179, 232, 0.04) 45%, transparent 70%); filter: blur(6px);
+    animation: moon-drift 40s ease-in-out infinite alternate; }
+  @keyframes moon-drift { to { transform: translate(-2.5vw, 2vh); } }
+  .rp-mist { left: -15%; right: -15%; bottom: -6%; height: 42%; z-index: 0;
+    background: radial-gradient(55% 60% at 50% 100%, rgba(143, 179, 232, 0.1), transparent 70%); animation: mist-drift 21s ease-in-out infinite alternate; }
+  @keyframes mist-drift { to { transform: translateX(6vw) scaleY(1.15); } }
+  .scene-reaper .reap-shine { color: #FFFFFF; text-shadow: 0 0 0.1em rgba(180, 205, 255, 0.95), 0 0 0.45em rgba(143, 179, 232, 0.55);
+    -webkit-mask-image: linear-gradient(100deg, transparent 42%, #000 50%, transparent 58%); mask-image: linear-gradient(100deg, transparent 42%, #000 50%, transparent 58%);
+    -webkit-mask-size: 300% 100%; mask-size: 300% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    animation: shine 5.2s cubic-bezier(0.45, 0, 0.25, 1) 1.6s infinite; -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+  @keyframes shine { 0% { -webkit-mask-position: 100% 0; mask-position: 100% 0; } 28%, 100% { -webkit-mask-position: 0% 0; mask-position: 0% 0; } }
+
+  /* Poltergeist: a TV glowing from below, a glossy floor that reflects the hovering letters */
+  .pg-tv { left: 50%; bottom: -10%; width: 76vw; height: 50vh; margin-left: -38vw; z-index: 0; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(150, 170, 255, 0.26), rgba(110, 90, 220, 0.1) 50%, transparent); animation: tv-flicker 6.7s steps(1, end) infinite; }
+  @keyframes tv-flicker { 0%, 100% { opacity: 1; } 41% { opacity: 0.55; } 42% { opacity: 1; } 77% { opacity: 0.7; } 78% { opacity: 0.95; } 79% { opacity: 0.55; } 80% { opacity: 1; } }
+  .scene-poltergeist.jolt .pg-tv { animation: none; opacity: 0.35; }
+  .js .scene .title.pg-reflect { opacity: 0; }
+  .js .scene.is-active .title.pg-reflect { opacity: 0.17; transform: scaleY(-1); filter: blur(1.5px);
+    -webkit-mask-image: linear-gradient(180deg, transparent 25%, #000 100%); mask-image: linear-gradient(180deg, transparent 25%, #000 100%); }
+  .scene.is-active .enter-levitate .ch.yank {
+    animation: lev-in 1.2s var(--ease-out) calc(0.1s + var(--r) * 550ms) both,
+               hover-bob calc(2.4s + var(--r) * 1.6s) ease-in-out calc(1.3s + var(--r) * 700ms) infinite alternate,
+               yank 0.8s var(--ease-out) both;
+  }
+  /* The reflection keeps the entrance but not the endless bob (it's faint and blurred; the bob would double the work) */
+  .scene.is-active .enter-levitate.pg-reflect .ch { animation: lev-in 1.2s var(--ease-out) calc(0.1s + var(--r) * 550ms) both; }
+  .scene.is-active .enter-levitate.pg-reflect .ch.yank { animation: lev-in 1.2s var(--ease-out) calc(0.1s + var(--r) * 550ms) both, yank 0.8s var(--ease-out) both; }
+  @keyframes yank { 0% { rotate: 0deg; scale: 1; } 16% { rotate: 30deg; scale: 1.14; } 38% { rotate: -12deg; scale: 0.95; } 62% { rotate: 4deg; scale: 1.01; } 100% { rotate: 0deg; scale: 1; } }
+
+  /* Lull: a soft orb that breathes in a 4-7-8 rhythm, with the name breathing along */
+  .lull-orb, .lull-ring { left: 50%; top: 50%; width: 58vmin; height: 58vmin; margin: -29vmin 0 0 -29vmin; border-radius: 50%; z-index: 0; will-change: transform; }
+  .lull-orb { background: radial-gradient(closest-side, rgba(191, 240, 221, 0.2), rgba(120, 200, 180, 0.09) 55%, transparent); }
+  .lull-ring { box-shadow: inset 0 0 0 1px rgba(191, 240, 221, 0.16), 0 0 40px rgba(159, 227, 201, 0.08); }
+  .lull-cue { left: 0; right: 0; z-index: 1; text-align: center; font: 600 11px/1 'Hanken Grotesk', sans-serif; letter-spacing: 0.32em; text-transform: uppercase;
+    color: rgba(214, 240, 230, 0.6); transition: opacity 0.9s ease; }
+  .lull-cue.out { opacity: 0; }
+  .t-lull > [aria-hidden="true"] { display: inline-block; }
+
+  /* Prism: a white beam comes in and leaves the name as a spectrum; the mouse tilts the beam */
+  .pr-beam { left: 0; top: 0; height: 10px; margin-top: -5px; z-index: 0; transform-origin: 100% 50%; border-radius: 6px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0), #FFFFFF 65%);
+    box-shadow: 0 0 0 1px rgba(170, 140, 90, 0.18), 0 0 18px 5px rgba(255, 214, 140, 0.9), 0 0 70px 14px rgba(255, 196, 120, 0.45); will-change: transform; }
+  .pr-fan { left: 0; top: 0; width: 160vmax; height: 160vmax; margin: -80vmax 0 0 -80vmax; z-index: 0; will-change: transform;
+    background: conic-gradient(from 76deg, transparent 0deg, rgba(255, 95, 143, 0.5) 5deg, rgba(255, 179, 71, 0.5) 10deg, rgba(124, 224, 124, 0.46) 15deg, rgba(79, 179, 255, 0.5) 20deg, rgba(164, 124, 255, 0.5) 25deg, transparent 30deg, transparent 360deg);
+    -webkit-mask-image: radial-gradient(closest-side, transparent 3%, #000 9%, rgba(0, 0, 0, 0.6) 35%, transparent 62%); mask-image: radial-gradient(closest-side, transparent 3%, #000 9%, rgba(0, 0, 0, 0.6) 35%, transparent 62%); }
+
+  /* Afterimage: copies of the name trail behind your movement, and film runs along the edges */
+  .scene .title.ai-copy { z-index: 0; color: var(--c); text-shadow: none; will-change: transform; }
+  .js .scene.is-active .title.ai-copy { opacity: var(--o); }
+  .scene .title.ai-copy .ch { text-shadow: none !important; }
+  .ai-film { left: 0; width: calc(100% + 64px); height: 34px; z-index: 0; opacity: 0.5;
+    background: repeating-linear-gradient(90deg, transparent 0 14px, rgba(255, 236, 240, 0.14) 14px 34px, transparent 34px 64px) 0 9px / 100% 16px no-repeat,
+                linear-gradient(rgba(255, 236, 240, 0.06), rgba(255, 236, 240, 0.06));
+    animation: film-run 2.2s linear infinite; }
+  .ai-film.top { top: 4vh; } .ai-film.bottom { bottom: 4vh; animation-direction: reverse; }
+  @keyframes film-run { to { transform: translateX(-64px); } }
+
+  /* Hush: the sign hums and stutters now and then; under it a live mic line. Hover (or tap) mutes it */
+  .scene.is-active .enter-onair { animation: onair 1.6s steps(1, end) 0.2s both, hum 7.3s steps(1, end) 2.6s infinite; }
+  @keyframes hum { 0%, 60%, 63%, 86%, 89%, 100% { opacity: 1; } 61% { opacity: 0.5; } 62% { opacity: 0.85; } 87% { opacity: 0.62; } 88% { opacity: 1; } }
+  .scene.is-active .enter-onair.muted { animation: none; opacity: 0.28; filter: saturate(0.2) brightness(0.75); transition: opacity 0.35s, filter 0.35s; }
+  .hush-wave { z-index: 1; }
+  .hush-pill { z-index: 2; padding: 6px 12px; border-radius: 999px; font: 700 10.5px/1 'Hanken Grotesk', sans-serif; letter-spacing: 0.24em; color: #FFD6D2;
+    background: rgba(255, 77, 94, 0.16); box-shadow: inset 0 0 0 1px rgba(255, 77, 94, 0.6); opacity: 0; transform: translateY(6px); transition: opacity 0.25s var(--ease-out), transform 0.25s var(--ease-out); }
+  .scene-hush.muted-now .hush-pill { opacity: 1; transform: none; }
+  .hush-floor { left: 50%; width: 70vw; margin-left: -35vw; height: 24vh; z-index: 0; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255, 77, 94, 0.18), transparent); }
+
+  /* Specter: panes of glass floating at different depths; one sits in front of the name */
+  .sp-pane { border-radius: 22px; overflow: hidden; will-change: transform;
+    border: 1px solid rgba(207, 224, 255, 0.22); background: linear-gradient(135deg, rgba(207, 224, 255, 0.12), rgba(207, 224, 255, 0.03) 60%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 40px 90px -40px rgba(0, 0, 0, 0.7); }
+  .sp-pane::after { content: ""; position: absolute; inset: -40%; background: linear-gradient(115deg, transparent 44%, rgba(255, 255, 255, 0.14) 50%, transparent 56%); animation: pane-sheen 8s ease-in-out infinite; }
+  @keyframes pane-sheen { 0%, 55% { transform: translateX(-60%); } 85%, 100% { transform: translateX(60%); } }
+  .sp-pane.p1 { left: 6%; top: 12%; width: 30vw; height: 32vh; z-index: 0; animation: pane-float 15s ease-in-out infinite alternate; }
+  .sp-pane.p2 { right: 9%; top: 44%; width: 24vw; height: 38vh; z-index: 0; animation: pane-float 19s ease-in-out -6s infinite alternate; }
+  .sp-pane.p3 { left: 34%; top: 30%; width: 20vw; height: 28vh; z-index: 2; background: linear-gradient(135deg, rgba(14, 20, 36, 0.42), rgba(207, 224, 255, 0.06)); animation: pane-float 13s ease-in-out -3s infinite alternate; }
+  .sp-pane.p3::after { animation-delay: -3s; }
+  @keyframes pane-float { from { transform: translateY(-10px) rotate(-0.6deg); } to { transform: translateY(12px) rotate(0.5deg); } }
+
+  /* Tether: a clock face behind, a cord running to the name, and each second a letter ticks */
+  .tt-dial { z-index: 0; opacity: 0.55; }
+  .tt-dial svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .tt-hand { position: absolute; left: 50%; bottom: 50%; width: 2px; margin-left: -1px; height: 44%; transform-origin: 50% 100%; border-radius: 2px;
+    background: linear-gradient(0deg, rgba(255, 154, 92, 0), #FFC48A); box-shadow: 0 0 10px rgba(255, 154, 92, 0.7);
+    animation: tt-sweep 60s linear infinite; animation-delay: var(--sec, 0s); }
+  @keyframes tt-sweep { to { transform: rotate(360deg); } }
+  .tt-cord { left: 0; top: 0; width: 100%; height: 100%; z-index: 0; overflow: visible; }
+  .t-tether .ch { transition: color 0.6s ease, text-shadow 0.6s ease; }
+  .t-tether .ch.beat { color: #FFFFFF; text-shadow: 0 0 0.25em rgba(255, 190, 120, 0.95), 0 0 0.6em rgba(255, 154, 92, 0.6); transition: none; }
+
+  /* Ledger: ink that bled into the paper, the day's ribbon of colour, and your mouse is a pen */
+  .scene .t-ledger { filter: url(#f-ledger); }
+  .lg-ribbon { z-index: 1; height: 12px; display: flex; border-radius: 2px; overflow: hidden; }
+  .lg-ribbon i { display: block; height: 100%; flex: var(--f) 0 0; background: var(--c); opacity: 0.85; }
+  .scene.is-active .lg-ribbon { animation: ribbon-in 1.6s cubic-bezier(0.5, 0, 0.2, 1) 0.9s both; }
+  @keyframes ribbon-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  .lg-ribbon i:last-child { animation: ribbon-grow 6s ease-in-out infinite alternate; transform-origin: 0 50%; }
+  @keyframes ribbon-grow { to { transform: scaleX(1.25); } }
+  .lg-ink { inset: 0; z-index: 1; width: 100%; height: 100%; }
+
+  /* Veil: velvet curtains that part as you come closer to the middle */
+  .scene-veil { align-items: center; text-align: center; }
+  .scene .t-veil { margin-right: 0; }
+  .vl-curtain { top: -3%; bottom: -3%; width: 27vw; z-index: 1; will-change: transform; transform-origin: 50% 0;
+    background:
+      linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 30%, transparent 70%, rgba(0, 0, 0, 0.5)),
+      repeating-linear-gradient(90deg, #0E0A1C 0, #2B2050 2.6vw, #1A1433 4.6vw, #0B0816 6vw);
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.6); animation: drape-sway 9s ease-in-out infinite alternate; }
+  .vl-curtain.l { left: 0; }
+  .vl-curtain.r { right: 0; animation-delay: -4.5s; }
+  .vl-curtain.l::after, .vl-curtain.r::after { content: ""; position: absolute; top: 0; bottom: 0; width: 18px; background: linear-gradient(90deg, rgba(220, 210, 255, 0.18), transparent); }
+  .vl-curtain.l::after { right: 0; transform: scaleX(-1); }
+  .vl-curtain.r::after { left: 0; }
+  @keyframes drape-sway { from { transform: skewX(-1.1deg); } to { transform: skewX(1.1deg); } }
+  @media (max-width: 700px) { .vl-curtain { width: 20vw; } .sp-pane.p3 { left: 46%; width: 34vw; } .ai-film { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .deco, .deco * { animation: none !important; } }
 
   /* STEZY's picks: a warm sparkle that twinkles now and then, and a pill with a slow sheen */
   .pk { display: inline-flex; flex: none; width: 11px; height: 11px; color: #FFE6B3; filter: drop-shadow(0 0 4px rgba(255, 205, 130, 0.85)); animation: pk-twinkle 4.8s ease-in-out var(--pk-d, 0s) infinite; }
@@ -1542,6 +1693,22 @@
     const word = w => `<span class="word">${[...w].map(c => `<span class="ch" style="--i:${i++};--r:${Math.random().toFixed(2)}">${c}</span>`).join('')}</span>`;
     return label + `<span aria-hidden="true">${p.name.split(' ').map(word).join(' ')}</span>`;
   }
+  // The layers each living scene needs (the scene script moves the ones that follow the mouse)
+  const DECO = {
+    nocturne: '<div class="deco lamp-glow" aria-hidden="true"></div>',
+    undertow: '<div class="deco uw-rays" aria-hidden="true">' + [[6, 9, -14, 9], [22, 13, -8, 12], [41, 8, -2, 8], [57, 15, 6, 11], [76, 10, 12, 14]]
+      .map(([x, wd, a, t], i) => `<i style="--rx:${x}%;--rw:${wd}vw;--ra:${a}deg;--rt:${t}s;--rd:${-i * 2.3}s"></i>`).join('') + '</div><div class="deco uw-light" aria-hidden="true"><i></i><i></i></div>',
+    reaper: '<div class="deco rp-moon" aria-hidden="true"></div><div class="deco rp-mist" aria-hidden="true"></div>',
+    poltergeist: '<div class="deco pg-tv" aria-hidden="true"></div>',
+    lull: '<div class="deco lull-orb" aria-hidden="true"></div><div class="deco lull-ring" aria-hidden="true"></div>',
+    prism: '<div class="deco pr-fan" aria-hidden="true"></div><div class="deco pr-beam" aria-hidden="true"></div>',
+    afterimage: '<div class="deco ai-film top" aria-hidden="true"></div><div class="deco ai-film bottom" aria-hidden="true"></div>',
+    hush: '<div class="deco hush-floor" aria-hidden="true"></div>',
+    specter: '<div class="deco sp-pane p1" aria-hidden="true"></div><div class="deco sp-pane p2" aria-hidden="true"></div><div class="deco sp-pane p3" aria-hidden="true"></div>',
+    tether: '<div class="deco tt-dial" aria-hidden="true"><i class="tt-hand"></i></div><svg class="deco tt-cord" aria-hidden="true"><path fill="none" stroke="rgba(255,180,110,0.55)" stroke-width="1.5"/><path fill="none" stroke="rgba(255,154,92,0.18)" stroke-width="7"/></svg>',
+    ledger: '<canvas class="deco lg-ink" aria-hidden="true"></canvas>',
+    veil: '<div class="deco vl-curtain l" aria-hidden="true"></div><div class="deco vl-curtain r" aria-hidden="true"></div>'
+  };
   // A four-point sparkle marks STEZY's own favourites
   const SPARK = '<svg class="pk-star" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C8.5 4.6 11.4 7.5 16 8 11.4 8.5 8.5 11.4 8 16 7.5 11.4 4.6 8.5 0 8 4.6 7.5 7.5 4.6 8 0Z"/></svg>';
   const pickTag = () => `<span class="pick-tag" title="One of STEZY's favourites">${SPARK}<span>STEZY's pick</span></span>`;
@@ -1560,6 +1727,7 @@
     const creditSide = p.layout === 'at-left' ? 'at-right' : 'at-left';
     s.innerHTML = `
       ${FX[p.slug] ? `<canvas class="fx" aria-hidden="true" style="--fx-o:${FX[p.slug].opacity}"></canvas>` : ''}
+      ${DECO[p.slug] || ''}
       ${p.style === 'vinyl' ? `<div class="vinyl-wrap" aria-hidden="true" style="--label:${p.label}"><div class="vinyl"><span>${p.platform}</span></div><div class="vinyl-sheen"></div></div>` : ''}
       <span class="ghost-word" aria-hidden="true" style="font-family:${p.font};${p.titleCss || ''}">${p.name}</span>
       ${sparksHtml(p.sparks)}
@@ -1726,6 +1894,7 @@
     rail.querySelectorAll('button').forEach(b => b.setAttribute('aria-current', b.dataset.go === key));
     markNear();
     field.setMode(key);
+    if (window.__sceneFx) window.__sceneFx.enter(key);
     document.querySelector('meta[name="theme-color"]').content = pageColor[key] || getComputedStyle(root).getPropertyValue('--base').trim();
   }
   const io = new IntersectionObserver(entries => {
@@ -2076,7 +2245,14 @@
       <feDisplacementMap in="SourceGraphic" in2="t" scale="${4 * k}" xChannelSelector="R" yChannelSelector="G"/>
     </filter>`;
   }
-  document.getElementById('filters').innerHTML = filterSet('', 1, false) + filterSet('-lg', 2.6, true) + filterSet('-sm', 0.55, false);
+  document.getElementById('filters').innerHTML = filterSet('', 1, false) + filterSet('-lg', 2.6, true) + filterSet('-sm', 0.55, false) +
+    `<filter id="f-ledger" x="-5%" y="-10%" width="110%" height="120%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="rough"/>
+      <feGaussianBlur in="rough" stdDeviation="0.9" result="bleed"/>
+      <feComponentTransfer in="bleed" result="bleedA"><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
+      <feMerge><feMergeNode in="bleedA"/><feMergeNode in="rough"/></feMerge>
+    </filter>`;
 
   // ---------- Noise tiles (transparency baked in, so no costly blend modes while scrolling) ----------
   function noiseTile(size, mode) {
@@ -2105,6 +2281,14 @@
   // megabyte of text inside a CSS variable, re-read every time an animated grain layer is restyled.
   [['--grain-color', 509, 'color'], ['--grain-color-2', 367, 'color'], ['--grain-mono', 509, 'mono'], ['--paper', 200, 'paper'], ['--static', 160, 'static']]
     .forEach(([name, size, mode]) => noiseTile(size, mode).toBlob(b => { if (b) root.style.setProperty(name, `url(${URL.createObjectURL(b)})`); }, 'image/png'));
+
+  // ---------- One breathing clock for Lull: 4 s in, 7 s hold, 8 s out ----------
+  function breathAt(t) {
+    const c = (t / 1000) % 19, e = k => 0.5 - Math.cos(Math.PI * k) / 2;
+    if (c < 4) return { v: e(c / 4), phase: 'Breathe in' };
+    if (c < 11) return { v: 1, phase: 'Hold' };
+    return { v: 1 - e((c - 11) / 8), phase: 'Breathe out' };
+  }
 
   // ---------- The particle field: writes STEZY, then changes behaviour per scene ----------
   const field = (() => {
@@ -2191,8 +2375,9 @@
         a: 0.04 + Math.random() * 0.06, vx: (Math.random() - 0.5) * 0.16, vy: (Math.random() - 0.5) * 0.1, c: i % 2
       });
       sampleText();
-      sky.sig = '';
+      sky.sig = ''; ash.sig = '';
       if (KIND[mode] === 'sky') sampleSky();
+      if (KIND[mode] === 'reap') sampleAsh();
     }
 
     // Draw a word off-screen, letter-spaced like the brand, and return its pixels in random order
@@ -2278,6 +2463,7 @@
       const leavingForm = KIND[mode] === 'form' && KIND[key] !== 'form';
       mode = key;
       if (KIND[key] === 'sky') sampleSky();
+      if (KIND[key] === 'reap') sampleAsh();
       if (key === 'outro' || key === 'intro') useWord(wordFor(key));
       const [a, b] = colorsFor(key);
       tgt = { a, b };
@@ -2339,7 +2525,7 @@
         case 'ink': return Math.min(0.85, d.a * 1.3);
         case 'bokeh': return d.big && d.c < 0.35 ? 0.16 : d.a * 0.2;
         case 'echo': return d.a * 0.22;
-        case 'reap': return d.a * 0.32;
+        case 'reap': return ash.ready && d.c < 0.09 && !d.big ? 0.18 + Math.max(0, d.lp) * 0.7 : d.a * 0.32;
         case 'lanes': return d.big ? d.a * 0.12 : 0.3 + d.a * 0.6;
         case 'sky': return d.star >= 0 && sky.ready ? 0.78 + d.a * 0.22 : d.a * 0.5;
         case 'halo': return d.c < 0.12 ? (mouse.on ? 0.9 : 0.6) : d.c < 0.24 ? d.a * 0.4 : d.c < 0.62 ? Math.min(0.95, 0.4 + d.a) : d.a * 0.3;
@@ -2417,6 +2603,33 @@
       sky.sparks = [];
       sky.ready = sky.stars.length > 24;
       title.classList.toggle('in-sky', sky.ready);
+    }
+    // ---- Reaper: points on the letters, where the ash is shed from ----
+    const ash = { pts: [], ready: false, sig: '' };
+    function sampleAsh() {
+      if (reduce || !w) return;
+      const title = document.querySelector('#s-reaper .title');
+      if (!title || title.offsetParent === null) return;
+      const r = title.getBoundingClientRect(), cs = getComputedStyle(title), fsz = parseFloat(cs.fontSize);
+      const sig = [w, h, Math.round(r.left), Math.round(r.top + scrollY), fsz].join('|');
+      if (sig === ash.sig) return;
+      ash.sig = sig;
+      const W = Math.ceil(r.width), H = Math.ceil(r.height + fsz * 0.4);
+      const off = document.createElement('canvas');
+      off.width = W; off.height = H;
+      const o = off.getContext('2d', { willReadFrequently: true });
+      o.font = `${cs.fontWeight} ${fsz}px ${cs.fontFamily}`;
+      o.fillStyle = '#fff';
+      const fm = o.measureText('M'), asc = fm.fontBoundingBoxAscent, desc = fm.fontBoundingBoxDescent;
+      title.querySelectorAll('.ch').forEach(ch => {
+        o.fillText(ch.textContent.toUpperCase(), ch.offsetLeft, ch.offsetTop + (ch.offsetHeight - (asc + desc)) / 2 + asc);
+      });
+      const data = o.getImageData(0, 0, W, H).data, pts = [], step = 4, top = r.top + scrollY;
+      // Only the lower half of each stroke sheds: ash falls from where it is heaviest
+      for (let y = 0; y < H; y += step) for (let x = 0; x < W; x += step) if (data[(y * W + x) * 4 + 3] > 150) pts.push([r.left + x, top + y]);
+      ash.pts = pts;
+      ash.ready = pts.length > 30;
+      if (ash.ready) dots.forEach(d => { if (d.c < 0.09) d.lp = Math.random(); });
     }
     // A soft round glow, drawn once per colour and stamped wherever a light needs a halo
     let glowSprite = null, glowKey = '';
@@ -2582,7 +2795,10 @@
             // Dust that levitates, and every few seconds an invisible hand shoves it all sideways
             case 'float': { const gust = Math.pow(Math.max(0, Math.sin(t * 0.0007)), 10) * 2.4; ax = Math.sin(t * 0.0006 + d.ph) * 0.12 + gust; ay = -0.1 - d.s * 0.25; break; }
             // Water pulling back out to sea, in slow ribbons
-            case 'current': ax = -(0.3 + d.s * 0.9); ay = Math.sin(d.x * 0.008 + t * 0.0012 + d.ph) * 0.35; break;
+            case 'current':
+              if (d.big) { ax = Math.sin(t * 0.002 + d.ph * 3) * 0.2 - 0.05; ay = -(0.3 + d.s * 0.5); } // bubbles
+              else { ax = -(0.3 + d.s * 0.9); ay = Math.sin(d.x * 0.008 + t * 0.0012 + d.ph) * 0.35; }
+              break;
             // Long, slow folds of fabric settling downwards
             case 'drape': ax = Math.sin(d.y * 0.004 + t * 0.0005 + d.ph * 0.3) * 0.18; ay = 0.12 + d.s * 0.18; break;
             // Grain sliding past like film through a projector
@@ -2594,13 +2810,27 @@
             // Specks of coloured light drifting along a slanted beam
             case 'rays': ax = 0.28 + d.s * 0.35; ay = 0.12 + d.s * 0.18; break;
             // Everything rises and settles together, like slow breathing
-            case 'breath': ax = Math.sin(t * 0.0003 + d.ph) * 0.06; ay = Math.sin(t * 0.00078) * (0.18 + d.s * 0.12); break;
+            case 'breath': {
+              const dv = (breathAt(t + 100).v - breathAt(t).v) * 10; // roughly -1..1
+              ax = Math.sin(t * 0.0003 + d.ph) * 0.05 + (d.x - w / 2) * 0.0016 * dv * (0.4 + d.s);
+              ay = (d.y - h * 0.5) * 0.0016 * dv * (0.4 + d.s) - 0.02;
+              break;
+            }
             // Fireflies: slow, lazy, blinking
             case 'fireflies': ax = Math.sin(t * 0.0005 + d.ph * 2) * 0.22; ay = Math.cos(t * 0.0004 + d.ph) * 0.16; break;
             case 'glitch': ax = 0.12; ay = 0; if (Math.random() < 0.004) d.x += (Math.random() - 0.5) * 60; break;
             case 'lanes': ax = 0.12; ay = Math.sin(t * 0.0004 + d.ph) * 0.05; break;
             // Ash drifting down through the dark
-            case 'reap': ax = Math.sin(t * 0.0004 + d.ph) * 0.08 + 0.04; ay = 0.1 + d.s * 0.16; break;
+            case 'reap':
+              if (ash.ready && d.c < 0.09 && !d.big) {
+                d.lp -= 0.0035 + d.s * 0.004;
+                if (d.lp <= 0) {
+                  const q = ash.pts[(Math.random() * ash.pts.length) | 0];
+                  d.x = q[0] + (Math.random() - 0.5) * 3; d.y = q[1] - scrollY; d.vx = d.vy = 0; d.lp = 1;
+                }
+                ax = 0.06 + Math.sin(t * 0.0011 + d.ph) * 0.14; ay = 0.06 + d.s * 0.2;
+              } else { ax = Math.sin(t * 0.0004 + d.ph) * 0.08 + 0.04; ay = 0.1 + d.s * 0.16; }
+              break;
             // Dust hanging in the dark, only seen when a ping washes over it
             case 'echo': ax = Math.sin(t * 0.0003 + d.ph) * 0.05; ay = Math.cos(t * 0.00025 + d.ph) * 0.04; break;
             // Faint motes of light rising slowly around the halo
@@ -2619,7 +2849,11 @@
           }
         }
         if (d.lit) d.lit = d.lit > 0.01 ? d.lit * (kind === 'echo' || kind === 'reap' ? 0.966 : 0.93) : 0;
-        if (kind === 'sky' && mouse.on && !(d.star >= 0 && sky.ready)) {
+        if (kind === 'current' && mouse.on) {
+          // Undertow: the mouse stirs an eddy in the water
+          const dx = d.x - mouse.x, dy = d.y - mouse.y, q = dx * dx + dy * dy, R = 200;
+          if (q < R * R && q > 1) { const dist = Math.sqrt(q), f = (1 - dist / R) * 0.5; d.vx += (-dy / dist) * f + (dx / dist) * f * 0.25; d.vy += (dx / dist) * f + (dy / dist) * f * 0.25; }
+        } else if (kind === 'sky' && mouse.on && !(d.star >= 0 && sky.ready)) {
           // Wisp: the lights lean toward you and circle you, like apps around you in the app
           const dx = mouse.x - d.x, dy = mouse.y - d.y, q = dx * dx + dy * dy, R = 220;
           if (q < R * R && q > 1) {
@@ -2861,6 +3095,7 @@
         else if (lastFill !== buckets[k]) { lastFill = buckets[k]; ctx.fillStyle = lastFill; }
         const sz = d.r * size * (star ? 1.5 : letter ? 1 : onRing ? 0.75 + near * 0.75 : 0.55 + d.z * 0.95);
         if (kind === 'bokeh' && d.big && d.c < 0.35) { ctx.beginPath(); ctx.arc(px, py, 3 + d.r * 5, 0, Math.PI * 2); ctx.fill(); }
+        else if (kind === 'current' && d.big && d.c < 0.4) { ctx.strokeStyle = lastFill; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.arc(px, py, 1.6 + d.r * 2.4, 0, Math.PI * 2); ctx.stroke(); }
         else c2.fillRect(px, py, sz, sz);
       }
       if (skyOn) drawSky(t);
@@ -2906,6 +3141,412 @@
     fontReady.catch(() => {}).then(() => { ready = true; sampleText(); });
     if (reduce) draw(0); else requestAnimationFrame(loop);
     return api;
+  })();
+
+  // ---------- Living scenes: the parts that follow the mouse or keep time ----------
+  // Only the scene on screen runs, one light frame loop, and every write is a transform, a mask
+  // position or a small canvas. Phones (no mouse) get gentle automatic motion instead.
+  (() => {
+    if (reduce) return;
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const mouse = { x: -9999, y: -9999, on: false, at: 0, vx: 0, vy: 0, lx: 0, ly: 0 };
+    addEventListener('pointermove', e => {
+      if (e.pointerType !== 'mouse') return;
+      mouse.x = e.clientX; mouse.y = e.clientY; mouse.on = true; mouse.at = performance.now();
+    }, { passive: true });
+    document.addEventListener('pointerleave', () => { mouse.on = false; });
+    const lerp = (a, b, k) => a + (b - a) * k;
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const titleOf = sc => sc.querySelector('.title:not(.title-copy)');
+    // A copy of the title laid over it (letters, entrance and all), for masks, shines and reflections
+    function makeCopy(sc, cls) {
+      const t = titleOf(sc), c = t.cloneNode(true);
+      c.removeAttribute('id');
+      c.setAttribute('aria-hidden', 'true');
+      const sr = c.querySelector('.sr-only');
+      if (sr) sr.remove();
+      ('title-copy ' + cls).split(' ').forEach(k => c.classList.add(k));
+      t.after(c);
+      return c;
+    }
+    const place = (c, t, dy = 0) => { c.style.left = t.offsetLeft + 'px'; c.style.top = t.offsetTop + dy + 'px'; c.style.width = t.offsetWidth + 'px'; };
+    // How the mouse sits relative to an element's box (0..1), or null when it isn't on screen
+    const rel = (sc, r) => (mouse.on ? { x: mouse.x - r.left, y: mouse.y - r.top } : null);
+    const recently = t => mouse.on && t - mouse.at < 4000;
+
+    // A tileable web of underwater light (caustics), made once
+    function causticTile() {
+      const n = 256, c = document.createElement('canvas');
+      c.width = c.height = n;
+      const g = c.getContext('2d'), img = g.createImageData(n, n), P = Math.PI * 2;
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        const u = (x / n) * P, v = (y / n) * P;
+        const a = Math.sin(5 * u + 2 * Math.sin(3 * v)) + Math.sin(5 * v + 2 * Math.sin(3 * u + 1)) + Math.sin(3 * (u + v) + Math.sin(4 * u));
+        const k = Math.pow(Math.max(0, 1 - Math.abs(a) * 0.6), 8);
+        const i = (y * n + x) * 4;
+        img.data[i] = 200; img.data[i + 1] = 235; img.data[i + 2] = 255; img.data[i + 3] = k * 255;
+      }
+      g.putImageData(img, 0, 0);
+      return c;
+    }
+
+    const H = {
+      nocturne: {
+        init(sc) {
+          this.t = titleOf(sc);
+          this.copy = makeCopy(sc, 'lamp-copy');
+          this.glow = sc.querySelector('.lamp-glow');
+          this.t.classList.add('dim');
+          this.p = { x: 0, y: 0 };
+        },
+        enter(sc) { place(this.copy, this.t); },
+        frame(t, sc) {
+          const r = sc.getBoundingClientRect(), tb = { x: this.t.offsetLeft, y: this.t.offsetTop, w: this.t.offsetWidth, h: this.t.offsetHeight };
+          let tx, ty;
+          if (recently(t)) { tx = mouse.x - r.left; ty = mouse.y - r.top; }
+          else {
+            // No mouse: the lamp wanders slowly along the name by itself
+            tx = tb.x + tb.w * (0.62 + 0.36 * Math.sin(t * 0.00023)); ty = tb.y + tb.h * (0.5 + 0.35 * Math.sin(t * 0.00037));
+          }
+          const ox = this.p.x, oy = this.p.y;
+          this.p.x = lerp(this.p.x || tx, tx, 0.12); this.p.y = lerp(this.p.y || ty, ty, 0.12);
+          if (Math.abs(this.p.x - ox) < 0.3 && Math.abs(this.p.y - oy) < 0.3) return;
+          this.copy.style.setProperty('--lx', (this.p.x - tb.x).toFixed(1) + 'px');
+          this.copy.style.setProperty('--ly', (this.p.y - tb.y).toFixed(1) + 'px');
+          this.copy.style.setProperty('--lr', (touch ? 300 : 250) + 'px');
+          this.glow.style.transform = `translate3d(${this.p.x.toFixed(1)}px, ${this.p.y.toFixed(1)}px, 0)`;
+        }
+      },
+
+      undertow: {
+        init(sc) {
+          causticTile().toBlob(b => { if (b) sc.style.setProperty('--caustic', `url(${URL.createObjectURL(b)})`); });
+          const front = sc.querySelector('.uw-light').cloneNode(true);
+          front.classList.add('front');
+          front.lastElementChild.remove(); // one moving layer in front is enough
+          titleOf(sc).after(front);
+        }
+      },
+
+      reaper: {
+        init(sc) { this.t = titleOf(sc); this.copy = makeCopy(sc, 'reap-shine'); },
+        enter() { place(this.copy, this.t); }
+      },
+
+      poltergeist: {
+        init(sc) {
+          this.t = titleOf(sc);
+          this.refl = makeCopy(sc, 'pg-reflect');
+          this.chs = [...this.t.querySelectorAll('.ch')];
+          this.rch = [...this.refl.querySelectorAll('.ch')];
+          this.nextYank = 0;
+        },
+        enter() {
+          place(this.refl, this.t, this.t.offsetHeight * 0.86);
+          this.boxes = this.chs.map(c => ({ x: c.offsetLeft + c.offsetWidth / 2, y: c.offsetTop + c.offsetHeight / 2 }));
+          this.nextYank = performance.now() + 2600;
+        },
+        frame(t, sc) {
+          // Every few seconds something invisible yanks one letter (and its reflection), and the TV stutters
+          if (t > this.nextYank) {
+            const i = (Math.random() * this.chs.length) | 0, pair = [this.chs[i], this.rch[i]];
+            pair.forEach(c => { if (c) { c.classList.remove('yank'); void c.offsetWidth; c.classList.add('yank'); } });
+            sc.classList.add('jolt');
+            setTimeout(() => { pair.forEach(c => c && c.classList.remove('yank')); sc.classList.remove('jolt'); }, 820);
+            this.nextYank = t + 4200 + Math.random() * 3800;
+          }
+          // Letters near you tremble (updated every other frame)
+          this.n = ((this.n || 0) + 1) % 3;
+          if (this.n) return;
+          const r = sc.getBoundingClientRect(), m = rel(sc, r), tl = this.t.offsetLeft, tt = this.t.offsetTop;
+          this.chs.forEach((c, i) => {
+            let s = '';
+            if (m && this.boxes) {
+              const b = this.boxes[i], d = Math.hypot(m.x - (tl + b.x), m.y - (tt + b.y));
+              if (d < 170) { const a = (1 - d / 170) * 0.06; s = `${(1 + (Math.random() - 0.5) * a).toFixed(3)} ${(1 + (Math.random() - 0.5) * a).toFixed(3)}`; }
+            }
+            if (c.style.scale !== s) c.style.scale = s;
+          });
+        }
+      },
+
+      lull: {
+        init(sc) {
+          this.t = titleOf(sc);
+          this.word = this.t.querySelector('[aria-hidden="true"]');
+          this.orb = sc.querySelector('.lull-orb');
+          this.ring = sc.querySelector('.lull-ring');
+          this.cue = document.createElement('div');
+          this.cue.className = 'deco lull-cue';
+          this.cue.setAttribute('aria-hidden', 'true');
+          this.t.after(this.cue);
+          this.phase = '';
+        },
+        enter() {
+          this.cue.style.top = this.t.offsetTop + this.t.offsetHeight + 14 + 'px';
+          // The orb sits behind the name, wherever the layout put it
+          const cy = this.t.offsetTop + this.t.offsetHeight / 2;
+          [this.orb, this.ring].forEach(e => { e.style.top = cy + 'px'; });
+        },
+        frame(t, sc) {
+          const b = breathAt(t);
+          const r = sc.getBoundingClientRect(), m = rel(sc, r);
+          const px = m ? (m.x / r.width - 0.5) * 18 : 0, py = m ? (m.y / r.height - 0.5) * 12 : 0;
+          this.orb.style.transform = `translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0) scale(${(0.8 + 0.34 * b.v).toFixed(4)})`;
+          this.ring.style.transform = `translate3d(${(px * 0.6).toFixed(1)}px, ${(py * 0.6).toFixed(1)}px, 0) scale(${(0.9 + 0.3 * b.v).toFixed(4)})`;
+          this.word.style.scale = (0.97 + 0.05 * b.v).toFixed(4);
+          if (b.phase !== this.phase) {
+            this.phase = b.phase;
+            this.cue.classList.add('out');
+            clearTimeout(this.cueT);
+            this.cueT = setTimeout(() => { this.cue.textContent = b.phase; this.cue.classList.remove('out'); }, 450);
+          }
+        }
+      },
+
+      prism: {
+        init(sc) { this.t = titleOf(sc); this.beam = sc.querySelector('.pr-beam'); this.fan = sc.querySelector('.pr-fan'); this.a = 0; },
+        enter(sc) {
+          // The beam runs from the left edge into the middle of the name; the spectrum fans out from there
+          const word = this.t.querySelector('[aria-hidden="true"]');
+          const cx = this.t.offsetLeft + word.offsetLeft + word.offsetWidth * 0.45, cy = this.t.offsetTop + this.t.offsetHeight * 0.55;
+          this.c = { x: cx, y: cy };
+          this.beam.style.width = cx + 'px';
+          this.beam.style.top = cy + 'px';
+          this.fan.style.left = cx + 'px';
+          this.fan.style.top = cy + 'px';
+        },
+        frame(t, sc) {
+          if (!this.c) return;
+          const r = sc.getBoundingClientRect(), m = rel(sc, r);
+          const want = m && recently(t) ? clamp((m.y - this.c.y) / r.height, -0.5, 0.5) * -26 : Math.sin(t * 0.0003) * 6;
+          this.a = lerp(this.a, want, 0.08);
+          this.beam.style.transform = `rotate(${this.a.toFixed(2)}deg)`;
+          this.fan.style.transform = `rotate(${(this.a * 0.55).toFixed(2)}deg)`;
+        }
+      },
+
+      afterimage: {
+        init(sc) {
+          this.t = titleOf(sc);
+          this.copies = [['#FF8FB8', 0.42], ['#FFC38F', 0.26], ['#B8A6FF', 0.15]].map(([c, o]) => {
+            const k = makeCopy(sc, 'ai-copy');
+            k.style.setProperty('--c', c); k.style.setProperty('--o', o);
+            this.t.before(k);
+            return k;
+          });
+          this.pos = this.copies.map(() => ({ x: 0, y: 0 }));
+        },
+        enter() { this.copies.forEach(c => place(c, this.t)); },
+        frame(t) {
+          // The copies are pushed back against the way you move, then drift home: an afterimage
+          if (mouse.on) { mouse.vx = lerp(mouse.vx, mouse.x - mouse.lx, 0.3); mouse.vy = lerp(mouse.vy, mouse.y - mouse.ly, 0.3); mouse.lx = mouse.x; mouse.ly = mouse.y; }
+          else { mouse.vx *= 0.9; mouse.vy *= 0.9; }
+          this.copies.forEach((c, i) => {
+            const k = i + 1;
+            const idleX = Math.sin(t * 0.0006 + i * 1.7) * 3 * k, idleY = Math.cos(t * 0.0005 + i) * 2 * k;
+            const tx = clamp(-mouse.vx * 3.2 * k, -90, 90) + idleX, ty = clamp(-mouse.vy * 3.2 * k, -60, 60) + idleY;
+            const p = this.pos[i];
+            p.x = lerp(p.x, tx, 0.12 / k); p.y = lerp(p.y, ty, 0.12 / k);
+            c.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0)`;
+          });
+        }
+      },
+
+      hush: {
+        init(sc) {
+          this.t = titleOf(sc);
+          this.cv = document.createElement('canvas');
+          this.cv.className = 'deco hush-wave';
+          this.cv.setAttribute('aria-hidden', 'true');
+          this.pill = document.createElement('div');
+          this.pill.className = 'deco hush-pill';
+          this.pill.setAttribute('aria-hidden', 'true');
+          this.pill.textContent = 'MIC OFF';
+          this.floor = sc.querySelector('.hush-floor');
+          this.t.after(this.cv, this.pill);
+          this.mute = 0; this.tapMuted = false;
+          // On a touch screen, tapping the sign mutes it
+          this.t.addEventListener('click', () => { if (touch) this.tapMuted = !this.tapMuted; });
+        },
+        enter() {
+          const t = this.t, w = Math.min(t.offsetWidth, 900), top = t.offsetTop + t.offsetHeight + 18;
+          const left = t.offsetLeft + (t.offsetWidth - w) / 2;
+          Object.assign(this.cv.style, { left: left + 'px', top: top + 'px', width: w + 'px', height: '64px' });
+          this.cv.width = w; this.cv.height = 64;
+          Object.assign(this.pill.style, { left: t.offsetLeft + t.offsetWidth / 2 - 38 + 'px', top: t.offsetTop - 34 + 'px' });
+          this.floor.style.top = t.offsetTop + t.offsetHeight * 0.75 + 'px';
+          this.box = { x: t.offsetLeft, y: t.offsetTop, w: t.offsetWidth, h: t.offsetHeight };
+          // The glowing sign is narrower than its line: hovering counts only over the sign itself
+          this.signW = Math.min(t.offsetWidth, t.querySelector('[aria-hidden="true"]').offsetWidth + 0.6 * parseFloat(getComputedStyle(t).fontSize));
+          this.ctx = this.cv.getContext('2d');
+        },
+        frame(t, sc) {
+          const r = sc.getBoundingClientRect(), m = rel(sc, r), b = this.box;
+          const signW = this.signW, sx = b.x + (b.w - signW) / 2;
+          const over = m && m.x > sx && m.x < sx + signW && m.y > b.y && m.y < b.y + b.h;
+          const muted = over || this.tapMuted;
+          this.t.classList.toggle('muted', muted);
+          sc.classList.toggle('muted-now', muted);
+          this.mute = lerp(this.mute, muted ? 1 : 0, 0.12);
+          const g = this.ctx, W = this.cv.width, Hh = this.cv.height, mid = Hh / 2;
+          g.clearRect(0, 0, W, Hh);
+          const env = (0.25 + 0.75 * Math.abs(Math.sin(t * 0.0021)) * Math.abs(Math.sin(t * 0.0013 + 1.3))) * (1 - this.mute);
+          const path = () => {
+            g.beginPath();
+            for (let x = 0; x <= W; x += 3) {
+              const k = x / W, fade = Math.sin(Math.PI * k);
+              const y = mid + fade * env * 24 * (Math.sin(x * 0.09 + t * 0.017) * 0.55 + Math.sin(x * 0.031 - t * 0.011) * 0.3 + Math.sin(x * 0.21 + t * 0.03) * 0.15);
+              x ? g.lineTo(x, y) : g.moveTo(x, y);
+            }
+          };
+          g.lineCap = 'round';
+          path(); g.strokeStyle = 'rgba(255, 77, 94, 0.22)'; g.lineWidth = 7; g.stroke();
+          path(); g.strokeStyle = 'rgba(255, 190, 186, 0.95)'; g.lineWidth = 1.6; g.stroke();
+        }
+      },
+
+      specter: {
+        init(sc) { this.panes = [...sc.querySelectorAll('.sp-pane')]; this.depth = [10, 18, 34]; this.p = { x: 0, y: 0 }; },
+        frame(t, sc) {
+          const r = sc.getBoundingClientRect(), m = rel(sc, r);
+          const tx = m ? m.x / r.width - 0.5 : Math.sin(t * 0.00021) * 0.3, ty = m ? m.y / r.height - 0.5 : Math.cos(t * 0.00017) * 0.2;
+          const ox = this.p.x, oy = this.p.y;
+          this.p.x = lerp(this.p.x, tx, 0.06); this.p.y = lerp(this.p.y, ty, 0.06);
+          if (Math.abs(this.p.x - ox) < 0.0005 && Math.abs(this.p.y - oy) < 0.0005) return;
+          this.panes.forEach((e, i) => { e.style.translate = `${(-this.p.x * this.depth[i]).toFixed(1)}px ${(-this.p.y * this.depth[i]).toFixed(1)}px`; });
+        }
+      },
+
+      tether: {
+        init(sc) {
+          this.t = titleOf(sc);
+          this.dial = sc.querySelector('.tt-dial');
+          this.cord = [...sc.querySelectorAll('.tt-cord path')];
+          this.chs = [...this.t.querySelectorAll('.ch')];
+          // 60 ticks, every fifth one longer
+          let ticks = '';
+          for (let i = 0; i < 60; i++) {
+            const a = (i / 60) * Math.PI * 2, r1 = i % 5 ? 46 : 42, r2 = 49;
+            ticks += `<line x1="${(50 + Math.sin(a) * r1).toFixed(2)}" y1="${(50 - Math.cos(a) * r1).toFixed(2)}" x2="${(50 + Math.sin(a) * r2).toFixed(2)}" y2="${(50 - Math.cos(a) * r2).toFixed(2)}" stroke="rgba(255,214,170,${i % 5 ? 0.25 : 0.55})" stroke-width="${i % 5 ? 0.35 : 0.7}"/>`;
+          }
+          this.dial.insertAdjacentHTML('afterbegin', `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="49.5" fill="none" stroke="rgba(255,214,170,0.14)" stroke-width="0.4"/>${ticks}<circle cx="50" cy="50" r="1.2" fill="#FFC48A"/></svg>`);
+          this.beat = -1;
+        },
+        enter(sc) {
+          const h = sc.offsetHeight, size = Math.min(h * 0.8, sc.offsetWidth * 0.5);
+          Object.assign(this.dial.style, { width: size + 'px', height: size + 'px', left: sc.offsetWidth * 0.07 + 'px', top: (h - size) / 2 + 'px' });
+          this.center = { x: sc.offsetWidth * 0.07 + size / 2, y: h / 2 };
+          const first = this.chs[0];
+          this.end = first ? { x: this.t.offsetLeft + first.offsetLeft, y: this.t.offsetTop + first.offsetTop + first.offsetHeight * 0.55 } : { x: this.center.x + 200, y: this.center.y };
+          // Real seconds: the hand starts where the clock is
+          const now = new Date();
+          this.dial.querySelector('.tt-hand').style.setProperty('--sec', -(now.getSeconds() + now.getMilliseconds() / 1000) + 's');
+        },
+        frame(t) {
+          if (!this.center) return;
+          // The cord sags between the clock and the name, and sways a little
+          const a = this.center, b = this.end, sag = 70 + Math.sin(t * 0.0011) * 14, mx = (a.x + b.x) / 2 + Math.sin(t * 0.0007) * 10;
+          const d = `M${a.x.toFixed(1)} ${a.y.toFixed(1)} Q${mx.toFixed(1)} ${(Math.max(a.y, b.y) + sag).toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+          this.cord.forEach(pth => pth.setAttribute('d', d));
+          // Each second, the next letter ticks
+          const sec = Math.floor(Date.now() / 1000);
+          if (sec !== this.beat && this.chs.length) {
+            this.beat = sec;
+            const c = this.chs[sec % this.chs.length];
+            c.classList.add('beat');
+            setTimeout(() => c.classList.remove('beat'), 120);
+          }
+        }
+      },
+
+      ledger: {
+        init(sc) {
+          this.t = titleOf(sc);
+          this.cv = sc.querySelector('.lg-ink');
+          this.rib = document.createElement('div');
+          this.rib.className = 'deco lg-ribbon';
+          this.rib.setAttribute('aria-hidden', 'true');
+          this.rib.innerHTML = [[3.2, '#C0392B'], [1.4, '#2E6E8E'], [2.3, '#D89B2B'], [0.9, '#6B8E4E'], [1.8, '#8E5B9E'], [1.1, '#2E6E8E'], [0.7, '#C0392B']]
+            .map(([f, c]) => `<i style="--f:${f};--c:${c}"></i>`).join('');
+          this.t.after(this.rib);
+          this.last = null; this.wet = 0;
+        },
+        enter(sc) {
+          const t = this.t;
+          Object.assign(this.rib.style, { left: t.offsetLeft + 'px', top: t.offsetTop + t.offsetHeight + 8 + 'px', width: Math.min(t.offsetWidth * 0.62, 640) + 'px' });
+          this.cv.width = sc.offsetWidth; this.cv.height = sc.offsetHeight;
+          this.ctx = this.cv.getContext('2d');
+          this.last = null;
+        },
+        frame(t, sc) {
+          if (!this.ctx) return;
+          const g = this.ctx, r = sc.getBoundingClientRect(), m = rel(sc, r);
+          // Your mouse is a pen: it leaves a line of ink that dries away
+          if (this.wet > 0) {
+            g.globalCompositeOperation = 'destination-out';
+            g.fillStyle = 'rgba(0,0,0,0.022)';
+            g.fillRect(0, 0, this.cv.width, this.cv.height);
+            g.globalCompositeOperation = 'source-over';
+            this.wet--;
+          }
+          if (m && recently(t)) {
+            if (this.last) {
+              const dx = m.x - this.last.x, dy = m.y - this.last.y, v = Math.hypot(dx, dy);
+              if (v > 0.5 && v < 220) {
+                g.strokeStyle = 'rgba(42, 33, 24, 0.62)';
+                g.lineWidth = clamp(3.2 - v * 0.05, 0.9, 3.2);
+                g.lineCap = 'round';
+                g.beginPath(); g.moveTo(this.last.x, this.last.y); g.lineTo(m.x, m.y); g.stroke();
+                this.wet = 260;
+              }
+            }
+            this.last = m;
+          } else this.last = null;
+        }
+      },
+
+      veil: {
+        init(sc) { this.l = sc.querySelector('.vl-curtain.l'); this.r = sc.querySelector('.vl-curtain.r'); this.o = 0.3; },
+        frame(t, sc) {
+          const r = sc.getBoundingClientRect(), m = rel(sc, r);
+          // Closer to the middle, the wider they part; with no mouse they breathe open and closed
+          const want = m && recently(t) ? 0.15 + 0.85 * Math.pow(1 - clamp(Math.abs(m.x / r.width - 0.5) * 2, 0, 1), 1.5) : 0.35 + 0.25 * Math.sin(t * 0.0004);
+          this.o = lerp(this.o, want, 0.05);
+          const vw = r.width / 100, d = (-2 + this.o * 15) * vw;
+          this.l.style.translate = `${(-d).toFixed(1)}px 0`;
+          this.r.style.translate = `${d.toFixed(1)}px 0`;
+        }
+      }
+    };
+
+    let cur = '', sc = null, raf = 0;
+    const inited = new Set();
+    function tick(t) {
+      raf = 0;
+      const h = H[cur];
+      if (!h || !h.frame || document.hidden) return;
+      try { h.frame(t, sc); } catch (e) { console.warn('Scene effect stopped:', e); return; }
+      raf = requestAnimationFrame(tick);
+    }
+    function enter(key) {
+      if (key === cur) return;
+      cur = key;
+      sc = document.getElementById('s-' + key);
+      const h = H[key];
+      if (!h || !sc) return;
+      try {
+        if (!inited.has(key)) { inited.add(key); if (h.init) h.init(sc); }
+        if (h.enter) h.enter(sc);
+      } catch (e) { console.warn('Scene effect unavailable:', e); return; }
+      if (h.frame && !raf) raf = requestAnimationFrame(tick);
+    }
+    // Layout changes (resize, a different tab) move titles: place everything again
+    let rz;
+    addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { const k = cur; cur = ''; enter(k); }, 220); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && !raf && H[cur] && H[cur].frame) raf = requestAnimationFrame(tick); });
+    window.__sceneFx = { enter, reset() { const k = cur; cur = ''; enter(k); } };
+    if (body.dataset.scene) enter(body.dataset.scene);
   })();
 
   // ---------- Smooth scrolling, scene snapping and the colour blend between worlds ----------
