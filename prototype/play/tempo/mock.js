@@ -78,7 +78,8 @@
       const autoStep = auto && !!group && group !== 'calls' && group !== 'game' ? gOn(group) : auto && !group && gOn('busy') && cpu >= 1.5;
       const step = calls || kept ? false : choice === 'on' ? true : choice === 'off' ? false : autoStep;
       const why = calls ? 'Music and voice are left exactly as they are.' : kept ? keepWhy : choice === 'on' ? 'You picked it.' : choice === 'off' ? 'You chose to leave it alone.' : !group ? (step ? 'Busy in the background.' : 'Steps back only if it gets busy while you play.') : step ? 'Steps back automatically.' : 'This kind is switched off.';
-      return { name, cpu, group: group || 'busy', step, auto: autoStep, why, locked: calls || kept, choice, calls, kept };
+      const label = { 'opera.exe': 'Opera', 'EpicGamesLauncher.exe': 'Epic Games', 'steamwebhelper.exe': 'Steam pages', 'steam.exe': 'Steam', 'LosslessScaling.exe': 'Lossless Scaling', 'NVIDIA Overlay.exe': 'NVIDIA overlay', 'Code.exe': 'VS Code', 'wallpaper64.exe': 'Wallpaper Engine', 'GoogleDriveFS.exe': 'Google Drive', 'PhoneExperienceHost.exe': 'Phone Link' }[name] || name.replace(/\.exe$/i, '');
+      return { name, label, cpu, group: group || 'busy', step, auto: autoStep, why, locked: calls || kept, choice, calls, kept };
     }).sort((a, b) => b.cpu - a.cpu);
     return { t: 'apps', apps, groups, auto, busyPercent: 1.5, live: state !== 'off', boostStatus };
   };
@@ -130,14 +131,14 @@
     const recent = Array.from({ length: 240 }, (_, i) => Math.round((1000 / (72 + Math.sin((t * 60 - 240 + i) / 40) * 6) + (Math.random() - .5) * 1.4 + (i % 61 === 0 ? 7 : 0)) * 100) / 100);
     deliver({ t: 'live', fps, low1: 48.6, frameMs: 1000 / fps, recent, limiter: 'cpu', share: .64, mode: 'Composed: Flip', overlay: 'showing',
       sys: { cpuMax: 94, cpu: 66, cores: 6, gpu: 71, temp: 72, vramUsed: 4.4e9, vramTotal: 6.44e9, ramAvail: 4.2e9, ramTotal: 17.1e9, tempo: 0.4,
-        top: [{ pid: 1, name: 'opera.exe', cpu: 1.1 }, { pid: 2, name: 'Discord.exe', cpu: 1.4 }, { pid: 3, name: 'Spotify.exe', cpu: 1.2 }] } });
+        top: [{ pid: 1, name: 'opera.exe', label: 'Opera', cpu: 1.1 }, { pid: 2, name: 'Discord.exe', label: 'Discord', cpu: 1.4 }, { pid: 3, name: 'Spotify.exe', label: 'Spotify', cpu: 1.2 }] } });
   }
   function setState(st, learn) {
     state = st;
     clearInterval(liveTimer);
     deliver({ t: 'state', state: st, game: st === 'off' ? null : settings.selectedGame, gameName: (games.find(g => g.id === settings.selectedGame) || main).name, learn: !!learn,
       applied: st === 'off' || learn ? [] : st === 'live' ? boostList : boostList.slice(0, 3), since: st === 'live' ? new Date(Date.now() - 761e3).toISOString() : null,
-      stepped: st === 'off' || learn ? [] : ['opera', 'OneDrive', 'EpicGamesLauncher', 'steamwebhelper', 'wallpaper64', 'Code'] });
+      stepped: st === 'off' || learn ? [] : ['Opera', 'OneDrive', 'Epic Games', 'Steam pages', 'Wallpaper Engine', 'VS Code'] });
     if (st === 'live') { t0 = Date.now(); live(); liveTimer = setInterval(live, 250); }
   }
   window.__mockSend = m => {
@@ -147,6 +148,7 @@
       const st = q.get('state') || 'off';
       if (st !== 'off') setState(st);
       if (q.get('page')) setTimeout(() => document.querySelector(`[data-go="${q.get('page')}"]`)?.click(), 30);
+      if (q.get('new')) deliver({ t: 'whatsnew', version: '1.3.0' });
     }
     if (m.t === 'on') { setState('waiting', m.learn); setTimeout(() => setState('live', m.learn), 2600); }
     if (m.t === 'off') {

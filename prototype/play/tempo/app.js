@@ -253,7 +253,20 @@
     countUp($('rc-a'), s.avgFps); countUp($('rc-l'), s.low1, 1000); countUp($('rc-h'), s.hitches ?? 0, 700);
     receipt.t = setTimeout(() => { box.hidden = true; }, 14000);
   }
+  // after an update: what's new, once, in the same card as the session receipt
+  function whatsNew(version) {
+    const box = $('receipt');
+    if (!box) return;
+    box.innerHTML = `<div class="rc-top"><span class="rc-k">NEW IN ${esc(String(version).split('.').slice(0, 2).join('.'))}</span><span class="rc-g">TEMPO updated</span><button type="button" class="rc-x" aria-label="Close">&#10005;</button></div>
+      <ul class="rc-new"><li><b>Apps step back by themselves.</b> No more picking each one; tap any app on the Boost page to decide yourself.</li>
+      <li><b>Calls, music and anything your game needs are kept</b>, from Discord to Lossless Scaling and Steam.</li>
+      <li><b>Steam launch options explained</b> on the Tune page, and TEMPO stays on if the game restarts.</li></ul>
+      <button type="button" class="rc-go" data-go-page="boost">See the Boost page &rarr;</button>`;
+    box.hidden = false;
+    if (!still()) box.animate([{ opacity: 0, transform: 'translateY(14px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: EASE });
+  }
   document.addEventListener('click', e => {
+    if (e.target.closest('[data-go-page="boost"]') && e.target.closest('#receipt')) $('receipt').hidden = true;
     if (e.target.closest('.rc-x')) { $('receipt').hidden = true; return; }
     const see = e.target.closest('[data-see]');
     if (see) { const [gid, id] = see.dataset.see.split('|'); S.sessSel = S.sessions.find(x => x.gameId === gid && x.id === id) || null; $('receipt').hidden = true; go('sessions'); }
@@ -420,7 +433,7 @@
     const shell = new Set(['explorer.exe', 'searchhost.exe', 'shellexperiencehost.exe', 'startmenuexperiencehost.exe']);
     const movable = (s.background || []).filter(b => !prot.has(b.name.toLowerCase()) && !shell.has(b.name.toLowerCase()));
     if (s.cpuLimited > 0.5 && s.backgroundCpu >= 4 && s.background.length)
-      out.push(`<b>Other apps</b> used ${fmt(s.backgroundCpu)}% of your processor. TEMPO never closes anything: with the boost on, ${movable.length ? `apps like ${movable.slice(0, 2).map(b => esc(b.name.replace(/\.exe$/i, ''))).join(' and ')} step back for the game while you play` : 'the apps you pick step back while you play'}, and music and voice apps (Discord, Spotify) are left exactly as they are.`);
+      out.push(`<b>Other apps</b> used ${fmt(s.backgroundCpu)}% of your processor. TEMPO never closes anything: with the boost on, ${movable.length ? `apps like ${movable.slice(0, 2).map(b => esc(b.label || b.name.replace(/\.exe$/i, ''))).join(' and ')} step back for the game while you play` : 'background apps step back while you play'}, and music and voice apps (Discord, Spotify) are left exactly as they are.`);
     const ramAvg = s.avgRamFreeGb || 0;
     if ((s.minRamFreeGb > 0 && s.minRamFreeGb < 1.2) || (ramAvg > 0 && ramAvg < 2.5))
       out.push(`<b>Memory got tight:</b> ${ramAvg ? `${fmt(ramAvg, 1)} GB free on average, ` : ''}${fmt(s.minRamFreeGb, 1)} GB at the lowest. Windows starts swapping to disk around there, which causes stutters; browser tabs are usually the biggest users.`);
@@ -543,7 +556,7 @@
         (s.temp != null ? m('Graphics card heat', `${fmt(s.temp)} °C`, (s.temp - 30) / 60 * 100, s.temp > 83) : '');
       $('bg-apps').innerHTML = s.top && s.top.length
         ? `<div class="lab" style="margin:4px 0 6px">Also using your processor</div>` + s.top.slice(0, 4).map(p => {
-            const nm = p.name.replace(/\.exe$/i, ''), kept = (S.settings.protectedApps || []).some(x => x.toLowerCase() === p.name.toLowerCase());
+            const nm = p.label || p.name.replace(/\.exe$/i, ''), kept = (S.settings.protectedApps || []).some(x => x.toLowerCase() === p.name.toLowerCase());
             const down = !kept && (S.st.stepped || []).some(x => x.toLowerCase() === nm.toLowerCase());
             return `<div class="row${kept ? ' kept' : down ? ' down' : ''}"><span>${esc(nm)}</span><b>${fmt(p.cpu, 1)}%</b></div>`;
           }).join('')
@@ -670,7 +683,7 @@
           Memory free <b>${s.avgRamFreeGb ? fmt(s.avgRamFreeGb, 1) + ' GB' : '–'}</b> on average, <b>${fmt(s.minRamFreeGb, 1)} GB</b> at the lowest<br>
           Graphics memory <b>${fmt(s.avgVramGb, 1)} of ${fmt(s.vramTotalGb, 0)} GB</b><br>
           TEMPO itself <b>${fmt(s.tempoCpu, 1)}%</b> of your processor</p>
-          ${s.background && s.background.length ? `<div class="lab" style="margin-top:16px">Other apps using the processor</div><div class="bg-apps" style="margin-top:0">` + s.background.map(b => `<div class="row${(S.settings.protectedApps || []).some(p => p.toLowerCase() === b.name.toLowerCase()) ? ' kept' : ''}"><span>${esc(b.name.replace(/\.exe$/i, ''))}</span><b>${fmt(b.cpu, 1)}%</b></div>`).join('') + '</div>' : ''}
+          ${s.background && s.background.length ? `<div class="lab" style="margin-top:16px">Other apps using the processor</div><div class="bg-apps" style="margin-top:0">` + s.background.map(b => `<div class="row${(S.settings.protectedApps || []).some(p => p.toLowerCase() === b.name.toLowerCase()) ? ' kept' : ''}"><span>${esc(b.label || b.name.replace(/\.exe$/i, ''))}</span><b>${fmt(b.cpu, 1)}%</b></div>`).join('') + '</div>' : ''}
         </div>
       </div>`;
     drawSeries($('sd-chart'), s.series, prev && prev.series, s);
@@ -971,8 +984,8 @@
   const bare = n => String(n || '').replace(/\.exe$/i, '');
   function appChip(a) {
     const cls = a.locked && a.choice !== 'on' ? 'lock' : a.step ? 'on' : '';
-    const tip = `${bare(a.name)}: ${a.why}`;
-    return `<button type="button" class="ach ${cls}${a.choice ? ' mine' : ''}" data-ach="${esc(a.name)}" title="${esc(tip)}"><i></i><span>${esc(bare(a.name))}</span>${a.cpu >= 0.1 ? `<small>${fmt(a.cpu, 1)}%</small>` : ''}</button>`;
+    const tip = `${a.label || bare(a.name)} (${a.name}): ${a.why}`;
+    return `<button type="button" class="ach ${cls}${a.choice ? ' mine' : ''}" data-ach="${esc(a.name)}" title="${esc(tip)}"><i></i><span>${esc(a.label || bare(a.name))}</span>${a.cpu >= 0.1 ? `<small>${fmt(a.cpu, 1)}%</small>` : ''}</button>`;
   }
   function renderApps() {
     const A = S.appsData;
@@ -1001,7 +1014,7 @@
           <div class="achips">${list.map(appChip).join('')}</div></div>`;
       }).join('') + `</div>` + (empty.length ? `<div class="ag-empty"><div class="ag-eh">Not running now, covered when they are</div>${empty.map(({ g }) => `<div class="ag-row"><span><b>${esc(g.label)}</b><small>${esc(g.why)}</small></span><button type="button" class="tog${g.on ? ' on' : ''}" data-grp="${g.id}" aria-label="${esc(g.label)}"></button></div>`).join('')}</div>` : '');
     } else {
-      $('apps').innerHTML = free.length ? `<div class="apps">${free.map(a => `<button type="button" class="app${a.step ? ' on' : ''}" data-ach="${esc(a.name)}"><span class="nm">${esc(bare(a.name))}</span><span class="cpu">${a.cpu ? fmt(a.cpu, 1) + '%' : ''}</span><span class="pick">${a.step ? 'Steps back' : 'Leave alone'}</span></button>`).join('')}</div>` : '<p class="note">Nothing else is running.</p>';
+      $('apps').innerHTML = free.length ? `<div class="apps">${free.map(a => `<button type="button" class="app${a.step ? ' on' : ''}" data-ach="${esc(a.name)}"><span class="nm">${esc(a.label || bare(a.name))}</span><span class="cpu">${a.cpu ? fmt(a.cpu, 1) + '%' : ''}</span><span class="pick">${a.step ? 'Steps back' : 'Leave alone'}</span></button>`).join('')}</div>` : '<p class="note">Nothing else is running.</p>';
     }
     const calls = apps.filter(isCalls), kept = apps.filter(isKept);
     const keptCard = (title, why, list, none) => `<div class="agrp kept"><div class="ag-top"><b>${title}</b><span class="ag-n">${list.length ? `${list.length} running` : ''}</span></div><p>${why}</p>${list.length ? `<div class="achips">${list.map(appChip).join('')}</div>` : `<p class="ag-none">${none}</p>`}</div>`;
@@ -1046,7 +1059,7 @@
       // music, voice, or something the game needs: ask first
       const c = $('ag-confirm');
       c.hidden = false;
-      c.innerHTML = `<span><b>${esc(bare(a.name))}</b> ${esc(a.why)} Let it step back anyway?</span><button type="button" class="btn acc" data-unlock="${esc(a.name)}">Let it step back</button><button type="button" class="btn" data-unlock-no>Keep it as it is</button>`;
+      c.innerHTML = `<span><b>${esc(a.label || bare(a.name))}</b> ${esc(a.why)} Let it step back anyway?</span><button type="button" class="btn acc" data-unlock="${esc(a.name)}">Let it step back</button><button type="button" class="btn" data-unlock-no>Keep it as it is</button>`;
       c.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       return;
     }
@@ -1182,6 +1195,7 @@
       case 'checkup': S.checkup = (m.findings || []).map(f => ({ level: f.level, title: esc(f.title), text: esc(f.text) })); S.boostStatus = m.boostStatus || S.boostStatus; renderCheckup(); break;
       case 'update': { const u = $('update'); u.hidden = false; u.dataset.url = m.url; u.textContent = `Update ${m.version}`; break; }
       case 'tune': S.tune = m; renderTune(); break;
+      case 'whatsnew': whatsNew(m.version); break;
       case 'phone': S.phone = m; renderPhone(); break;
       case 'apps': S.appsData = m; S.apps = m.apps; S.boostStatus = m.boostStatus || S.boostStatus; renderBoost(); break;
     }
