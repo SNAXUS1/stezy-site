@@ -28,7 +28,7 @@
   .demo-dl:hover { filter: brightness(1.08); }
   @media (max-width: 1240px) { .demo-tag { display: none; } }
 </style>
-<script>window.TEMPO_DEMO = { art: '/img/', version: '1.2.0' };</script>
+<script>window.TEMPO_DEMO = { art: '/img/', version: '1.3.0' };</script>
 <link rel="stylesheet" href="app.css">
 </head>
 <body data-page="play" data-state="off">
@@ -52,7 +52,7 @@
     <span class="sp"></span>
     <button type="button" class="update" id="update" hidden></button>
     <span class="status" id="status" hidden><i></i><span id="status-text"></span></span>
-    <div class="demo-bar"><span class="demo-tag">Live demo · made-up data</span><a class="demo-back" href="/#tempo">stezy.lt</a><a class="demo-dl" href="https://github.com/SNAXUS1/stezy-site/releases/download/tempo-v1.2.0/TEMPO-1.2.0.zip">Download</a></div>
+    <div class="demo-bar"><span class="demo-tag">Live demo · made-up data</span><a class="demo-back" href="/#tempo">stezy.lt</a><a class="demo-dl" href="https://github.com/SNAXUS1/stezy-site/releases/download/tempo-v1.3.0/TEMPO-1.3.0.zip">Download</a></div>
     <div class="winbtns">
       <button type="button" class="win" data-win="min" aria-label="Minimise"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1.1"/></svg></button>
       <button type="button" class="win" data-win="max" aria-label="Maximise"><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></button>
@@ -85,7 +85,7 @@
           <div class="dial" id="dial">
             <svg id="dial-svg" viewBox="0 0 372 372" width="372" height="372" aria-hidden="true"></svg>
             <div class="read" id="read-off"><button type="button" class="power" id="power"><b>TURN ON</b><small>CTRL ALT T</small></button></div>
-            <div class="read" id="read-wait" hidden><div class="wait-t">WAITING</div><div class="unit" id="wait-sub">OPEN THE GAME</div></div>
+            <div class="read" id="read-wait" hidden><div class="wait-t" id="wait-t">WAITING</div><div class="unit" id="wait-sub">OPEN THE GAME</div></div>
             <div class="read" id="read-live" hidden><div class="big" id="big">0</div><div class="unit">FPS&nbsp;&nbsp;·&nbsp;&nbsp;1% LOW <em id="big-low">0</em></div></div>
           </div>
           <div class="title-row" id="title-row"></div>
@@ -94,6 +94,7 @@
           <button type="button" class="quiet" id="learn" hidden>Measure only, without the boost</button>
           <button type="button" class="stop" id="stop" hidden>Turn off</button>
           <p class="mode-note" id="mode-note" hidden></p>
+          <div class="receipt" id="receipt" hidden></div>
         </div>
 
         <aside class="col r">
@@ -118,7 +119,7 @@
         <div class="set">
           <div class="h2">BOOST</div>
           <p class="lead">What TEMPO changes while it's on. Every change is written down first and put back the moment it turns off, even after a crash. Nothing is ever closed.</p>
-          <div class="rowx"><span>Apps step back<small>The apps you pick get lower priority and Windows' efficiency mode while you play. Music and voice are never touched.</small></span><span class="st-chip" id="bs-apps"></span><button type="button" class="tog" data-set="boost.stepBack" aria-label="Apps step back"></button></div>
+          <div class="rowx"><span>Apps step back<small>Background apps get lower priority and Windows' efficiency mode while you play, picked by TEMPO or by you. Music, voice and anything your game needs are never touched.</small></span><span class="st-chip" id="bs-apps"></span><button type="button" class="tog" data-set="boost.stepBack" aria-label="Apps step back"></button></div>
           <div class="rowx"><span>Game first<small>Your game gets the processor before other apps.</small></span><span class="st-chip"></span><button type="button" class="tog" data-set="boost.gameFirst" aria-label="Game first"></button></div>
           <div class="rowx"><span>Windows Game Mode<small>Windows puts the game first and holds back updates and notifications.</small></span><span class="st-chip" id="bs-gm"></span><button type="button" class="tog" data-set="boost.gameMode" aria-label="Windows Game Mode"></button></div>
           <div class="rowx"><span>Pause background recording<small>The Xbox Game Bar's always-on recording stops while you play.</small></span><span class="st-chip" id="bs-rec"></span><button type="button" class="tog" data-set="boost.recording" aria-label="Pause background recording"></button></div>
@@ -129,11 +130,14 @@
           <div class="compare" id="bs-compare"></div>
         </div>
         <div class="apps-pane">
-          <div class="lab">Apps that step back <b id="apps-count"></b></div>
-          <p class="note" style="margin:0 0 12px">Running now, busiest first. Tap one to choose. Stepping back never closes an app or stops it working; it just waits its turn behind the game.</p>
-          <div class="apps" id="apps"></div>
-          <div class="lab" style="margin-top:22px">Never touched</div>
-          <div class="apps" id="protected"></div>
+          <div class="ap-head">
+            <div class="ap-title">APPS THAT STEP BACK <b id="apps-count"></b></div>
+            <div class="seg" id="ap-mode"><button type="button" data-mode="auto">Automatic</button><button type="button" data-mode="pick">I pick</button></div>
+          </div>
+          <p class="ap-note" id="ap-note"></p>
+          <div id="apps"></div>
+          <div class="ap-title kept-h">KEPT AS THEY ARE</div>
+          <div id="protected"></div>
         </div>
       </div>
     </section>
@@ -164,6 +168,7 @@
             <div class="sec-h"><span id="tune-set-h">The game's own settings</span></div>
             <div id="tune-settings"></div>
             <div id="tune-kept"></div>
+            <div id="tune-launch"></div>
           </div>
         </div>
       </div>

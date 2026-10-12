@@ -52,13 +52,36 @@
     overlayShow: ['fps', 'low1'], overlayHideFromCapture: false, autoOff: true, selectedGame: main.id, phone: q.get('phone') === '1',
     experiments: [{ id: 'e1', label: 'Shadows: Medium → Low', aLabel: 'Medium', bLabel: 'Low' }],
     protectedApps: ['Discord.exe', 'Spotify.exe', 'TeamSpeak.exe', 'Mumble.exe', 'voicemeeterpro.exe'],
-    boost: { stepBack: true, gameFirst: true, gameMode: true, recording: true, powerPlan: true, stepBackApps: ['opera.exe', 'chrome.exe', 'OneDrive.exe', 'EpicGamesLauncher.exe', 'wallpaper64.exe'] },
+    boost: { stepBack: true, gameFirst: true, gameMode: true, recording: true, powerPlan: true, auto: true, stepBackApps: [], leaveAlone: [] },
   };
-  const apps = [
-    { name: 'opera.exe', cpu: 3.4 }, { name: 'Discord.exe', cpu: 1.5 }, { name: 'Spotify.exe', cpu: 1.2 }, { name: 'OneDrive.exe', cpu: 0.9 },
-    { name: 'EpicGamesLauncher.exe', cpu: 0.6 }, { name: 'steam.exe', cpu: 0.4 }, { name: 'voicemeeterpro.exe', cpu: 0.9 }, { name: 'NVIDIA Overlay.exe', cpu: 0.3 },
-    { name: 'Code.exe', cpu: 0.2 }, { name: 'PowerToys.exe', cpu: 0.1 },
+  // the Boost page's app picker: a few running apps and what the real TEMPO would decide for each (same rules, in short)
+  const groups = [
+    ['browsers', 'Browsers', 'step', 'Tabs and videos keep going, just behind your game.'], ['launchers', 'Launchers & stores', 'step', 'Downloads and store pages slow down a little; your game keeps talking to them.'],
+    ['sync', 'Cloud & sync', 'step', 'Files still sync, a little slower.'], ['helpers', 'Updaters & helpers', 'step', "Background updaters and helper apps you don't need while you play."],
+    ['lighting', 'RGB lighting & widgets', 'step', "Light effects, wallpapers and widgets. They may lag a little; your game won't."], ['work', 'Work & creative apps', 'step', 'Editors and tools left open. Exports and builds keep running, slower.'],
+    ['busy', 'Anything else busy', 'step', 'Other apps that keep using the processor in the background while you play.'],
+    ['calls', 'Calls & music', 'calls', 'So voice chat and music never stutter.'], ['game', 'Helps your game', 'keep', 'Anti-cheat, frame generation, overlays, recording, controllers and network tools.'],
+  ].map(([id, label, kind, why]) => ({ id, label, kind, why, on: true }));
+  const known = [
+    ['opera.exe', 3.4, 'browsers'], ['Discord.exe', 1.5, 'calls'], ['Spotify.exe', 1.2, 'calls'], ['OneDrive.exe', 0.9, 'sync'], ['EpicGamesLauncher.exe', 0.6, 'launchers'],
+    ['steamwebhelper.exe', 0.5, 'launchers'], ['steam.exe', 0.4, 'game', 'Controllers: slowing it would add input delay.'], ['LosslessScaling.exe', 0.8, 'game', 'It makes frames for your game. Slowing it would lower your fps.'],
+    ['NVIDIA Overlay.exe', 0.3, 'game', 'An overlay or fps tool that runs alongside the game.'], ['Code.exe', 0.2, 'work'], ['wallpaper64.exe', 0.7, 'lighting'], ['GoogleDriveFS.exe', 0.3, 'sync'],
+    ['PhoneExperienceHost.exe', 0.1, 'helpers'], ['ProjectHelper.exe', 2.6, null], ['notes-sync.exe', 0.2, null],
   ];
+  const choices = {};
+  const appsPayload = () => {
+    const auto = settings.boost.auto !== false;
+    const gOn = id => groups.find(g => g.id === id).on;
+    const apps = known.map(([name, cpu, group, keepWhy]) => {
+      const choice = choices[name] || '';
+      const calls = group === 'calls' && choice !== 'on', kept = group === 'game' && choice !== 'on';
+      const autoStep = auto && !!group && group !== 'calls' && group !== 'game' ? gOn(group) : auto && !group && gOn('busy') && cpu >= 1.5;
+      const step = calls || kept ? false : choice === 'on' ? true : choice === 'off' ? false : autoStep;
+      const why = calls ? 'Music and voice are left exactly as they are.' : kept ? keepWhy : choice === 'on' ? 'You picked it.' : choice === 'off' ? 'You chose to leave it alone.' : !group ? (step ? 'Busy in the background.' : 'Steps back only if it gets busy while you play.') : step ? 'Steps back automatically.' : 'This kind is switched off.';
+      return { name, cpu, group: group || 'busy', step, auto: autoStep, why, locked: calls || kept, choice, calls, kept };
+    }).sort((a, b) => b.cpu - a.cpu);
+    return { t: 'apps', apps, groups, auto, busyPercent: 1.5, live: state !== 'off', boostStatus };
+  };
   const boostStatus = { gameMode: true, recordingOff: false, powerHigh: false, powerAvailable: true, onBattery: false };
   // the Tune page: a running test, a finished one, suggestions and the game's own settings
   const L = (n, ...names) => names.slice(0, n + 1).map((nm, i) => ({ value: String(i), label: nm }));
@@ -79,9 +102,10 @@
     config: { format: 'unreal', note: 'The Unreal Engine settings file. A few games keep their own copy and ignore it; a test session shows whether a change took.', file: 'GameUserSettings.ini', capKey: 'FrameRateLimit' },
     settings: gameSettings,
     suggestions: [
+      { id: 'launch:-high', kind: 'launch', key: '-high', tag: 'fix', title: 'Remove -high from Steam\'s launch options', why: 'Asks Windows to put the game above almost everything, including sound and voice chat, which can make Discord and audio crackle. TEMPO\'s "Game first" does the same more gently while it\'s on. In Steam: right-click the game, Properties, Launch options.' },
       { id: 'display', kind: 'display', key: 'display', from: 'fullscreen', to: 'borderless', fromLabel: 'Fullscreen', toLabel: 'Borderless', tag: 'fix', title: 'Switch to borderless', why: "Exclusive fullscreen kept TEMPO's fps counter off your screen. On Windows 10 and 11 a borderless game gets the same fast path as fullscreen, so it usually costs nothing, and the counter can sit on top. Test it to see your own numbers." },
-      { id: 'up:sg.PostProcessQuality', kind: 'setting', key: 'sg.PostProcessQuality', from: '0', to: '1', fromLabel: 'Low', toLabel: 'Medium', tag: 'looks', title: 'Post-processing: Low → Medium', why: 'Your processor holds the game back on 62% of frames while the graphics card waits. Post-processing only uses the graphics card, so it probably looks better for free. TEMPO measures whether that\'s true on your PC.' },
       { id: 'down:sg.ViewDistanceQuality', kind: 'setting', key: 'sg.ViewDistanceQuality', from: '2', to: '1', fromLabel: 'High', toLabel: 'Medium', tag: 'try', title: 'View distance: High → Medium', why: 'Your processor holds the game back on 62% of frames. View distance gives the processor work too, so lowering it is one of the few settings that can help. Worth a test.' },
+      { id: 'up:sg.PostProcessQuality', kind: 'setting', key: 'sg.PostProcessQuality', from: '0', to: '1', fromLabel: 'Low', toLabel: 'Medium', tag: 'looks', title: 'Post-processing: Low → Medium', why: 'Your processor holds the game back on 62% of frames while the graphics card waits. Post-processing only uses the graphics card, so it probably looks better for free. TEMPO measures whether that\'s true on your PC.' },
     ],
     cap: { cap: 55, p10: 56, p50: 75, hz: 144, steady: false, why: 'Your fps jumps between about 56 and 75+. Capped at 55, which the game holds about 90% of the time, frames arrive evenly, which most people feel as smoother, and the graphics card runs cooler. The average goes down a little by design.' },
     experiments: [
@@ -91,6 +115,11 @@
         result: { sessionsA: 3, sessionsB: 3, minutesA: 92, minutesB: 88, fps: meas(64.9, 70.3, 2.9, 7.9, 'better'), low: meas(39.8, 46.1, 3.4, 9.2, 'better'), jitter: meas(1.7, 1.5, -0.5, 0.1, 'open'), verdict: 'better', moreSessions: 0, summary: 'It helps: +5.4 fps on average and +6.3 at the 1% lows.' } },
     ],
     kept: [{ gameId: settings.selectedGame, key: 'bUseVSync', label: 'V-Sync: On → Off', original: 'True', value: 'False', when: new Date(Date.now() - 86400e3 * 2).toISOString() }],
+    launch: { raw: '-high -threads 6 -novid +fps_max 0', items: [
+      { text: '-high', level: 'bad', what: 'Asks Windows to put the game above almost everything, including sound and voice chat, which can make Discord and audio crackle. TEMPO\'s "Game first" does the same more gently while it\'s on.' },
+      { text: '-threads 6', level: 'tip', what: 'Old advice. Today\'s engines pick the number of threads themselves, and a wrong number can lower fps. Worth removing.' },
+      { text: '-novid', level: 'ok', what: 'Harmless: opens the console or skips intro videos, controllers or the logo. No effect on fps once you\'re playing.' },
+      { text: '+fps_max 0', level: 'ok', what: 'An fps limit set at start. A limit your PC can hold steadily feels smoother; the Tune page suggests one.' }] },
     boostOptions: settings.boost,
   });
   const deliver = m => setTimeout(() => window.__deliver(JSON.parse(JSON.stringify(m))), 0);
@@ -107,7 +136,8 @@
     state = st;
     clearInterval(liveTimer);
     deliver({ t: 'state', state: st, game: st === 'off' ? null : settings.selectedGame, gameName: (games.find(g => g.id === settings.selectedGame) || main).name, learn: !!learn,
-      applied: st === 'off' || learn ? [] : st === 'live' ? boostList : boostList.slice(0, 3), since: st === 'live' ? new Date(Date.now() - 761e3).toISOString() : null });
+      applied: st === 'off' || learn ? [] : st === 'live' ? boostList : boostList.slice(0, 3), since: st === 'live' ? new Date(Date.now() - 761e3).toISOString() : null,
+      stepped: st === 'off' || learn ? [] : ['opera', 'OneDrive', 'EpicGamesLauncher', 'steamwebhelper', 'wallpaper64', 'Code'] });
     if (st === 'live') { t0 = Date.now(); live(); liveTimer = setInterval(live, 250); }
   }
   window.__mockSend = m => {
@@ -126,7 +156,10 @@
       }
       setState('off');
     }
-    if (m.t === 'apps') deliver({ t: 'apps', apps, boostStatus });
+    if (m.t === 'apps') deliver(appsPayload());
+    if (m.t === 'set' && m.key === 'boost.auto') { settings.boost.auto = m.value; deliver(appsPayload()); }
+    if (m.t === 'set' && m.key === 'boost.group') { groups.find(g => g.id === m.value.id).on = m.value.on; deliver(appsPayload()); }
+    if (m.t === 'set' && m.key === 'boost.app') { if (m.value.choice === 'default') delete choices[m.value.name]; else choices[m.value.name] = m.value.choice; deliver(appsPayload()); }
     if (m.t === 'tune') setTimeout(() => deliver(tunePayload()), 250);
     if (m.t === 'phone' || m.t === 'phoneState') { if (m.t === 'phone') settings.phone = m.on; deliver({ t: 'phone', on: !!settings.phone, urls: settings.phone ? ['http://192.168.1.20:8735/?k=3f9a1c07be5d2a8e41', 'http://172.20.10.2:8735/?k=3f9a1c07be5d2a8e41'] : [], clients: settings.phone ? 1 : 0 }); }
     if ((m.t === 'test' || m.t === 'setNow' || m.t === 'keep' || m.t === 'putBack' || m.t === 'stopTest') && site) deliver({ t: 'toast', text: 'In the real TEMPO this sets up the test or changes the game\'s setting. This demo only shows how it looks.' });

@@ -13,7 +13,7 @@
   // settings can be nested ("boost.stepBack")
   const getSet = k => k.split('.').reduce((o, p) => o == null ? undefined : o[p], S.settings);
   function putSet(k, v) { const ps = k.split('.'); let o = S.settings; ps.slice(0, -1).forEach(p => { o[p] = o[p] || {}; o = o[p]; }); o[ps[ps.length - 1]] = v; }
-  const DEFAULT_ON = new Set(['overlay', 'autoOff', 'artBehindDial', 'boost.stepBack', 'boost.gameFirst', 'boost.gameMode', 'boost.recording', 'boost.powerPlan']);
+  const DEFAULT_ON = new Set(['overlay', 'autoOff', 'artBehindDial', 'boost.stepBack', 'boost.gameFirst', 'boost.gameMode', 'boost.recording', 'boost.powerPlan', 'boost.memoryRelief', 'boost.strongGpu']);
   const isOn = k => { const v = getSet(k); return v === true || (v === undefined && DEFAULT_ON.has(k)); };
   const BOOST_KEYS = ['boost.stepBack', 'boost.gameFirst', 'boost.gameMode', 'boost.recording', 'boost.powerPlan'];
   const boostCount = () => BOOST_KEYS.filter(isOn).length;
@@ -46,12 +46,22 @@
   // ------------------------------------------------------------------ theme
   const ACCENTS = [['Volt', '#D4FF3F'], ['Violet', '#B79BFF'], ['Ice', '#6FE3FF'], ['Ember', '#FF7A3D'], ['Rose', '#FF6FAE'], ['Gold', '#FFD15C'], ['Mint', '#5CFFB5'], ['Mono', '#F2F3F5']];
   const BGS = [['graphite', 'Graphite', '#08090B'], ['black', 'True black', '#000000'], ['midnight', 'Midnight', '#070A14']];
+  // contrast between two colours (WCAG), so a dark colour of your own still reads on TEMPO's dark background
+  const relLum = ([r, g, b]) => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+  const contrast = (a, b) => { const x = relLum(a), y = relLum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const toHex = rgb => '#' + rgb.map(v => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase();
+  const ACC = () => S.accUi || S.settings.accent || '#D4FF3F';
   function applyTheme() {
     const st = S.settings;
-    const [r, g, b] = hexRgb(st.accent);
+    let [r, g, b] = hexRgb(st.accent);
+    const bgHex = (BGS.find(x => x[0] === (st.background || 'graphite')) || BGS[0])[2];
+    // lift a too-dark accent towards white until text in it reads clearly (the overlay keeps your exact colour)
+    for (let i = 0; i < 20 && contrast([r, g, b], hexRgb(bgHex)) < 4.5; i++) { r += (255 - r) * .12; g += (255 - g) * .12; b += (255 - b) * .12; }
+    [r, g, b] = [r, g, b].map(Math.round);
+    S.accUi = toHex([r, g, b]);
     const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
     const root = document.documentElement.style;
-    root.setProperty('--acc', st.accent || '#D4FF3F');
+    root.setProperty('--acc', S.accUi);
     root.setProperty('--acc-rgb', `${r}, ${g}, ${b}`);
     root.setProperty('--acc-ink', lum > 0.45 ? `rgb(${Math.round(r * .06)}, ${Math.round(g * .06)}, ${Math.round(b * .06)})` : '#FFFFFF');
     root.setProperty('--grain', String((st.grain ?? .35) * .22));
@@ -87,7 +97,7 @@
 
   function dialInto(svg, opts) {
     svg.innerHTML = '';
-    const acc = S.settings.accent || '#D4FF3F';
+    const acc = ACC();
     const defs = el('defs', {}, svg);
     const lg = el('linearGradient', { id: svg.id + '-g', x1: 0, y1: 1, x2: 1, y2: 0 }, defs);
     el('stop', { offset: 0, 'stop-color': acc, 'stop-opacity': .45 }, lg);
@@ -100,12 +110,12 @@
     for (let v = 0; v <= D.max + .01; v += step) {
       const isMajor = v % major === 0 && v < D.hz - 8, mid = v % 10 === 0;
       const [x0, y0] = pt(ang(v), D.R - 18), [x1, y1] = pt(ang(v), D.R - (isMajor ? 30 : mid ? 25 : 22));
-      el('line', { x1: x0, y1: y0, x2: x1, y2: y1, stroke: isMajor ? '#565D67' : mid ? '#30353D' : '#1F2329', 'stroke-width': isMajor ? 1.5 : 1 }, svg);
-      if (isMajor && opts.labels !== false) { const [tx, ty] = pt(ang(v), D.R - 44); el('text', { x: tx, y: ty + 3.5, 'text-anchor': 'middle', 'font-family': 'Geist Mono', 'font-size': 10, fill: '#59606A' }, svg).textContent = v; }
+      el('line', { x1: x0, y1: y0, x2: x1, y2: y1, stroke: isMajor ? '#565D67' : mid ? '#30353D' : '#1F2329', 'stroke-width': isMajor ? 1.5 : 1, class: 'tk' }, svg);
+      if (isMajor && opts.labels !== false) { const [tx, ty] = pt(ang(v), D.R - 44); el('text', { x: tx, y: ty + 3.5, 'text-anchor': 'middle', 'font-family': 'Geist Mono', 'font-size': 10, fill: '#7C838D' }, svg).textContent = v; }
     }
     const [h0x, h0y] = pt(ang(D.hz), D.R - 12), [h1x, h1y] = pt(ang(D.hz), D.R + 12);
     el('line', { x1: h0x, y1: h0y, x2: h1x, y2: h1y, stroke: '#ECEEF1', 'stroke-width': 2, 'stroke-linecap': 'round' }, svg);
-    if (opts.labels !== false) { const [lx, ly] = pt(ang(D.hz), D.R + 22); el('text', { x: lx + 2, y: ly + 4, 'font-family': 'Geist Mono', 'font-size': 9.5, fill: '#8B929C' }, svg).textContent = `${D.hz} Hz`; }
+    if (opts.labels !== false) { const [lx, ly] = pt(ang(D.hz), D.R + 22); el('text', { x: lx + 2, y: ly + 4, 'font-family': 'Geist Mono', 'font-size': 10, fill: '#A2A9B3' }, svg).textContent = `${D.hz} Hz`; }
     return svg;
   }
 
@@ -113,7 +123,7 @@
     D.hz = S.hw.hz || 144;
     D.max = Math.max(165, Math.ceil((D.hz + 20) / 15) * 15);
     const svg = dialInto($('dial-svg'), {});
-    const acc = S.settings.accent || '#D4FF3F';
+    const acc = ACC();
     dial.glow = el('path', { d: '', fill: 'none', stroke: acc, 'stroke-width': 30, 'stroke-linecap': 'round', opacity: .12 }, svg);
     dial.glow2 = el('path', { d: '', fill: 'none', stroke: acc, 'stroke-width': 20, 'stroke-linecap': 'round', opacity: .16 }, svg);
     dial.arc = el('path', { d: '', fill: 'none', stroke: 'url(#dial-svg-g)', 'stroke-width': 12, 'stroke-linecap': 'round' }, svg);
@@ -136,7 +146,7 @@
     Object.entries({ x1: x0, y1: y0, x2: x1, y2: y1, opacity: live ? .45 : .95 }).forEach(([k, val]) => dial.ghostLine.setAttribute(k, val));
     dial.ghostText.setAttribute('x', tx - 4); dial.ghostText.setAttribute('y', ty);
     dial.ghostText.setAttribute('opacity', 1);
-    dial.ghostText.setAttribute('fill', live ? '#59606A' : (S.settings.accent || '#D4FF3F'));
+    dial.ghostText.setAttribute('fill', live ? '#8B929C' : ACC());
     dial.ghostText.textContent = (live ? 'before ' : 'last ') + Math.round(v);
   }
 
@@ -176,9 +186,78 @@
     const last = sessionsOf(S.settings.selectedGame)[0];
     if (last) {
       const [x0, y0] = pt(ang(last.avgFps), D.R - 9), [x1, y1] = pt(ang(last.avgFps), D.R + 9);
-      el('line', { x1: x0, y1: y0, x2: x1, y2: y1, stroke: S.settings.accent, 'stroke-width': 2.2, 'stroke-linecap': 'round' }, svg);
+      el('line', { x1: x0, y1: y0, x2: x1, y2: y1, stroke: ACC(), 'stroke-width': 2.2, 'stroke-linecap': 'round' }, svg);
     }
   }
+
+  // ------------------------------------------------------------------ the moments: on, live, off, saved
+  const still = () => body.dataset.motion === 'off' || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const EASE = 'cubic-bezier(0.23, 1, 0.32, 1)', SPRING = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
+  function ringAt(cls, ms) {
+    const r = document.createElement('i');
+    r.className = 'ring ' + cls;
+    $('dial').appendChild(r);
+    setTimeout(() => r.remove(), ms);
+  }
+  // Turning on: a light runs once round the dial, the ticks catch it one by one, and a ring goes out from the button
+  function ignite() {
+    if (still() || S.page !== 'play') return;
+    const svg = $('dial-svg');
+    const d = arcPath(0, D.max, D.R);
+    const glow = el('path', { d, fill: 'none', stroke: ACC(), 'stroke-width': 30, 'stroke-linecap': 'round', opacity: .22 }, svg);
+    const beam = el('path', { d, fill: 'none', stroke: ACC(), 'stroke-width': 12, 'stroke-linecap': 'round' }, svg);
+    const len = beam.getTotalLength(), head = len * 0.16;
+    for (const p of [glow, beam]) {
+      p.style.strokeDasharray = `${head} ${len * 2}`;
+      p.animate([{ strokeDashoffset: head, opacity: p === beam ? 1 : .22 }, { strokeDashoffset: -len * 0.92, opacity: p === beam ? .9 : .2, offset: .82 }, { strokeDashoffset: -len, opacity: 0 }],
+        { duration: 1000, easing: 'cubic-bezier(.45,.05,.2,1)' }).onfinish = () => p.remove();
+    }
+    const ticks = [...svg.querySelectorAll('.tk')];
+    ticks.forEach((t, i) => t.animate([{ stroke: t.getAttribute('stroke') }, { stroke: ACC(), offset: .25 }, { stroke: t.getAttribute('stroke') }],
+      { duration: 520, delay: 60 + i / ticks.length * 760, easing: 'ease-out' }));
+    ringAt('out', 900);
+    document.querySelector('.mark-needle')?.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(-62deg)' }, { transform: 'rotate(0)' }], { duration: 700, easing: EASE });
+  }
+  // The game arrived: the reading blooms in
+  function arrive() {
+    if (still()) return;
+    $('read-live').animate([{ opacity: 0, transform: 'scale(.82)', filter: 'blur(8px)' }, { opacity: 1, transform: 'scale(1)', filter: 'blur(0)' }], { duration: 520, easing: EASE });
+    ringAt('out soft', 900);
+  }
+  // Turning off: a ring settles back into the button, which pops back in
+  function windDown() {
+    if (still() || S.page !== 'play') return;
+    ringAt('in', 700);
+    $('power').animate([{ transform: 'scale(.7)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 560, easing: SPRING });
+    const ticks = [...$('dial-svg').querySelectorAll('.tk')].reverse();
+    ticks.forEach((t, i) => t.animate([{ opacity: 1 }, { opacity: .15, offset: .3 }, { opacity: 1 }], { duration: 420, delay: i / ticks.length * 380, easing: 'ease-out' }));
+  }
+  // count a number up into an element
+  function countUp(elm, to, ms = 900, dec = 0) {
+    if (!elm) return;
+    if (still() || !isFinite(to)) { elm.textContent = fmt(to, dec); return; }
+    const t0 = performance.now();
+    const step = t => { const k = Math.min(1, (t - t0) / ms), e = 1 - (1 - k) ** 3; elm.textContent = fmt(to * e, dec); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }
+  // A session was saved: a small receipt rises under the dial with the numbers counting up
+  function receipt(s) {
+    const box = $('receipt');
+    if (!box || !s) return;
+    clearTimeout(receipt.t);
+    box.innerHTML = `<div class="rc-top"><span class="rc-k">SESSION SAVED</span><span class="rc-g">${esc(s.gameName)} · ${dur(s.seconds)}</span><button type="button" class="rc-x" aria-label="Close">&#10005;</button></div>
+      <div class="rc-nums"><div><b id="rc-a">0</b><small>FPS AVERAGE</small></div><div><b id="rc-l">0</b><small>1% LOW</small></div><div><b id="rc-h">0</b><small>STUTTERS</small></div></div>
+      <button type="button" class="rc-go" data-see="${esc(s.gameId)}|${esc(s.id)}">See what held it back &rarr;</button>`;
+    box.hidden = false;
+    if (!still()) box.animate([{ opacity: 0, transform: 'translateY(14px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: EASE });
+    countUp($('rc-a'), s.avgFps); countUp($('rc-l'), s.low1, 1000); countUp($('rc-h'), s.hitches ?? 0, 700);
+    receipt.t = setTimeout(() => { box.hidden = true; }, 14000);
+  }
+  document.addEventListener('click', e => {
+    if (e.target.closest('.rc-x')) { $('receipt').hidden = true; return; }
+    const see = e.target.closest('[data-see]');
+    if (see) { const [gid, id] = see.dataset.see.split('|'); S.sessSel = S.sessions.find(x => x.gameId === gid && x.id === id) || null; $('receipt').hidden = true; go('sessions'); }
+  });
 
   // ------------------------------------------------------------------ pages
   function go(page) {
@@ -258,6 +337,8 @@
     $('read-wait').hidden = st !== 'waiting';
     $('read-live').hidden = st !== 'live';
     $('wait-sub').textContent = g ? `OPEN ${g.name.toUpperCase().slice(0, 28)}` : 'OPEN ANY GAME';
+    $('wait-t').textContent = st === 'waiting' && S.st.graceUntil ? 'GAME CLOSED' : 'WAITING';
+    tickGrace();
     $('stop').hidden = st === 'off';
     $('stop').textContent = st === 'live' ? 'Turn off and save this session' : 'Turn off';
     const last = g && sessionsOf(g.id)[0];
@@ -276,7 +357,8 @@
     $('learn').hidden = st !== 'off' || !boostCount();
     $('play').hidden = st !== 'off' || !(g && g.canLaunch);
     if (g && g.canLaunch) $('play').innerHTML = `<svg width="10" height="12" viewBox="0 0 10 12" aria-hidden="true"><path d="M0 0L10 6L0 12Z" fill="currentColor"/></svg>Turn on and open ${esc(g.name)}`;
-    const applied = S.st.applied || [];
+    const stepped = S.st.stepped || [];
+    const applied = (S.st.applied || []).filter(a => !/ stepped back$/.test(a)).concat(stepped.length ? [`Apps stepped back · ${stepped.slice(0, 4).join(', ')}${stepped.length > 4 ? ` +${stepped.length - 4}` : ''}`] : (S.st.applied || []).filter(a => / stepped back$/.test(a)));
     $('applied-lab').textContent = S.st.learn ? 'Measuring only' : applied.length ? `Boost on · ${applied.length}` : 'Boost on';
     $('applied').innerHTML = S.st.learn
       ? `<div class="ch dim"><div class="t">No changes this time<span>A clean baseline, so the boost can be measured against it.</span></div></div>`
@@ -423,7 +505,7 @@
     const rgb = getComputedStyle(document.documentElement).getPropertyValue('--acc-rgb');
     if (before && before.length > 1) line(before, '#3A4048', 1.3, [3, 2]);
     if (low) line(low, `rgba(${rgb}, .32)`, 1, null);
-    line(series, S.settings.accent, 1.6, null, `rgba(${rgb}, .08)`);
+    line(series, ACC(), 1.6, null, `rgba(${rgb}, .08)`);
     // the worst stutters, as small marks along the bottom
     if (sess && sess.worstHitches && sess.seconds) {
       g.setLineDash([]);
@@ -460,7 +542,11 @@
         m('Memory free', `${gb(s.ramAvail)} GB`, ramUsed, s.ramAvail < 2.2 * 1073741824) +
         (s.temp != null ? m('Graphics card heat', `${fmt(s.temp)} °C`, (s.temp - 30) / 60 * 100, s.temp > 83) : '');
       $('bg-apps').innerHTML = s.top && s.top.length
-        ? `<div class="lab" style="margin:4px 0 6px">Also using your processor</div>` + s.top.slice(0, 4).map(p => `<div class="row${(S.settings.protectedApps || []).some(x => x.toLowerCase() === p.name.toLowerCase()) ? ' kept' : ''}"><span>${esc(p.name.replace(/\.exe$/i, ''))}</span><b>${fmt(p.cpu, 1)}%</b></div>`).join('')
+        ? `<div class="lab" style="margin:4px 0 6px">Also using your processor</div>` + s.top.slice(0, 4).map(p => {
+            const nm = p.name.replace(/\.exe$/i, ''), kept = (S.settings.protectedApps || []).some(x => x.toLowerCase() === p.name.toLowerCase());
+            const down = !kept && (S.st.stepped || []).some(x => x.toLowerCase() === nm.toLowerCase());
+            return `<div class="row${kept ? ' kept' : down ? ' down' : ''}"><span>${esc(nm)}</span><b>${fmt(p.cpu, 1)}%</b></div>`;
+          }).join('')
         : '';
     }
     if (l.limiter) {
@@ -501,7 +587,7 @@
     const rgb = getComputedStyle(document.documentElement).getPropertyValue('--acc-rgb');
     g.beginPath();
     fr.forEach((v, i) => { const x = i / Math.max(1, fr.length - 1) * w; i ? g.lineTo(x, y(v)) : g.moveTo(x, y(v)); });
-    g.strokeStyle = S.settings.accent; g.lineWidth = 1.4; g.lineJoin = 'round'; g.stroke();
+    g.strokeStyle = ACC(); g.lineWidth = 1.4; g.lineJoin = 'round'; g.stroke();
     g.lineTo(w, h); g.lineTo(0, h); g.closePath(); g.fillStyle = `rgba(${rgb}, .07)`; g.fill();
   }
 
@@ -510,6 +596,13 @@
     if (e && S.st.since) { const s = (Date.now() - new Date(S.st.since)) / 1000; e.textContent = `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')} in`; }
   }
   setInterval(tickSince, 1000);
+  // after the game closes, TEMPO waits a moment in case it comes straight back (a launcher handing over, a restart)
+  function tickGrace() {
+    if (S.st.state !== 'waiting' || !S.st.graceUntil) return;
+    const left = Math.max(0, Math.ceil((new Date(S.st.graceUntil) - Date.now()) / 1000));
+    $('wait-sub').textContent = S.settings.autoOff !== false ? `TURNING OFF IN ${left} S` : 'WAITING FOR THE NEXT GAME';
+  }
+  setInterval(tickGrace, 500);
 
   // ------------------------------------------------------------------ sessions page
   function renderSessions() {
@@ -631,7 +724,7 @@
   const TAG = { fix: 'Fix', try: 'Worth a test', looks: 'Free looks' };
   const BOOST_TESTS = [
     ['boost.all', 'The whole boost', 'Every part of the boost against none of it.'],
-    ['boost.stepBack', 'Apps step back', 'Your picked apps waiting their turn, against running as usual.'],
+    ['boost.stepBack', 'Apps step back', 'Background apps waiting their turn, against running as usual.'],
     ['boost.gameFirst', 'Game first', 'The game ahead of other apps for the processor.'],
     ['boost.gameMode', 'Windows Game Mode', 'On against off, while you play.'],
     ['boost.powerPlan', 'High performance power', 'Full processor speed against your normal plan.'],
@@ -706,7 +799,7 @@
       : !sugs.length ? `<div class="empty"><b>Nothing obvious to change</b>${T.config ? `${esc(g.name)}'s settings already suit what holds your PC back.` : `TEMPO doesn't know where ${esc(g.name)} keeps its settings, so it can't suggest exact changes. ${genericAdvice(cpu, gpu)}`}</div>`
       : busy + sugs.map(s => `<div class="sug ${s.tag}"><div class="sug-top"><span class="pill ${s.tag}">${TAG[s.tag] || ''}</span><b>${esc(s.title)}</b></div>
           <p>${esc(s.why)}</p>
-          <div class="sug-act">${testBtn(s)}${closed ? `<button type="button" class="btn" data-setnow='${esc(JSON.stringify({ key: s.key, value: s.to, label: s.title }))}'>Change now</button>` : ''}</div></div>`).join('');
+          <div class="sug-act">${s.kind === 'launch' ? `<span class="note" style="margin:0">TEMPO can't change these for you: Steam rewrites them while it runs.</span>` : testBtn(s) + (closed ? `<button type="button" class="btn" data-setnow='${esc(JSON.stringify({ key: s.key, value: s.to, label: s.title }))}'>Change now</button>` : '')}</div></div>`).join('');
 
     // fps limit
     const c = T.cap, capKey = T.config && T.config.capKey;
@@ -720,6 +813,14 @@
       const now = running && running.exp.key === key;
       return `<div class="brow"><div><b>${lab}</b><small>${txt}</small></div>${now ? '<span class="pill run">TESTING</span>' : `<button type="button" class="btn" data-test='${esc(JSON.stringify({ kind: 'boost', key, a: 'off', b: 'on', label: `${lab}: on or off`, aLabel: 'Off', bLabel: 'On' }))}'>Test</button>`}</div>`;
     }).join('');
+
+    // Steam launch options: many come from old "fps boost" guides
+    const LV = { bad: ['Remove it', 'bad'], tip: ['Old advice', 'tip'], ok: ['Fine', 'ok'], unknown: ['Unknown', 'unk'] };
+    const lo = T.launch && T.launch.items || [];
+    $('tune-launch').innerHTML = !lo.length ? '' : `<div class="sec-h"><span>Steam launch options</span><small>${lo.filter(o => o.level === 'bad' || o.level === 'tip').length ? `${lo.filter(o => o.level === 'bad' || o.level === 'tip').length} worth removing` : 'All fine'}</small></div>
+      <p class="note" style="margin:0 0 8px">Set in Steam: right-click ${esc(g.name)}, Properties, Launch options. TEMPO only reads them; change them there.</p>
+      <div class="lo-raw mono">${esc(T.launch.raw)}</div>` +
+      lo.map(o => `<div class="lo"><div class="lo-top"><code>${esc(o.text)}</code><span class="lv ${(LV[o.level] || LV.unknown)[1]}">${(LV[o.level] || LV.unknown)[0]}</span></div><p>${esc(o.what)}</p></div>`).join('');
 
     // the game's own settings
     $('tune-set-h').textContent = T.config ? `${g.name}'s own settings` : 'The game\'s own settings';
@@ -861,37 +962,97 @@
     chip('bs-pw', st.onBattery ? 'on battery' : st.powerHigh ? 'already on' : st.powerAvailable === false ? 'not on this PC' : '');
     $('bs-gpu-row').hidden = (S.hw.adapters || 1) < 2;
     $('bs-test').innerHTML = `<div class="brow" style="margin-top:18px"><div><b>Is it worth it on your PC?</b><small>The Tune page can test the boost, or any one part of it, over real sessions.</small></div><button type="button" class="btn" data-go-page="tune">Open Tune</button></div>`;
-    const want = new Set((getSet('boost.stepBackApps') || []).map(x => x.toLowerCase()));
-    const prot = new Set((S.settings.protectedApps || []).map(x => x.toLowerCase()));
-    const apps = S.apps || [];
-    const running = apps.filter(a => !prot.has(a.name.toLowerCase()));
-    const picked = running.filter(a => want.has(a.name.toLowerCase())).length;
-    chip('bs-apps', `${picked} running`);
-    $('apps-count').textContent = `${picked} picked`;
-    const row = (a, on, lock) => `<button type="button" class="app${on ? ' on' : ''}${lock ? ' lock' : ''}" data-app="${esc(a.name)}"${lock ? ' data-lock="1"' : ''}><span class="nm">${esc(a.name.replace(/\.exe$/i, ''))}</span><span class="cpu">${a.cpu ? fmt(a.cpu, 1) + '%' : ''}</span><span class="pick">${lock ? 'Never touched' : on ? 'Steps back' : 'Leave alone'}</span></button>`;
-    $('apps').innerHTML = S.apps == null ? '<p class="note">Looking at what\'s running…</p>'
-      : running.length ? running.slice(0, 40).map(a => row(a, want.has(a.name.toLowerCase()), false)).join('') : '<p class="note">Nothing else is running.</p>';
-    const protList = (S.settings.protectedApps || []).map(n => apps.find(a => a.name.toLowerCase() === n.toLowerCase()) || { name: n, cpu: 0 });
-    const shownProt = protList.filter(p => apps.some(a => a.name.toLowerCase() === p.name.toLowerCase()));
-    $('protected').innerHTML = (shownProt.length ? shownProt : protList.slice(0, 3)).map(a => row(a, false, true)).join('') +
-      `<p class="note" style="margin-top:8px">Music and voice apps are left exactly as they are, so calls and music never stutter. Tap one to let it step back too.</p>`;
+    renderApps();
     const g = sel();
     $('bs-compare').innerHTML = compareHtml(g && g.id);
     syncControls();
   }
+  // ---------------- which apps step back: TEMPO decides by kind (automatic), or only the ones you tap
+  const bare = n => String(n || '').replace(/\.exe$/i, '');
+  function appChip(a) {
+    const cls = a.locked && a.choice !== 'on' ? 'lock' : a.step ? 'on' : '';
+    const tip = `${bare(a.name)}: ${a.why}`;
+    return `<button type="button" class="ach ${cls}${a.choice ? ' mine' : ''}" data-ach="${esc(a.name)}" title="${esc(tip)}"><i></i><span>${esc(bare(a.name))}</span>${a.cpu >= 0.1 ? `<small>${fmt(a.cpu, 1)}%</small>` : ''}</button>`;
+  }
+  function renderApps() {
+    const A = S.appsData;
+    const auto = A ? A.auto !== false : true;
+    document.querySelectorAll('#ap-mode button').forEach(b => b.classList.toggle('on', (b.dataset.mode === 'auto') === auto));
+    if (!A) { $('apps').innerHTML = '<p class="note">Looking at what\'s running…</p>'; $('protected').innerHTML = ''; $('ap-note').textContent = ''; return; }
+    const apps = A.apps || [];
+    const stepping = apps.filter(a => a.step);
+    $('apps-count').textContent = `${stepping.length} stepping back`;
+    const chip = document.getElementById('bs-apps');
+    if (chip) { chip.textContent = `${stepping.length} app${stepping.length === 1 ? '' : 's'}`; chip.hidden = false; }
+    $('ap-note').innerHTML = auto
+      ? 'TEMPO picks them by kind, plus anything else that keeps the processor busy while you play. Tap an app to decide for yourself; a dot marks your own choices. <b>Nothing is ever closed</b>, and an app you switch to gets its full speed while it\'s in front.'
+      : 'Only the apps you tap step back. <b>Nothing is ever closed</b>, and an app you switch to gets its full speed while it\'s in front.';
+    const isCalls = a => a.calls || a.group === 'calls', isKept = a => a.kept || a.group === 'game';
+    const free = apps.filter(a => !isCalls(a) && !isKept(a));
+    if (auto) {
+      const groups = (A.groups || []).filter(g => g.kind === 'step');
+      const inGroup = (g, a) => g.id === 'busy' ? (a.group == null || a.group === 'busy') : a.group === g.id;
+      const cards = groups.map(g => ({ g, list: free.filter(a => inGroup(g, a)) }));
+      const full = cards.filter(c => c.list.length), empty = cards.filter(c => !c.list.length);
+      $('apps').innerHTML = `<div class="ag-grid">` + full.map(({ g, list }) => {
+        const n = list.filter(a => a.step).length;
+        return `<div class="agrp${g.on ? ' on' : ''}${g.id === 'busy' || list.length > 4 ? ' wide' : ''}"><div class="ag-top"><b>${esc(g.label)}</b><span class="ag-n">${g.id === 'busy' ? `${list.length} other app${list.length === 1 ? '' : 's'}` : `${n} of ${list.length}`}</span><button type="button" class="tog${g.on ? ' on' : ''}" data-grp="${g.id}" aria-label="${esc(g.label)}"></button></div>
+          <p>${esc(g.why)}${g.id === 'busy' ? ` Above ${fmt(A.busyPercent || 1.5, 1)}% of the processor, on average.` : ''}</p>
+          <div class="achips">${list.map(appChip).join('')}</div></div>`;
+      }).join('') + `</div>` + (empty.length ? `<div class="ag-empty"><div class="ag-eh">Not running now, covered when they are</div>${empty.map(({ g }) => `<div class="ag-row"><span><b>${esc(g.label)}</b><small>${esc(g.why)}</small></span><button type="button" class="tog${g.on ? ' on' : ''}" data-grp="${g.id}" aria-label="${esc(g.label)}"></button></div>`).join('')}</div>` : '');
+    } else {
+      $('apps').innerHTML = free.length ? `<div class="apps">${free.map(a => `<button type="button" class="app${a.step ? ' on' : ''}" data-ach="${esc(a.name)}"><span class="nm">${esc(bare(a.name))}</span><span class="cpu">${a.cpu ? fmt(a.cpu, 1) + '%' : ''}</span><span class="pick">${a.step ? 'Steps back' : 'Leave alone'}</span></button>`).join('')}</div>` : '<p class="note">Nothing else is running.</p>';
+    }
+    const calls = apps.filter(isCalls), kept = apps.filter(isKept);
+    const keptCard = (title, why, list, none) => `<div class="agrp kept"><div class="ag-top"><b>${title}</b><span class="ag-n">${list.length ? `${list.length} running` : ''}</span></div><p>${why}</p>${list.length ? `<div class="achips">${list.map(appChip).join('')}</div>` : `<p class="ag-none">${none}</p>`}</div>`;
+    $('protected').innerHTML =
+      keptCard('Calls & music', 'Discord, Spotify, TeamSpeak and the like stay exactly as they are, so voice and music never stutter. Tap one to let it step back.', calls, 'None running right now.') +
+      keptCard('Helps your game', 'Anti-cheat, frame generation (like Lossless Scaling), overlays, recording, mouse and controller software, VPNs and fan tools. Slowing these would hurt your game, so they\'re kept.', kept, 'None running right now.') +
+      `<div class="ag-confirm" id="ag-confirm" hidden></div>`;
+  }
+  function chooseApp(name, choice) {
+    const A = S.appsData;
+    const a = A && (A.apps || []).find(x => x.name === name);
+    if (a) { // show it straight away; the app answers with the real decision a moment later
+      a.choice = choice === 'default' ? '' : choice;
+      a.step = choice === 'on' ? true : choice === 'off' ? false : a.auto;
+      if (choice === 'on') a.locked = false;
+      renderApps();
+    }
+    send({ t: 'set', key: 'boost.app', value: { name, choice } });
+  }
   document.addEventListener('click', e => {
-    const b = e.target.closest('[data-app]');
-    if (!b) return;
-    const name = b.dataset.app;
-    if (b.dataset.lock) {
-      set('protectedApps', (S.settings.protectedApps || []).filter(n => n.toLowerCase() !== name.toLowerCase()));
+    const m = e.target.closest('#ap-mode [data-mode]');
+    if (m) { const auto = m.dataset.mode === 'auto'; if (S.appsData) S.appsData.auto = auto; putSet('boost.auto', auto); send({ t: 'set', key: 'boost.auto', value: auto }); renderApps(); return; }
+    const gt = e.target.closest('[data-grp]');
+    if (gt) {
+      const A = S.appsData, g = A && (A.groups || []).find(x => x.id === gt.dataset.grp);
+      if (g) {
+        g.on = !g.on;
+        if (g.id !== 'busy') (A.apps || []).forEach(a => { if (!a.choice && !a.locked && a.group === g.id) a.step = a.auto = g.on; });
+        renderApps();
+        send({ t: 'set', key: 'boost.group', value: { id: g.id, on: g.on } });
+      }
       return;
     }
-    const list = (getSet('boost.stepBackApps') || []).slice();
-    const i = list.findIndex(n => n.toLowerCase() === name.toLowerCase());
-    if (i >= 0) list.splice(i, 1); else list.push(name);
-    set('boost.stepBackApps', list);
-    send({ t: 'set', key: 'boost.apps', value: list });
+    const yes = e.target.closest('[data-unlock]');
+    if (yes) { chooseApp(yes.dataset.unlock, 'on'); return; }
+    if (e.target.closest('[data-unlock-no]')) { $('ag-confirm').hidden = true; return; }
+    const b = e.target.closest('[data-ach]');
+    if (!b) return;
+    const A = S.appsData, a = A && (A.apps || []).find(x => x.name === b.dataset.ach);
+    if (!a) return;
+    if (a.locked && a.choice !== 'on') {
+      // music, voice, or something the game needs: ask first
+      const c = $('ag-confirm');
+      c.hidden = false;
+      c.innerHTML = `<span><b>${esc(bare(a.name))}</b> ${esc(a.why)} Let it step back anyway?</span><button type="button" class="btn acc" data-unlock="${esc(a.name)}">Let it step back</button><button type="button" class="btn" data-unlock-no>Keep it as it is</button>`;
+      c.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      return;
+    }
+    if (a.locked && a.choice === 'on') { chooseApp(a.name, 'default'); return; }
+    const next = !a.step;
+    chooseApp(a.name, next === !!a.auto ? 'default' : next ? 'on' : 'off');
   });
 
   // overlay page
@@ -993,6 +1154,9 @@
         if (m.state === 'off') S.blockedTold = false;
         S.st = m;
         if (m.state !== 'live') { dial.target = 0; S.live = null; }
+        if (was === 'off' && m.state !== 'off') { $('receipt').hidden = true; requestAnimationFrame(ignite); }
+        if (was !== 'off' && m.state === 'off') requestAnimationFrame(windDown);
+        if (was !== 'live' && m.state === 'live') { $('receipt').hidden = true; requestAnimationFrame(arrive); }
         if (m.error && m.state !== 'off') toast('Frame timing had a problem: ' + m.error);
         if (m.experimentNote && was === 'off') toast(m.experimentNote);
         if (m.pending && m.state === 'off') toast('A game setting goes back as soon as the game closes (it rewrites its settings on exit).');
@@ -1005,8 +1169,9 @@
         if (S.page === 'tune') requestTune();
         const s = m.session;
         S.sessions = [s].concat(S.sessions.filter(x => !(x.id === s.id && x.gameId === s.gameId)));
-        toast(`Session saved: ${fmt(s.avgFps)} fps average, ${fmt(s.low1)} at the 1% lows.`);
         renderPlay();
+        if (S.page === 'play') receipt(s);
+        else toast(`Session saved: ${fmt(s.avgFps)} fps average, ${fmt(s.low1)} at the 1% lows.`);
         if (S.page === 'sessions') renderSessions();
         break;
       }
@@ -1018,7 +1183,7 @@
       case 'update': { const u = $('update'); u.hidden = false; u.dataset.url = m.url; u.textContent = `Update ${m.version}`; break; }
       case 'tune': S.tune = m; renderTune(); break;
       case 'phone': S.phone = m; renderPhone(); break;
-      case 'apps': S.apps = m.apps; S.boostStatus = m.boostStatus || S.boostStatus; renderBoost(); break;
+      case 'apps': S.appsData = m; S.apps = m.apps; S.boostStatus = m.boostStatus || S.boostStatus; renderBoost(); break;
     }
   }
   window.__deliver = onMsg;

@@ -854,7 +854,36 @@
   .tp-gauge { z-index: 0; }
   .tp-gauge svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
   .tp-needle { position: absolute; left: 50%; top: 14%; width: 3px; height: 36%; margin-left: -1.5px; border-radius: 2px; transform-origin: 50% 100%;
-    background: linear-gradient(rgba(243, 245, 247, 0.9), rgba(243, 245, 247, 0.15)); animation: tp-swing 1s ease-in-out infinite alternate; }
+    background: linear-gradient(rgba(243, 245, 247, 0.9), rgba(243, 245, 247, 0.15)); animation: tp-swing 1s ease-in-out infinite alternate; opacity: 0; transition: opacity .3s; }
+  /* TEMPO's own moment: off, the power button; on, a light runs round, the needle keeps time, then the reading */
+  .tp-gauge.wait .tp-needle { opacity: 1; }
+  .tp-power { position: absolute; left: 50%; top: 50%; width: 30%; height: 30%; translate: -50% -50%; border-radius: 50%; pointer-events: auto; cursor: pointer;
+    background: radial-gradient(circle at 50% 30%, rgba(255,255,255,.38), rgba(255,255,255,0) 55%), #D4FF3F; color: #0B0D05;
+    box-shadow: 0 0 0 0.6cqmin rgba(212,255,63,.1), 0 0 0 1.3cqmin rgba(212,255,63,.05), 0 0 6cqmin rgba(212,255,63,.45);
+    display: grid; place-items: center; container-type: inline-size; transition: scale .5s cubic-bezier(.34,1.56,.64,1), opacity .35s; }
+  .tp-power b { font: italic 900 13cqi/1 'Anybody', sans-serif; font-stretch: 118%; letter-spacing: .03em; }
+  .tp-gauge:not(.off) .tp-power { scale: .25; opacity: 0; pointer-events: none; }
+  .tp-gauge.live .tp-power { pointer-events: auto; opacity: 0; scale: 1; background: transparent; box-shadow: none; }
+  .tp-read { position: absolute; left: 50%; top: 61%; translate: -50% -50%; text-align: center; opacity: 0; scale: .8; filter: blur(6px); transition: opacity .45s, scale .5s cubic-bezier(.23,1,.32,1), filter .45s; container-type: inline-size; width: 34%; }
+  .tp-gauge.live .tp-read { opacity: 1; scale: 1; filter: none; }
+  .tp-n { display: block; font: italic 850 46cqi/.9 'Anybody', sans-serif; font-stretch: 108%; color: #D4FF3F; text-shadow: 0 0 6cqi rgba(212,255,63,.35); font-variant-numeric: tabular-nums; }
+  .tp-read span { font: 500 7cqi/1 ui-monospace, 'Geist Mono', monospace; letter-spacing: .3em; color: rgba(236,238,241,.6); }
+  .tp-ring { position: absolute; left: 50%; top: 50%; width: 30%; height: 30%; translate: -50% -50%; border-radius: 50%; border: 2px solid #D4FF3F; pointer-events: none;
+    box-shadow: 0 0 2cqmin rgba(212,255,63,.6); animation: tp-ring .9s cubic-bezier(.2,.7,.2,1) forwards; }
+  @keyframes tp-ring { from { scale: .9; opacity: 1; } to { scale: 2.6; opacity: 0; } }
+  /* the apps stepping back for the game, sitting in the gauge's open bottom */
+  .tp-apps { position: absolute; left: 20%; right: 20%; top: 77%; display: flex; flex-wrap: wrap; justify-content: center; gap: .5em; font: 500 clamp(10.5px, 1.9cqmin, 14px)/1 'Geist', system-ui, sans-serif; }
+  .tp-gauge { container-type: size; }
+  .tp-apps i { font-style: normal; padding: .45em .8em .45em 1.5em; border-radius: 99px; border: 1px solid rgba(236,238,241,.18); color: rgba(236,238,241,.75); position: relative; white-space: nowrap;
+    transition: scale .5s cubic-bezier(.23,1,.32,1), opacity .5s, translate .5s cubic-bezier(.23,1,.32,1), border-color .5s, color .5s; }
+  .tp-apps i::before { content: ""; position: absolute; left: .65em; top: 50%; width: .42em; height: .42em; margin-top: -.21em; border-radius: 50%; background: rgba(236,238,241,.35); transition: background-color .5s; }
+  .tp-apps i.down { scale: .88; translate: 0 .25em; opacity: .55; border-color: rgba(212,255,63,.45); color: #E7FFA0; }
+  .tp-apps i.down::before { background: #D4FF3F; box-shadow: 0 0 .5em #D4FF3F; }
+  .tp-apps i.keep { border-color: rgba(236,238,241,.35); color: #F3F5F7; }
+  .tp-apps i.keep::before { background: none; width: .55em; height: .7em; margin-top: -.38em; left: .6em; border-radius: 0;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 11'%3E%3Cpath d='M2 5V3.5a2.5 2.5 0 0 1 5 0V5' fill='none' stroke='%23000' stroke-width='1.4'/%3E%3Crect x='0.5' y='5' width='8' height='6' rx='1.5'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 11'%3E%3Cpath d='M2 5V3.5a2.5 2.5 0 0 1 5 0V5' fill='none' stroke='%23000' stroke-width='1.4'/%3E%3Crect x='0.5' y='5' width='8' height='6' rx='1.5'/%3E%3C/svg%3E") center / contain no-repeat; background-color: #F3F5F7; }
+  .tp-gauge.off .tp-apps i:not(.keep) { opacity: .7; }
   .tp-needle::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #F3F5F7; }
   @keyframes tp-swing { from { transform: rotate(-30deg); } to { transform: rotate(30deg); } }
   .tp-strip { z-index: 0; left: 0; right: 46%; bottom: 14%; height: 12%; overflow: hidden; opacity: 0.85;
@@ -865,7 +894,7 @@
   .cv-tempo .small { color: rgba(236, 238, 241, 0.55); }
   .art-tempo { font-family: 'Anybody', sans-serif; font-style: italic; font-weight: 900; font-stretch: 150%; letter-spacing: 0.04em; font-size: 12cqi; color: #D4FF3F; text-shadow: 0 0 2cqi rgba(212, 255, 63, 0.45); }
   @media (prefers-reduced-motion: reduce) { .tp-needle, .tp-strip svg { animation: none; } }
-  @media (max-width: 760px) { .tp-strip { display: none; } .tp-gauge { opacity: 0.45; } }
+  @media (max-width: 760px) { .tp-strip { display: none; } .tp-gauge { opacity: 0.45; } .tp-apps, .tp-read, .tp-power { display: none; } }
 
   /* Halo: glowing brush inside a ring of light */
   .scene-halo { color: #EEF3FF; align-items: center; text-align: center; --accent: #9FB8FF; }
@@ -1494,14 +1523,14 @@
       version: '0.6.0', size: '75 MB', updated: '15 Sep 2026', web: false
     },
     {
-      slug: 'tempo', icon: 'img/icons/tempo.png', enter: 'tempo', fresh: 'Updated', download: 'https://github.com/SNAXUS1/stezy-site/releases/download/tempo-v1.2.0/TEMPO-1.2.0.zip', sha: '3e7b500a854fb4d9ef451ec9731641572583a3976e20b11e4844f14481f629a7', demo: '/play/tempo/', name: 'TEMPO', cat: 'apps', kind: 'App', platform: 'Windows', style: 'tempo', ratio: '4 / 5',
+      slug: 'tempo', pick: true, icon: 'img/icons/tempo.png', enter: 'tempo', fresh: 'Updated', download: 'https://github.com/SNAXUS1/stezy-site/releases/download/tempo-v1.3.0/TEMPO-1.3.0.zip', sha: 'abc823aed935f8a85979ff4de8bfc9271659c25807ca24aa55bc9aa784cb3f19', demo: '/play/tempo/', name: 'TEMPO', cat: 'apps', kind: 'App', platform: 'Windows', style: 'tempo', ratio: '4 / 5',
       title: 't-tempo', layout: 'at-right', page: '#08090B', accent: '#D4FF3F',
       font: "'Anybody', sans-serif", titleCss: 'font-style:italic;font-weight:900;font-stretch:150%;letter-spacing:0.04em;',
-      blurb: 'Game performance, measured properly: a boost that gives your game the PC, your own fps counter, honest reports, and tests that find what really helps.',
-      lede: "Pick a game, turn TEMPO on, open the game. While it's on, your PC leans towards the game: the apps you choose step back (never closed, and music and voice are never touched), the game gets the processor first, and Windows' Game Mode and high performance power switch on. Your fps sits on top in a counter you style yourself, and afterwards you get the real numbers: your average, the dips you feel, and whether the processor or the graphics card held you back. Turn it off and every change goes back, even after a crash. Tune finds what actually helps on your PC: suggestions made from your own sessions, the game's own settings (only while it's closed, with a backup and a put-back button), and tests that switch a change on and off between matches and only call it better when the numbers clearly say so. Each stutter gets a cause, and your fps can sit on your phone too. Nothing is injected into games: TEMPO reads Windows' own frame timing.",
-      how: ["Download the zip, unzip it and open TEMPO.exe. It asks for administrator rights to read Windows' frame timing.", 'Pick your game and press Turn on and open, or turn TEMPO on (Ctrl+Alt+T) and open the game yourself.', 'Close the game and your report is on the Sessions page: your average, the dips, the stutters and what held you back.', 'After that first session, Tune suggests what to try. Press Test it and keep playing: after a few matches each way, TEMPO tells you whether it helped.', 'Checkup looks over your PC for the things that quietly cost fps. The Boost page shows exactly what changes, and any of it can be switched off.'],
-      shots: ['img/tempo/live.webp', 'img/tempo/tune.webp', 'img/tempo/sessions.webp', 'img/tempo/boost.webp', 'img/tempo/checkup.webp'],
-      version: '1.2.0', size: '43 MB', updated: '11 Oct 2026', web: false,
+      blurb: 'Game performance, measured properly: a boost that picks what steps back for you, your own fps counter, honest reports, and tests that find what really helps.',
+      lede: "Pick a game, turn TEMPO on, open the game. Background apps step back by themselves, never closed, while your calls, music and anything the game needs (from anti-cheat to Lossless Scaling) stay exactly as they are. The game gets the processor first, and your fps sits on top in a counter you style yourself. Afterwards you get the real numbers: your average, the dips you feel, and what caused each stutter. Tune finds what actually helps on your PC and proves it over real matches. Turn it off and every change goes back, even after a crash. Nothing is injected into games: TEMPO reads Windows' own frame timing.",
+      how: ["Download the zip, unzip it and open TEMPO.exe. It asks for administrator rights to read Windows' frame timing.", 'Pick your game and press Turn on and open, or turn TEMPO on (Ctrl+Alt+T) and open the game yourself. Background apps step back by themselves; the Boost page shows which, and a tap changes any of them.', 'Close the game and your report is on the Sessions page: your average, the dips, the stutters and what caused them.', 'After that first session, Tune suggests what to try. Press Test it and keep playing: after a few matches each way, TEMPO tells you whether it helped.', 'Checkup looks over your PC for the things that quietly cost fps.'],
+      shots: ['img/tempo/live.webp', 'img/tempo/boost.webp', 'img/tempo/tune.webp', 'img/tempo/sessions.webp', 'img/tempo/checkup.webp'],
+      version: '1.3.0', size: '43 MB', updated: '12 Oct 2026', web: false,
       sparks: []
     },
     {
@@ -1773,7 +1802,7 @@
     tether: '<div class="deco tt-dial" aria-hidden="true"><i class="tt-hand"></i></div><svg class="deco tt-cord" aria-hidden="true"><path fill="none" stroke="rgba(255,180,110,0.55)" stroke-width="1.5"/><path fill="none" stroke="rgba(255,154,92,0.18)" stroke-width="7"/></svg>',
     ledger: '<canvas class="deco lg-ink" aria-hidden="true"></canvas>',
     veil: '<div class="deco vl-curtain l" aria-hidden="true"></div><div class="deco vl-curtain r" aria-hidden="true"></div>',
-    tempo: '<div class="deco tp-gauge" aria-hidden="true"><i class="tp-needle"></i></div><div class="deco tp-strip" aria-hidden="true"><svg viewBox="0 0 2000 100" preserveAspectRatio="none"></svg></div>'
+    tempo: '<div class="deco tp-gauge off"><i class="tp-needle" aria-hidden="true"></i><button type="button" class="tp-power" aria-label="Turn the gauge on or off, like TEMPO\'s own"><b>TURN ON</b></button><div class="tp-read" aria-hidden="true"><b class="tp-n">0</b><span>FPS</span></div><div class="tp-apps" aria-hidden="true"><i>opera</i><i>OneDrive</i><i>Epic Games</i><i class="keep">Discord</i><i>Code</i><i class="keep">Spotify</i></div></div><div class="deco tp-strip" aria-hidden="true"><svg viewBox="0 0 2000 100" preserveAspectRatio="none"></svg></div>'
   };
   // A four-point sparkle marks STEZY's own favourites
   const SPARK = '<svg class="pk-star" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C8.5 4.6 11.4 7.5 16 8 11.4 8.5 8.5 11.4 8 16 7.5 11.4 4.6 8.5 0 8 4.6 7.5 7.5 4.6 8 0Z"/></svg>';
@@ -3597,6 +3626,34 @@
             <path class="tp-glow" fill="none" stroke="#D4FF3F" stroke-width="8" stroke-linecap="round" opacity="0.12"/>
             <path class="tp-arc" fill="none" stroke="#D4FF3F" stroke-width="3.4" stroke-linecap="round"/></svg>`);
           this.paths = [...this.g.querySelectorAll('.tp-arc, .tp-glow')];
+          this.ticks = [...this.g.querySelectorAll('svg > line')];
+          this.n = this.g.querySelector('.tp-n');
+          this.apps = [...this.g.querySelectorAll('.tp-apps i:not(.keep)')];
+          this.full = arc(0, max);
+          // like the app: tap the button to turn on; tap the reading to turn off
+          this.g.querySelector('.tp-power').addEventListener('click', () => { this.on = !this.on; this.at = performance.now(); if (this.on) this.ignite(); else this.windDown(); });
+          this.ignite = () => {
+            if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            const svg = this.g.querySelector('svg');
+            for (const [w, o] of [[8, 0.22], [3.4, 1]]) {
+              const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+              Object.entries({ d: this.full, fill: 'none', stroke: '#D4FF3F', 'stroke-width': w, 'stroke-linecap': 'round' }).forEach(([k, v]) => p.setAttribute(k, v));
+              svg.appendChild(p);
+              const len = p.getTotalLength(), head = len * 0.16;
+              p.style.strokeDasharray = `${head} ${len * 2}`;
+              p.animate([{ strokeDashoffset: head, opacity: o }, { strokeDashoffset: -len * 0.92, opacity: o * 0.9, offset: 0.82 }, { strokeDashoffset: -len, opacity: 0 }], { duration: 1000, easing: 'cubic-bezier(.45,.05,.2,1)' }).onfinish = () => p.remove();
+            }
+            this.ticks.forEach((tk, i) => tk.animate([{ stroke: tk.getAttribute('stroke') }, { stroke: '#D4FF3F', offset: 0.25 }, { stroke: tk.getAttribute('stroke') }], { duration: 520, delay: 60 + i / this.ticks.length * 760, easing: 'ease-out' }));
+            const ring = document.createElement('i');
+            ring.className = 'tp-ring';
+            this.g.appendChild(ring);
+            setTimeout(() => ring.remove(), 950);
+          };
+          this.windDown = () => {
+            this.apps.forEach(a => a.classList.remove('down'));
+            if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            [...this.ticks].reverse().forEach((tk, i) => tk.animate([{ opacity: 1 }, { opacity: 0.15, offset: 0.3 }, { opacity: 1 }], { duration: 420, delay: i / this.ticks.length * 380, easing: 'ease-out' }));
+          };
           // The frame-time strip: a calm line with the odd spike, drawn twice so it loops without a seam
           let seed = 7, d = 'M0 60';
           const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -3612,15 +3669,33 @@
           const size = narrow ? w * 0.86 : Math.min(h * 0.78, w * 0.46);
           Object.assign(this.g.style, { width: size + 'px', height: size + 'px', left: (narrow ? (w - size) / 2 : w * 0.06) + 'px', top: (narrow ? h * 0.16 : (h - size) / 2) + 'px' });
           this.v = 0;
+          // every visit plays TEMPO turning on: off for a moment, then the light, the metronome, and the live reading
+          this.on = true;
+          this.at = performance.now() + 650;
+          this.ignited = false;
+          this.apps.forEach(a => a.classList.remove('down'));
         },
         frame(t) {
           // About 30 updates a second is plenty for a gauge
           if (t - this.last < 33) return;
           this.last = t;
-          const target = 86 + Math.sin(t * 0.0007) * 22 + Math.sin(t * 0.0023) * 9 + (Math.sin(t * 0.0131) > 0.985 ? -30 : 0);
-          this.v += (target - this.v) * 0.12;
-          const d = this.arc(0, Math.max(1, this.v));
-          this.paths.forEach(pth => pth.setAttribute('d', d));
+          const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+          const since = t - this.at;
+          if (this.on && !this.ignited && since >= 0) { this.ignited = true; this.ignite(); }
+          const phase = !this.on || since < 0 ? 'off' : since < 1900 && !still ? 'wait' : 'live';
+          if (this.phase !== phase) {
+            this.phase = phase;
+            this.g.classList.toggle('off', phase === 'off');
+            this.g.classList.toggle('wait', phase === 'wait');
+            this.g.classList.toggle('live', phase === 'live');
+            // the apps step back one by one once the game is live; music and voice stay as they are
+            if (phase === 'live') this.apps.forEach((a, i) => setTimeout(() => this.phase === 'live' && a.classList.add('down'), still ? 0 : 350 + i * 260));
+          }
+          const target = phase !== 'live' ? 0 : 86 + Math.sin(t * 0.0007) * 22 + Math.sin(t * 0.0023) * 9 + (Math.sin(t * 0.0131) > 0.985 ? -30 : 0);
+          this.v += (target - this.v) * (phase === 'live' ? 0.12 : 0.2);
+          const d = this.arc(0, Math.max(0.5, this.v));
+          this.paths.forEach(pth => { pth.setAttribute('d', d); pth.style.opacity = this.v < 1 ? 0 : ''; });
+          if (phase === 'live') this.n.textContent = Math.round(this.v);
           // Each beat of the metronome lights the next letter
           const beat = Math.floor(t / 1000);
           if (beat !== this.beat && this.chs.length) {
