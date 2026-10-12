@@ -2547,6 +2547,7 @@
     let what = stripTags((n.summary || [])[0] || (p ? p.blurb : ''));
     what = what.replace(/^[^:]{2,40}:\s*/, m => (n.kind === 'update' ? '' : m)); // "The boost: ..." reads better without its label
     what = what.replace(/\s*\([^)]*(\)|$)/g, '').replace(/[\s,;:]+$/, ''); // asides in brackets don't fit a one-line ticker
+    what = what.charAt(0).toUpperCase() + what.slice(1);
     if (what.length > 70) what = what.slice(0, 68).replace(/\s+\S*$/, '') + '…';
     return `<b>${name}</b> · ${what} <span>· ${ago(n.date)}</span>`;
   }
