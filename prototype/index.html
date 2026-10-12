@@ -1286,6 +1286,145 @@
   .demo-bar > span { color: #B9B6D3; margin-right: 6px; }
   .demo-bar button { border: 0; border-radius: 999px; padding: 8px 12px; background: transparent; color: #F2F0FF; font: 600 12px/1 'Hanken Grotesk', sans-serif; cursor: pointer; }
   .demo-bar button[aria-pressed="true"] { background: #F2F0FF; color: #0E0B26; }
+  /* Latest: new apps, updates and changes to the site, newest first. Data: news.json (python tools/make-news.py) */
+  @property --lt-c { syntax: '<color>'; inherits: true; initial-value: #B9B2FF; }
+  .news-btn { position: relative; }
+  .news-dot {
+    position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+    background: var(--chrome, var(--ink)); color: var(--page, var(--base)); font: 700 10.5px/18px 'Hanken Grotesk', sans-serif; text-align: center;
+    box-shadow: 0 0 0 3px var(--page, var(--base)); animation: dot-in 0.45s var(--ease-out);
+  }
+  .news-dot[hidden] { display: none; }
+  .news-dot::after { content: ""; position: absolute; inset: -3px; border-radius: inherit; box-shadow: 0 0 0 1.5px var(--chrome, var(--ink)); opacity: 0; animation: dot-ping 2.6s var(--ease-out) 1s infinite; }
+  @keyframes dot-in { from { transform: scale(0); } }
+  @keyframes dot-ping { 0% { opacity: 0.7; transform: scale(0.9); } 70%, 100% { opacity: 0; transform: scale(1.8); } }
+  @keyframes on-air { 50% { opacity: 0.35; } }
+
+  /* the line at the bottom of the start screen, like a news ticker */
+  .ticker {
+    position: absolute; left: clamp(20px, 5vw, 72px); bottom: clamp(26px, 6vh, 64px); z-index: 3;
+    display: flex; align-items: center; gap: 12px; width: max-content; max-width: min(640px, 64vw);
+    padding: 9px 16px 9px 13px; border-radius: 999px; color: var(--ink); text-decoration: none; font-size: 13.5px;
+    background: color-mix(in srgb, var(--ink) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    transition: background-color 0.2s ease, opacity 0.8s var(--ease-out) 0.5s, transform 0.2s var(--ease-out);
+  }
+  .ticker[hidden] { display: none; }
+  .intro-play .ticker { opacity: 0 !important; }
+  @media (hover: hover) and (pointer: fine) { .ticker:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); transform: translateY(-2px); } }
+  .tk-live { width: 7px; height: 7px; border-radius: 50%; background: #FF5A6E; box-shadow: 0 0 10px #FF5A6E; flex: none; animation: on-air 1.6s ease-in-out infinite; }
+  .tk-k { font: 700 10.5px 'Hanken Grotesk', sans-serif; letter-spacing: 0.24em; text-transform: uppercase; opacity: 0.65; flex: none; }
+  .tk-win { position: relative; overflow: hidden; height: 1.45em; flex: 1 1 auto; min-width: 0; width: 46ch; }
+  .tk-text { position: absolute; inset: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.45em; transition: transform 0.55s var(--ease-out), opacity 0.55s var(--ease-out); }
+  .tk-text.out { transform: translateY(-100%); opacity: 0; }
+  .tk-text.pre { transform: translateY(100%); opacity: 0; transition: none; }
+  .tk-text b { font-weight: 700; }
+  .tk-text span { opacity: 0.6; }
+  .tk-go { opacity: 0.55; flex: none; font-size: 15px; }
+  @media (max-width: 700px) { .ticker { bottom: 78px; max-width: calc(100vw - 40px); font-size: 12.5px; } .tk-win { width: auto; } }
+
+  /* the page itself */
+  .latest {
+    position: fixed; inset: 0; z-index: 70; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; color: var(--ink);
+    background: color-mix(in srgb, var(--base) 96%, transparent); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+    animation: fade 0.22s var(--ease-out); transition: --lt-c 0.9s var(--ease-out);
+  }
+  .latest[hidden] { display: none; }
+  .lt-glow {
+    position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(55% 50% at 82% 38%, color-mix(in srgb, var(--lt-c) 15%, transparent), transparent 70%),
+                radial-gradient(45% 45% at 4% 96%, color-mix(in srgb, var(--lt-c) 9%, transparent), transparent 70%);
+  }
+  .lt-wrap { position: relative; max-width: 1060px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 64px) 120px; }
+  .lt-top { position: relative; z-index: 3; display: flex; align-items: flex-end; gap: 16px 22px; flex-wrap: wrap; padding: 40px 64px 30px 0; margin-bottom: 18px; }
+  .lt-head { flex: 1 1 340px; }
+  .lt-kicker { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font: 700 11px 'Hanken Grotesk', sans-serif; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); }
+  .lt-kicker i { width: 8px; height: 8px; border-radius: 50%; background: var(--lt-c); box-shadow: 0 0 12px var(--lt-c); animation: on-air 1.6s ease-in-out infinite; }
+  .lt-title { margin: 0; font: 800 clamp(44px, 6.4vw, 82px)/0.92 'Unbounded', sans-serif; letter-spacing: -0.02em; }
+  .lt-sub { margin: 12px 0 0; color: var(--muted); font-size: 15px; }
+  .lt-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .lt-filters button { height: 38px; padding: 0 15px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 14px 'Hanken Grotesk', sans-serif; cursor: pointer; box-shadow: inset 0 0 0 1px var(--line); transition: color 0.15s, background-color 0.15s; }
+  .lt-filters button[aria-pressed="true"] { background: var(--ink); color: var(--base); box-shadow: none; }
+  .lt-close { position: fixed; top: 22px; right: clamp(16px, 3vw, 34px); z-index: 6; background: color-mix(in srgb, var(--base) 72%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+
+  .lt-list { list-style: none; margin: 0; padding: 0; position: relative; }
+  .lt-list::before { content: ""; position: absolute; left: 95.5px; top: 8px; bottom: 40px; width: 1px; background: linear-gradient(color-mix(in srgb, var(--ink) 24%, transparent), color-mix(in srgb, var(--ink) 6%, transparent)); }
+  .lt-item {
+    position: relative; display: grid; grid-template-columns: 74px 44px minmax(0, 1fr); align-items: start; padding: 0 0 52px; scroll-margin-top: 80px;
+    opacity: 0; transform: translateY(18px); transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+  }
+  .lt-item.in { opacity: 1; transform: none; }
+  .lt-item[hidden] { display: none; }
+  .lt-date { text-align: right; padding-top: 2px; color: var(--muted); line-height: 1; }
+  .lt-date b { display: block; font: 800 27px/1 'Unbounded', sans-serif; color: var(--ink); }
+  .lt-date span { display: block; margin-top: 6px; font: 700 10.5px 'Hanken Grotesk', sans-serif; letter-spacing: 0.22em; text-transform: uppercase; }
+  .lt-node {
+    justify-self: center; width: 11px; height: 11px; margin-top: 9px; border-radius: 50%;
+    background: var(--base); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 38%, transparent);
+    transition: background-color 0.35s, box-shadow 0.35s, transform 0.35s var(--ease-out);
+  }
+  .lt-item.on .lt-node { background: var(--c); box-shadow: 0 0 0 5px color-mix(in srgb, var(--c) 20%, transparent), 0 0 20px var(--c); transform: scale(1.2); }
+  .lt-card { display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 26px; align-items: start; }
+  .lt-cover { display: block; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 16px; color: inherit; text-decoration: none; transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out); }
+  .lt-cover .cover { --r: 1 !important; border-radius: 16px; }
+  @media (hover: hover) and (pointer: fine) { a.lt-cover:hover { transform: translateY(-4px) rotate(-1.5deg); box-shadow: 0 20px 40px -18px rgba(0, 0, 0, 0.8); } }
+  .lt-stezy {
+    aspect-ratio: 1; border-radius: 16px; display: grid; place-items: center; position: relative; overflow: hidden;
+    background: radial-gradient(80% 70% at 30% 20%, color-mix(in srgb, var(--c) 55%, #0C0A1E), #0C0A1E 72%);
+    color: #F2F0FF; font: 800 13px 'Unbounded', sans-serif; letter-spacing: 0.42em; padding-left: 0.42em;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+  .lt-stezy svg { position: absolute; right: 14px; top: 14px; width: 16px; height: 16px; fill: #F2F0FF; opacity: 0.85; }
+  .lt-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin: 2px 0 10px; font-size: 13px; color: var(--muted); }
+  .lt-kind { font: 700 10.5px 'Hanken Grotesk', sans-serif; letter-spacing: 0.16em; text-transform: uppercase; padding: 5px 10px; border-radius: 999px; color: var(--ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 65%, transparent); }
+  .k-new .lt-kind, .k-drop .lt-kind { background: var(--c); color: #0B0A14; box-shadow: none; }
+  .lt-unseen { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-weight: 700; }
+  .lt-unseen::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); animation: on-air 1.6s ease-in-out infinite; }
+  .lt-name { margin: 0 0 12px; font-size: clamp(30px, 3.6vw, 46px); line-height: 1.04; font-weight: 400; overflow-wrap: anywhere; }
+  .lt-name a { color: inherit; text-decoration: none; }
+  .lt-name small { font: 600 0.4em 'Hanken Grotesk', sans-serif; font-style: normal; letter-spacing: 0.06em; color: var(--muted); margin-left: 0.45em; vertical-align: 0.35em; }
+  .lt-sum { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; max-width: 64ch; font-size: 15.5px; line-height: 1.55; color: color-mix(in srgb, var(--ink) 84%, transparent); }
+  .lt-sum li { position: relative; padding-left: 18px; }
+  .lt-sum li::before { content: ""; position: absolute; left: 2px; top: 0.66em; width: 6px; height: 6px; border-radius: 50%; background: var(--c); opacity: 0.85; }
+  .lt-sum b, .lt-notes b { color: var(--ink); font-weight: 700; }
+  .lt-also { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+  .lt-notes { margin-top: 14px; max-width: 66ch; }
+  .lt-notes summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; font-weight: 700; font-size: 14px; color: var(--ink); }
+  .lt-notes summary::-webkit-details-marker { display: none; }
+  .lt-notes summary i { transition: transform 0.25s var(--ease-out); }
+  .lt-notes[open] summary i { transform: rotate(90deg); }
+  .lt-notes > div { margin-top: 10px; padding: 14px 18px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 5%, transparent); color: var(--muted); font-size: 14.5px; line-height: 1.6; }
+  .lt-notes p { margin: 0 0 10px; } .lt-notes ul { margin: 0 0 10px; padding-left: 18px; } .lt-notes li { margin: 4px 0; }
+  .lt-notes code { font-size: 0.92em; padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, var(--ink) 9%, transparent); }
+  .lt-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .lt-actions .btn.primary { background: var(--c); color: #0B0A14; }
+  .lt-drop { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin-top: 16px; }
+  .lt-drop a { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 12px; align-items: center; padding: 8px; border-radius: 14px; color: inherit; text-decoration: none; transition: background-color 0.2s; }
+  .lt-drop a:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+  .lt-drop .cover { --r: 1 !important; border-radius: 10px; }
+  .lt-drop img { width: 56px; height: 56px; border-radius: 14px; box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.7); }
+  .lt-drop .cover .small { display: none; }
+  .lt-drop strong { display: block; font-size: 15px; }
+  .lt-drop span { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .lt-drop-icons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; aspect-ratio: 1; padding: 10px; border-radius: 16px; background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  .lt-drop-icons img { width: 100%; border-radius: 22%; }
+  .lt-end { margin: 0 0 0 118px; color: var(--muted); font-size: 14px; }
+  @media (prefers-reduced-motion: reduce) { .lt-item { opacity: 1; transform: none; transition: none; } .latest { transition: none; } }
+  @media (max-width: 700px) {
+    .lt-list::before { left: 8px; }
+    .lt-item { grid-template-columns: 18px minmax(0, 1fr); }
+    .lt-date { display: none; }
+    .lt-node { justify-self: start; margin-left: 3px; }
+    .lt-card { grid-template-columns: 1fr; gap: 14px; }
+    .lt-cover { width: 96px; }
+    .lt-end { margin-left: 26px; }
+  }
+
+  .d-news ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .d-news li a { display: inline-flex; align-items: baseline; gap: 10px; color: var(--ink); text-decoration: none; }
+  .d-news li a b { font-weight: 700; } .d-news li a span { color: var(--muted); font-size: 13px; }
+  .d-news li a:hover b { text-decoration: underline; text-underline-offset: 3px; }
+  .d-news li p { margin: 2px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
   /* See everything: every project's cover in one searchable wall */
   .index {
     position: fixed; inset: 0; z-index: 70; overflow-y: auto; overscroll-behavior: contain;
@@ -1438,6 +1577,7 @@
     <div class="top-right">
       <span class="sound-hint" id="sound-hint" aria-hidden="true">Click anywhere for sound</span>
       <button class="icon-btn sound" id="sound" type="button" aria-pressed="false" aria-label="Turn music on"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span></button>
+      <button class="icon-btn news-btn" id="news-btn" type="button" aria-label="Latest" title="Latest"><i class="ph ph-broadcast" aria-hidden="true"></i><span class="news-dot" id="news-dot" hidden></span></button>
       <button class="icon-btn" id="index-btn" type="button" aria-label="See everything (press /)" title="See everything ( / )"><i class="ph ph-squares-four" aria-hidden="true"></i></button>
       <button class="icon-btn" id="theme" type="button" aria-label="Switch to light mode"><i class="ph ph-sun"></i></button>
     </div>
@@ -1459,6 +1599,7 @@
         <div class="cover-dock tag-in" id="cover-dock" hidden></div>
         <span class="scroll-cue tag-in" aria-hidden="true"></span>
       </div>
+      <a class="ticker" id="ticker" href="#latest" hidden aria-label="Latest news"><span class="tk-live" aria-hidden="true"></span><span class="tk-k">Latest</span><span class="tk-win"><span class="tk-text"></span></span><i class="ph ph-arrow-right tk-go" aria-hidden="true"></i></a>
     </section>
     <!-- project scenes are added here from the projects list -->
     <section class="scene scene-outro" id="s-outro" data-scene="outro" aria-labelledby="outro-title">
@@ -1488,6 +1629,21 @@
     <button type="button" data-palette-set="pink">Violet + pink</button>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="latest" id="latest" role="dialog" aria-modal="true" aria-label="Latest from STEZY" hidden data-lenis-prevent>
+    <div class="lt-glow" aria-hidden="true"></div>
+    <div class="lt-wrap">
+      <div class="lt-top">
+        <div class="lt-head">
+          <p class="lt-kicker"><i aria-hidden="true"></i>On stezy.lt</p>
+          <h2 class="lt-title">Latest</h2>
+          <p class="lt-sub">New apps, updates and changes to the site, newest first.</p>
+        </div>
+        <div class="lt-filters" id="lt-filters" role="group" aria-label="Show"></div>
+        <button class="icon-btn lt-close" id="lt-close" type="button" aria-label="Close"><i class="ph ph-x" aria-hidden="true"></i></button>
+      </div>
+      <ol class="lt-list" id="lt-list"></ol>
+    </div>
+  </div>
   <div class="index" id="index" role="dialog" aria-modal="true" aria-label="Everything on STEZY" hidden data-lenis-prevent>
     <div class="index-top">
       <div class="index-search">
@@ -2089,6 +2245,7 @@
         <h3>${remix ? 'How to install it' : 'How to use it'}</h3>
         <ol>${p.how.map(s => `<li>${s}</li>`).join('')}</ol>
         ${p.legacy ? `<p class="legacy-note"><i class="ph ph-hourglass-medium" aria-hidden="true"></i>Made before this site existed. It works, but expect a few small bugs, and it may not get more updates.</p>` : ''}
+        ${typeof whatsNewHtml === 'function' ? whatsNewHtml(p.slug) : ''}
         <div class="dl" id="dl">
           <div class="dl-actions">${p.noDownload && !p.play ? '<p class="dl-soon">Download coming soon.</p>' : buttons}<button class="btn ghost" type="button" data-copy="${p.slug}"><i class="ph ph-${onPhone ? 'share-network' : 'link-simple'}" aria-hidden="true"></i>${onPhone ? 'Share link' : 'Copy link'}</button></div>
           ${phoneNote}
@@ -2238,6 +2395,8 @@
   // Links: #games / #apps / #remixes open a tab; #ghost-line etc. open a project
   function route(first) {
     const h = location.hash.slice(1);
+    if (h === 'latest' || h.startsWith('latest/')) { closeProject(); openLatest(h.slice(7)); return; }
+    closeLatest(true);
     if (TAB_LABEL[h]) {
       const closing = dlg.open;
       closeProject();
@@ -2255,7 +2414,7 @@
   addEventListener('hashchange', () => route(false));
 
   document.addEventListener('keydown', e => {
-    if (dlg.open || !document.getElementById('index').hidden || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (dlg.open || !document.getElementById('index').hidden || !document.getElementById('latest').hidden || e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
     const list = scenes.filter(s => !s.hidden);
     const at = Math.max(0, list.findIndex(s => s.dataset.scene === body.dataset.scene));
@@ -2324,8 +2483,208 @@
     location.hash = b.dataset.indexOpen;
   });
   indexEl.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); closeIndex(); } });
+  // ---------- Latest: new apps, updates and site news (news.json, made by tools/make-news.py) ----------
+  const latestEl = document.getElementById('latest');
+  const ltList = document.getElementById('lt-list');
+  const ltFilters = document.getElementById('lt-filters');
+  const newsDot = document.getElementById('news-dot');
+  const SEEN_KEY = 'stezy-latest-seen';
+  const KIND_LABEL = { new: 'New', update: 'Update', drop: 'New', site: 'stezy.lt' };
+  const LT_FILTERS = [['all', 'Everything'], ['apps', 'New apps'], ['update', 'Updates'], ['site', 'The site']];
+  let NEWS = null, newsLoading = null, ltFilter = 'all', ltReturn = null, ltThread = null, seenAt = null, seenHere = new Set();
+  try { seenAt = localStorage.getItem(SEEN_KEY); } catch {}
+  const stripTags = s => String(s || '').replace(/<[^>]+>/g, '');
+  const projectOf = n => n.slug ? projects.find(p => p.slug === n.slug) : null;
+  const colourOf = n => {
+    const p = projectOf(n) || (n.slugs && projects.find(x => x.slug === n.slugs[0]));
+    if (n.kind === 'site') return '#B9B2FF';
+    return p && lightEnough(p.accent) ? p.accent : '#C9C2FF';
+  };
+  const ltTitle = n => n.title || (projectOf(n) ? projectOf(n).name : n.id);
+  // never been here before: just the three newest count as new to you
+  const isUnseen = n => seenAt ? n.date > seenAt : !!NEWS && NEWS.indexOf(n) > -1 && NEWS.indexOf(n) < 3;
+  function ago(iso) {
+    const d = new Date(iso), days = Math.floor((Date.now() - d) / 86400e3);
+    if (days < 1 && new Date().toDateString() === d.toDateString()) return 'today';
+    if (days < 2) return 'yesterday';
+    if (days < 7) return `${days} days ago`;
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  }
+  function loadNews() {
+    if (NEWS) return Promise.resolve(NEWS);
+    if (!newsLoading) newsLoading = fetch('news.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : []).catch(() => []).then(list => {
+      NEWS = Array.isArray(list) ? list : [];
+      newsReady();
+      return NEWS;
+    });
+    return newsLoading;
+  }
+  // what the news shows outside the page: the dot on the button, the ticker, "What's new" in an open app
+  function newsReady() {
+    const unseen = NEWS.filter(isUnseen).length;
+    newsDot.textContent = unseen > 9 ? '9+' : unseen;
+    newsDot.hidden = !unseen || !latestEl.hidden;
+    document.getElementById('news-btn').setAttribute('aria-label', unseen ? `Latest: ${unseen} new` : 'Latest');
+    startTicker();
+    const open = dlg.open && document.querySelector('#detail .d-info');
+    if (open && !open.querySelector('.d-news')) {
+      const slug = (location.hash || '').slice(1), html = whatsNewHtml(slug);
+      if (html) open.querySelector('.dl').insertAdjacentHTML('beforebegin', html);
+    }
+  }
+  function whatsNewHtml(slug) {
+    if (!NEWS) return '';
+    const mine = NEWS.filter(n => n.slug === slug && (n.kind === 'update' || n.kind === 'new')).slice(0, 3);
+    if (!mine.length) return '';
+    return `<div class="d-news"><h3>What's new</h3><ul>${mine.map(n => `<li><a href="#latest/${n.id}"><b>${n.version ? 'v' + n.version : KIND_LABEL[n.kind]}</b><span>${ago(n.date)}</span></a><p>${stripTags((n.summary || [])[0] || (projectOf(n) || {}).blurb || '')}</p></li>`).join('')}</ul></div>`;
+  }
+
+  // the ticker on the start screen: the newest few, one after another
+  let tkTimer = 0, tkAt = 0;
+  function tickerLine(n) {
+    const p = projectOf(n);
+    const name = n.kind === 'update' ? `${p ? p.name : ''} ${n.version}` : n.kind === 'new' ? `New: ${ltTitle(n)}` : ltTitle(n);
+    let what = stripTags((n.summary || [])[0] || (p ? p.blurb : ''));
+    what = what.replace(/^[^:]{2,40}:\s*/, m => (n.kind === 'update' ? '' : m)); // "The boost: ..." reads better without its label
+    if (what.length > 70) what = what.slice(0, 68).replace(/\s+\S*$/, '') + '…';
+    return `<b>${name}</b> · ${what} <span>· ${ago(n.date)}</span>`;
+  }
+  function startTicker() {
+    const t = document.getElementById('ticker');
+    if (!t || !NEWS || !NEWS.length) return;
+    const top = NEWS.slice(0, 4);
+    const text = t.querySelector('.tk-text');
+    text.innerHTML = tickerLine(top[0]);
+    t.href = `#latest/${top[0].id}`;
+    t.hidden = false;
+    clearInterval(tkTimer);
+    if (reduce || top.length < 2) return;
+    tkAt = 0;
+    tkTimer = setInterval(() => {
+      if (document.hidden || body.dataset.scene !== 'intro') return;
+      tkAt = (tkAt + 1) % top.length;
+      text.classList.add('out');
+      setTimeout(() => {
+        text.innerHTML = tickerLine(top[tkAt]);
+        t.href = `#latest/${top[tkAt].id}`;
+        text.classList.remove('out');
+        text.classList.add('pre');
+        void text.offsetWidth;
+        text.classList.remove('pre');
+      }, 560);
+    }, 5200);
+  }
+
+  function entryHtml(n) {
+    const p = projectOf(n), c = colourOf(n);
+    const unseen = isUnseen(n) || seenHere.has(n.id);
+    if (unseen) seenHere.add(n.id);
+    const d = new Date(n.date);
+    const date = `<time class="lt-date" datetime="${n.date}"><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-GB', { month: 'short' })}</span></time>`;
+    const sum = (n.summary && n.summary.length ? n.summary : p ? [p.blurb] : []).map(s => `<li>${s}</li>`).join('');
+    let art, name, extra = '', actions = '';
+    if (n.kind === 'drop') {
+      const list = n.slugs.map(s => projects.find(x => x.slug === s)).filter(Boolean);
+      art = `<div class="lt-drop-icons">${list.filter(x => x.icon).slice(0, 9).map(x => `<img src="${x.icon}" alt="" width="40" height="40" loading="lazy">`).join('')}</div>`;
+      name = `<h3 class="lt-name" style="font-family:'Unbounded',sans-serif;font-weight:800;letter-spacing:-0.01em">${n.title}</h3>`;
+      extra = `<div class="lt-drop">${list.map(x => `<a href="#${x.slug}">${x.icon ? `<img src="${x.icon}" alt="" width="56" height="56" loading="lazy">` : cover(x)}<span><strong>${x.name}</strong><span>${x.blurb}</span></span></a>`).join('')}</div>`;
+    } else if (p) {
+      art = `<a class="lt-cover" href="#${p.slug}" aria-label="Open ${p.name}">${cover(p)}</a>`;
+      name = `<h3 class="lt-name" style="font-family:${p.font};${p.titleCss || ''}"><a href="#${p.slug}">${p.name}</a>${n.version ? `<small>${n.kind === 'update' ? 'v' + n.version : 'v' + n.version}</small>` : ''}</h3>`;
+      if (n.also && n.also.length) extra += `<p class="lt-also">Also in this update: ${n.also.map(v => 'v' + v).join(', ')}</p>`;
+      if (n.notes) extra += `<details class="lt-notes"><summary><i class="ph ph-caret-right" aria-hidden="true"></i>Full release notes</summary><div>${n.notes}</div></details>`;
+      const get = p.play ? `<a class="btn primary" href="${p.play}"><i class="ph ph-play" aria-hidden="true"></i>${p.cat === 'games' ? 'Play' : 'Open'} ${p.name}</a>`
+        : `<a class="btn primary" href="#${p.slug}">Open ${p.name}</a>`;
+      actions = `<div class="lt-actions">${get}<button class="btn ghost" type="button" data-lt-copy="${n.id}"><i class="ph ph-link-simple" aria-hidden="true"></i>Copy link</button></div>`;
+    } else {
+      art = `<div class="lt-stezy" aria-hidden="true">STEZY${SPARK}</div>`;
+      name = `<h3 class="lt-name" style="font-family:'Unbounded',sans-serif;font-weight:800;letter-spacing:-0.01em">${n.title}</h3>`;
+    }
+    const kind = n.kind === 'drop' || n.kind === 'new' ? (p && p.cat === 'games' ? 'New game' : n.kind === 'drop' ? 'New' : 'New app') : KIND_LABEL[n.kind];
+    return `<li class="lt-item k-${n.kind}" id="lt-${n.id}" data-kind="${n.kind}" data-cat="${p ? p.cat : ''}" style="--c:${c};--accent:${c}">
+      ${date}<span class="lt-node" aria-hidden="true"></span>
+      <div class="lt-card">${art}<div class="lt-body">
+        <p class="lt-meta"><span class="lt-kind">${kind}</span><span>${ago(n.date)}</span>${unseen ? '<span class="lt-unseen">New for you</span>' : ''}</p>
+        ${name}<ul class="lt-sum">${sum}</ul>${extra}${actions}
+      </div></div></li>`;
+  }
+  function fillLatest() {
+    ltList.innerHTML = NEWS.length ? NEWS.map(entryHtml).join('') + '<li class="lt-end">That’s everything, all the way back to the day stezy.lt went up.</li>'
+      : '<li class="lt-end">Nothing here yet.</li>';
+    applyLtFilter();
+    watchLatest();
+  }
+  function applyLtFilter() {
+    ltList.querySelectorAll('.lt-item').forEach(li => {
+      const k = li.dataset.kind;
+      li.hidden = ltFilter === 'all' ? false : ltFilter === 'apps' ? !(k === 'new' || k === 'drop') : k !== ltFilter;
+    });
+    ltFilters.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.f === ltFilter));
+    if (ltThread) ltThread.place();
+  }
+  ltFilters.innerHTML = LT_FILTERS.map(([k, label]) => `<button type="button" data-f="${k}" aria-pressed="${k === 'all'}">${label}</button>`).join('');
+  ltFilters.addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; ltFilter = b.dataset.f; applyLtFilter(); });
+
+  // as you scroll, the entry in the middle lights up and the page takes its colour
+  let ltIn = null, ltOn = null;
+  function watchLatest() {
+    if (ltIn) ltIn.disconnect();
+    if (ltOn) ltOn.disconnect();
+    const items = [...ltList.querySelectorAll('.lt-item')];
+    ltIn = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); ltIn.unobserve(e.target); } }), { root: latestEl, rootMargin: '0px 0px -6% 0px' });
+    ltOn = new IntersectionObserver(es => es.forEach(e => {
+      if (!e.isIntersecting) return;
+      items.forEach(i => i.classList.toggle('on', i === e.target));
+      latestEl.style.setProperty('--lt-c', e.target.style.getPropertyValue('--c'));
+    }), { root: latestEl, rootMargin: '-38% 0px -52% 0px' });
+    items.forEach(i => { ltIn.observe(i); ltOn.observe(i); });
+  }
+
+  async function openLatest(id) {
+    await loadNews();
+    if (latestEl.hidden) {
+      ltReturn = document.activeElement;
+      fillLatest();
+      latestEl.hidden = false;
+      newsDot.hidden = true;
+      if (!ltThread) ltThread = attachThread(latestEl, document.body, 'var(--lt-c)', true, false, document.getElementById('lt-close'));
+      root.style.overflow = 'hidden';
+      if (scroller) scroller.pause();
+      // everything shown now counts as seen (it keeps its "New for you" while you're here)
+      try { if (NEWS.length) localStorage.setItem(SEEN_KEY, NEWS[0].date); seenAt = NEWS.length ? NEWS[0].date : seenAt; } catch {}
+    }
+    const target = id && document.getElementById('lt-' + id);
+    if (target) {
+      if (target.hidden) { ltFilter = 'all'; applyLtFilter(); }
+      target.classList.add('in');
+      requestAnimationFrame(() => target.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' }));
+    } else latestEl.scrollTop = 0;
+    if (ltThread) ltThread.place();
+    setTimeout(() => document.getElementById('lt-close').focus({ preventScroll: true }), 30);
+  }
+  function closeLatest(fromRoute) {
+    if (latestEl.hidden) return;
+    latestEl.hidden = true;
+    if (ltThread) ltThread.place();
+    root.style.overflow = '';
+    if (scroller) scroller.resume();
+    if (!fromRoute && location.hash.startsWith('#latest')) history.replaceState(null, '', location.pathname + location.search + (currentTab ? '#' + currentTab : ''));
+    if (ltReturn && ltReturn.focus) ltReturn.focus({ preventScroll: true });
+  }
+  document.getElementById('news-btn').addEventListener('click', () => { if (location.hash === '#latest') openLatest(); else location.hash = 'latest'; });
+  document.getElementById('lt-close').addEventListener('click', () => closeLatest());
+  latestEl.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); closeLatest(); } });
+  latestEl.addEventListener('click', e => {
+    const c = e.target.closest('[data-lt-copy]');
+    if (!c) return;
+    const url = `https://stezy.lt/n/${c.dataset.ltCopy}/`;
+    if (onPhone && navigator.share) navigator.share({ url }).catch(() => {});
+    else navigator.clipboard.writeText(url).then(() => toast('Link copied'), () => toast(url));
+  });
+  // the dot and the ticker appear once the page has settled
+  (window.requestIdleCallback || (f => setTimeout(f, 1200)))(() => loadNews(), { timeout: 2500 });
   document.addEventListener('keydown', e => {
-    if (e.key !== '/' || dlg.open || !indexEl.hidden) return;
+    if (e.key !== '/' || dlg.open || !indexEl.hidden || !latestEl.hidden) return;
     if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
     e.preventDefault();
     openIndex();

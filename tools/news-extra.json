@@ -1,0 +1,104 @@
+[
+  {
+    "id": "site-launch",
+    "kind": "site",
+    "date": "2026-10-09T14:07:50Z",
+    "title": "stezy.lt is live",
+    "summary": [
+      "STEZY's own corner of the internet: every project gets its own world, and the whole page changes its look as you scroll from one to the next.",
+      "A particle STEZY writes itself on the way in, and scatters away from your mouse."
+    ]
+  },
+  {
+    "id": "site-writer",
+    "kind": "site",
+    "date": "2026-10-09T16:49:26Z",
+    "title": "Write your own word",
+    "summary": [
+      "At the very end of the page, type anything and the particles write it.",
+      "Share the link and it opens with your word, for whoever gets it."
+    ]
+  },
+  {
+    "id": "site-wall",
+    "kind": "site",
+    "date": "2026-10-09T20:23:32Z",
+    "title": "See everything",
+    "summary": [
+      "Every cover on one searchable wall. Press / anywhere, or the grid button at the top."
+    ]
+  },
+  {
+    "id": "echo",
+    "kind": "new",
+    "slug": "echo",
+    "date": "2026-10-10T12:17:27Z",
+    "title": "Echo",
+    "summary": [
+      "A small light lost in dark caves. Every echo draws the cave in dust for a moment, and tells the things that listen where you are.",
+      "Plays right here in your browser, on a computer or a phone."
+    ]
+  },
+  {
+    "id": "site-picks",
+    "kind": "site",
+    "date": "2026-10-10T19:09:12Z",
+    "title": "STEZY's picks",
+    "summary": [
+      "A small sparkle marks STEZY's own favourites: on their pages, in the list on the side, and as a filter on the See everything wall."
+    ]
+  },
+  {
+    "id": "site-smooth",
+    "kind": "site",
+    "date": "2026-10-11T09:46:45Z",
+    "title": "Smoother scrolling",
+    "summary": [
+      "The same look with a lot less work behind it: scrolling from one world to the next is much smoother, especially on slower computers."
+    ]
+  },
+  {
+    "id": "site-alive",
+    "kind": "site",
+    "date": "2026-10-11T11:07:48Z",
+    "title": "Every app page comes alive",
+    "summary": [
+      "Each app's name is now made of its own material: a lamp that reveals Nocturne, curtains that part for Veil, ash falling from REAPER, water over Undertow.",
+      "Move your mouse around on each one."
+    ]
+  },
+  {
+    "id": "site-counts",
+    "kind": "site",
+    "date": "2026-10-11T14:48:36Z",
+    "title": "Visits and downloads",
+    "summary": [
+      "The bottom of the page now shows how many visits and downloads stezy.lt has had, and each app shows how many times it was downloaded.",
+      "Counts only: no cookies, nothing personal."
+    ]
+  },
+  {
+    "id": "site-latest",
+    "kind": "site",
+    "date": "2026-10-12T20:30:00Z",
+    "title": "Latest",
+    "summary": [
+      "This page. New apps, updates and changes to stezy.lt, newest first, filled in by itself every time something ships.",
+      "A dot on the button at the top tells you when there's something you haven't seen."
+    ]
+  },
+  {
+    "patch": "drop-2026-10-09-1504",
+    "title": "The first projects",
+    "summary": [
+      "Ghost Line, Shadow, Phantom, LinkFuse and the Schedule Steve mod: the things STEZY made before this site existed, each with its own world and a download."
+    ]
+  },
+  {
+    "patch": "drop-2026-10-09-1918",
+    "title": "Night drop",
+    "summary": [
+      "Thirteen small Windows tools in one night, each with its own look: a curtain for your screen, a mic mute with an ON AIR sign, a diary of your screen time and more."
+    ]
+  }
+]
