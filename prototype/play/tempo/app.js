@@ -25,6 +25,7 @@
   const sel = () => S.games.find(g => g.id === S.settings.selectedGame) || null;
   const gameOf = id => S.games.find(g => g.id === id);
   const sessionsOf = id => S.sessions.filter(s => s.gameId === id);
+  const hasStutters = s => s.hitches != null && !s.noStutterData;
   const dur = sec => { sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60; return h ? `${h} h ${m} min` : m ? `${m} min` : `${sec} s`; };
   const when = iso => {
     const d = new Date(iso), now = new Date();
@@ -430,8 +431,9 @@
     const out = [];
     if (s.overlayBlocked) out.push(blockedText(gameOf(s.gameId)));
     const prot = new Set((S.settings.protectedApps || []).map(x => x.toLowerCase()));
+    const left = new Set(((S.settings.boost || {}).leaveAlone || []).map(x => x.toLowerCase()));
     const shell = new Set(['explorer.exe', 'searchhost.exe', 'shellexperiencehost.exe', 'startmenuexperiencehost.exe']);
-    const movable = (s.background || []).filter(b => !prot.has(b.name.toLowerCase()) && !shell.has(b.name.toLowerCase()));
+    const movable = (s.background || []).filter(b => !prot.has(b.name.toLowerCase()) && !left.has(b.name.toLowerCase()) && !shell.has(b.name.toLowerCase()));
     if (s.cpuLimited > 0.5 && s.backgroundCpu >= 4 && s.background.length)
       out.push(`<b>Other apps</b> used ${fmt(s.backgroundCpu)}% of your processor. TEMPO never closes anything: with the boost on, ${movable.length ? `apps like ${movable.slice(0, 2).map(b => esc(b.label || b.name.replace(/\.exe$/i, ''))).join(' and ')} step back for the game while you play` : 'background apps step back while you play'}, and music and voice apps (Discord, Spotify) are left exactly as they are.`);
     const ramAvg = s.avgRamFreeGb || 0;
@@ -457,7 +459,7 @@
     box.innerHTML = `
       <div class="lab">Last session <b>${when(s.started)} · ${dur(s.seconds)}</b></div>
       <div class="avg"><span class="n">${fmt(s.avgFps)}</span><span class="u">FPS AVERAGE</span>${delta != null ? `<span class="delta${delta < 0 ? ' neg' : ''}">${delta >= 0 ? '+' : ''}${delta} vs before</span>` : ''}</div>
-      <div class="trio"><div><div class="k">1% LOW</div><div class="v">${fmt(s.low1)}</div></div><div><div class="k">0.1% LOW</div><div class="v">${fmt(s.low01)}</div></div><div><div class="k">STUTTERS</div><div class="v">${s.hitches != null ? s.hitches : '–'}${s.hitches != null ? `<small>${fmt(s.hitchesPerMin, 1)}/min</small>` : ''}</div></div></div>
+      <div class="trio"><div><div class="k">1% LOW</div><div class="v">${fmt(s.low1)}</div></div><div><div class="k">0.1% LOW</div><div class="v">${fmt(s.low01)}</div></div><div><div class="k">STUTTERS</div><div class="v">${hasStutters(s) ? s.hitches : '–'}${hasStutters(s) ? `<small>${fmt(s.hitchesPerMin, 1)}/min</small>` : ''}</div></div></div>
       <canvas class="chart" id="last-chart"></canvas>
       <div class="axis"><span>0</span><span>${dur(s.seconds / 2)}</span><span>${dur(s.seconds)}</span></div>
       <div class="lab" style="margin-bottom:0">What held you back</div>
@@ -657,7 +659,7 @@
         <div><div class="k">AVERAGE</div><div class="v">${fmt(s.avgFps)}<small>fps</small></div></div>
         <div><div class="k">1% LOW</div><div class="v">${fmt(s.low1)}<small>fps</small></div></div>
         <div><div class="k">0.1% LOW</div><div class="v">${fmt(s.low01)}<small>fps</small></div></div>
-        <div><div class="k">STUTTERS</div><div class="v">${s.hitches != null ? s.hitches : '–'}<small>${s.hitches != null ? fmt(s.hitchesPerMin, 1) + '/min' : ''}</small></div></div>
+        <div><div class="k">STUTTERS</div><div class="v">${hasStutters(s) ? s.hitches : '–'}<small>${hasStutters(s) ? fmt(s.hitchesPerMin, 1) + '/min' : 'not counted yet'}</small></div></div>
       </div>
       <canvas class="sd-chart" id="sd-chart"></canvas>
       <div class="axis"><span>0</span><span>${dur(s.seconds / 2)}</span><span>${dur(s.seconds)}</span></div>

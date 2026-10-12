@@ -28,7 +28,7 @@
   .demo-dl:hover { filter: brightness(1.08); }
   @media (max-width: 1240px) { .demo-tag { display: none; } }
 </style>
-<script>window.TEMPO_DEMO = { art: '/img/', version: '1.3.1' };</script>
+<script>window.TEMPO_DEMO = { art: '/img/', version: '1.3.2' };</script>
 <link rel="stylesheet" href="app.css">
 </head>
 <body data-page="play" data-state="off">
@@ -52,7 +52,7 @@
     <span class="sp"></span>
     <button type="button" class="update" id="update" hidden></button>
     <span class="status" id="status" hidden><i></i><span id="status-text"></span></span>
-    <div class="demo-bar"><span class="demo-tag">Live demo · made-up data</span><a class="demo-back" href="/#tempo">stezy.lt</a><a class="demo-dl" href="https://github.com/SNAXUS1/stezy-site/releases/download/tempo-v1.3.1/TEMPO-1.3.1.zip">Download</a></div>
+    <div class="demo-bar"><span class="demo-tag">Live demo · made-up data</span><a class="demo-back" href="/#tempo">stezy.lt</a><a class="demo-dl" href="https://github.com/SNAXUS1/stezy-site/releases/download/tempo-v1.3.2/TEMPO-1.3.2.zip">Download</a></div>
     <div class="winbtns">
       <button type="button" class="win" data-win="min" aria-label="Minimise"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1.1"/></svg></button>
       <button type="button" class="win" data-win="max" aria-label="Maximise"><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></button>
@@ -245,7 +245,7 @@
           <div class="rowx" style="margin-top:22px"><span>Game art behind the dial<small>Tinted takes on your accent</small></span><div class="seg" data-set="artStyle"><button type="button" data-v="tinted">Tinted</button><button type="button" data-v="natural">Natural</button><button type="button" data-v="off">Off</button></div></div>
           <div class="rowx"><span>Grain</span><div class="slider"><input type="range" min="0" max="100" step="5" data-set="grain" data-scale="100" aria-label="Grain"><output></output></div></div>
           <div class="rowx"><span>Motion<small>Calm keeps things still</small></span><div class="seg" data-set="motion"><button type="button" data-v="full">Full</button><button type="button" data-v="calm">Calm</button><button type="button" data-v="off">Off</button></div></div>
-          <div class="rowx"><span>Turn off when the game closes<small>So nothing stays on by accident</small></span><button type="button" class="tog" data-set="autoOff" aria-label="Turn off when the game closes"></button></div>
+          <div class="rowx"><span>Turn off when the game closes<small>About 20 seconds after, in case it restarts, so nothing stays on by accident</small></span><button type="button" class="tog" data-set="autoOff" aria-label="Turn off when the game closes"></button></div>
         </div>
         <div class="look-pv">
           <div class="lab">Preview</div>
