@@ -164,6 +164,28 @@
   @keyframes grain-shift { 0% { background-position: 0 0; } 20% { background-position: -37px 21px; } 40% { background-position: 53px -18px; } 60% { background-position: -12px 44px; } 80% { background-position: 29px 9px; } 100% { background-position: -41px -33px; } }
   @media (hover: none), (pointer: coarse) { .grain.reveal { display: none; } }
 
+  /* The app itself, faintly, on the side away from its name (like the first REAPER share card). The picture is made by
+     tools/make-ghosts.py: the app's light (or ink) only, already faded towards the name. */
+  @property --gx { syntax: '<number>'; inherits: false; initial-value: 0; }
+  @property --gy { syntax: '<number>'; inherits: false; initial-value: 0; }
+  .ui-ghost {
+    position: absolute; z-index: 0; top: var(--g-top, 50%); width: var(--g-w, clamp(600px, 50vw, 1100px));
+    pointer-events: none; opacity: 0; --g-in: 60px;
+    translate: calc(var(--gx) * -16px) calc(var(--gy) * -10px);
+    transform: translateY(-50%) perspective(2000px) rotateY(var(--g-ry)) rotateX(2deg) translateX(var(--g-in)) scale(0.98);
+    transition: opacity 1.3s var(--ease-out) 0.2s, transform 1.8s var(--ease-out) 0.2s, translate 0.9s var(--ease-out);
+  }
+  .ui-ghost.right { right: var(--g-edge, 0px); --g-ry: -11deg; }
+  .ui-ghost.left { left: var(--g-edge, 0px); --g-ry: 11deg; --g-in: -60px; }
+  /* a centred name is wide: the app sits lower, beside where the description is, not beside the name */
+  .ui-ghost.far { --g-w: clamp(560px, 44vw, 980px); --g-top: 70%; }
+  .ui-ghost img { display: block; width: 100%; height: auto; }
+  .scene.is-active .ui-ghost { opacity: var(--g-o, 0.85); }
+  .scene.is-active .ui-ghost.right, .scene.is-active .ui-ghost.left { --g-in: 0px; }
+  .scene.is-active .ui-ghost { transform: translateY(-50%) perspective(2000px) rotateY(var(--g-ry)) rotateX(2deg) translateX(var(--g-in)) scale(1); }
+  @media (prefers-reduced-motion: reduce) { .ui-ghost { transition: opacity 0.4s linear; translate: none; } }
+  @media (max-width: 760px) { .ui-ghost { display: none; } }
+
   /* Album-cover layering: the world's name, huge and faint, drifting far behind */
   .ghost-word {
     position: absolute; left: 50%; top: 50%; z-index: 0;
@@ -1805,6 +1827,20 @@
     tempo: '<div class="deco tp-gauge off"><i class="tp-needle" aria-hidden="true"></i><button type="button" class="tp-power" aria-label="Turn the gauge on or off, like TEMPO\'s own"><b>TURN ON</b></button><div class="tp-read" aria-hidden="true"><b class="tp-n">0</b><span>FPS</span></div><div class="tp-apps" aria-hidden="true"><i>opera</i><i>OneDrive</i><i>Epic Games</i><i class="keep">Discord</i><i>Code</i><i class="keep">Spotify</i></div></div><div class="deco tp-strip" aria-hidden="true"><svg viewBox="0 0 2000 100" preserveAspectRatio="none"></svg></div>'
   };
   // A four-point sparkle marks STEZY's own favourites
+  // The app itself, faintly, on the side away from its name. Pictures: tools/make-ghosts.py (img/<slug>/ghost.webp)
+  const GHOSTS = new Set(['echo', 'ghost-line', 'shadow', 'reaper', 'ledger', 'static', 'hush', 'nocturne', 'specter', 'lull', 'prism',
+    'tether', 'wisp', 'afterimage', 'halo', 'veil', 'undertow', 'poltergeist', 'phantom', 'linkfuse']);
+  // fine-tuning per page: opacity, height, width, distance from the edge
+  const GHOST_AT = {
+    static: '--g-o:0.6', veil: '--g-o:1', ledger: '--g-o:0.7', prism: '--g-o:0.75', shadow: '--g-o:0.9;--g-top:74%', echo: '--g-o:1',
+    nocturne: '--g-top:86%', hush: '--g-top:86%;--g-w:42vw', halo: '--g-top:76%', phantom: '--g-top:68%', poltergeist: '--g-top:74%', linkfuse: '--g-o:1',
+  };
+  const CENTERED = new Set(['echo', 'ghost-line', 'hush', 'lull', 'wisp', 'halo', 'poltergeist', 'veil', 'phantom', 'linkfuse']);
+  const ghostHtml = p => {
+    if (!GHOSTS.has(p.slug)) return '';
+    const side = p.layout === 'at-right' ? 'left' : 'right';
+    return `<div class="ui-ghost ${side}${CENTERED.has(p.slug) ? ' far' : ''}" aria-hidden="true" style="${GHOST_AT[p.slug] || ''}"><img src="img/${p.slug}/ghost.webp" alt="" loading="lazy" decoding="async"></div>`;
+  };
   const SPARK = '<svg class="pk-star" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C8.5 4.6 11.4 7.5 16 8 11.4 8.5 8.5 11.4 8 16 7.5 11.4 4.6 8.5 0 8 4.6 7.5 7.5 4.6 8 0Z"/></svg>';
   const pickTag = () => `<span class="pick-tag" title="One of STEZY's favourites">${SPARK}<span>STEZY's pick</span></span>`;
   projects.forEach(p => {
@@ -1822,6 +1858,7 @@
     const creditSide = p.layout === 'at-left' ? 'at-right' : 'at-left';
     s.innerHTML = `
       ${FX[p.slug] ? `<canvas class="fx" aria-hidden="true" style="--fx-o:${FX[p.slug].opacity}"></canvas>` : ''}
+      ${ghostHtml(p)}
       ${DECO[p.slug] || ''}
       ${p.style === 'vinyl' ? `<div class="vinyl-wrap" aria-hidden="true" style="--label:${p.label}"><div class="vinyl"><span>${p.platform}</span></div><div class="vinyl-sheen"></div></div>` : ''}
       <span class="ghost-word" aria-hidden="true" style="font-family:${p.font};${p.titleCss || ''}">${p.name}</span>
@@ -3745,6 +3782,19 @@
     addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { const k = cur; cur = ''; enter(k); }, 220); });
     document.addEventListener('visibilitychange', () => { if (!document.hidden && !raf && H[cur] && H[cur].frame) raf = requestAnimationFrame(tick); });
     window.__sceneFx = { enter, reset() { const k = cur; cur = ''; enter(k); } };
+    // The faint app behind each page drifts a little against the mouse (only the one on screen)
+    if (matchMedia('(pointer: fine)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      let graf = 0, gx = 0, gy = 0;
+      addEventListener('pointermove', e => {
+        gx = e.clientX / innerWidth * 2 - 1; gy = e.clientY / innerHeight * 2 - 1;
+        if (graf) return;
+        graf = requestAnimationFrame(() => {
+          graf = 0;
+          const g = sc && sc.querySelector('.ui-ghost');
+          if (g) { g.style.setProperty('--gx', gx.toFixed(3)); g.style.setProperty('--gy', gy.toFixed(3)); }
+        });
+      }, { passive: true });
+    }
     if (body.dataset.scene) enter(body.dataset.scene);
   })();
 
