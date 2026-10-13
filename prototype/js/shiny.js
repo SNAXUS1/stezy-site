@@ -572,6 +572,7 @@
     if (adhd) adhd.off(true);
     found.clear();
     save();
+    store.set('stezy-shiny-cheat', '');
     store.set('stezy-adhd', 'off');
     shown = 0;
     if (btn) { btn.remove(); btn = null; }
@@ -593,6 +594,7 @@
     save();
     document.querySelectorAll('.shiny').forEach(b => { b.classList.add('got'); setTimeout(() => b.remove(), 650); });
     count('secret/cheat', 'Cheat code');
+    store.set('stezy-shiny-cheat', '1');
     toast('Cheat code accepted. We won’t tell anyone.');
     ensureButton(false);
     setTimeout(ceremony, 400);
@@ -603,7 +605,7 @@
   function loadAdhd() {
     if (adhd) return Promise.resolve(adhd);
     if (!loading) {
-      loading = import('/js/adhd.js?v=1')
+      loading = import('/js/adhd.js?v=2')
         .then(m => (adhd = m.create({ ...S, sfx, button: () => btn, reset, say, count })))
         .catch(e => { console.warn('ADHD mode could not load:', e); loading = null; return null; });
     }
