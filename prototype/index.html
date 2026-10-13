@@ -46,6 +46,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@700&text=ECHOecho&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
+<script src="js/shiny.js?v=1" defer></script>
 <script>
   document.documentElement.classList.add('js');
   if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('intro-play');
@@ -2953,6 +2954,19 @@
     }
     const flashing = () => flashUntil > performance.now();
     const kindNow = () => (flashing() ? 'form' : KIND[mode]);
+    // A push of energy away from one point, and the particles there light up (a shiny thing picked up, a click in ADHD mode)
+    function burst(x, y, power = 5, radius = 170) {
+      if (reduce || !ready) return;
+      for (const d of dots) {
+        const dx = d.x - x, dy = d.y - y, q = dx * dx + dy * dy;
+        if (q > radius * radius || q < 1) continue;
+        const dist = Math.sqrt(q), f = (1 - dist / radius) * power;
+        d.vx += (dx / dist) * f; d.vy += (dy / dist) * f;
+        d.lit = Math.max(d.lit || 0, 1 - dist / radius);
+      }
+    }
+    // ADHD mode (js/adhd.js): every drift runs faster, the name jitters, and the colours cycle through a rainbow
+    let hyper = false;
 
     function setMode(key, quiet) {
       const leavingForm = KIND[mode] === 'form' && KIND[key] !== 'form';
@@ -3237,6 +3251,7 @@
           const tx = flash ? d.qx : d.tx, ty = flash ? d.qy : d.ty + off;
           d.vx = (d.vx + (tx - d.x) * pull) * 0.82;
           d.vy = (d.vy + (ty - d.y) * pull) * 0.82;
+          if (hyper) { d.vx += (Math.random() - 0.5) * 0.7; d.vy += (Math.random() - 0.5) * 0.7; }
           if (loose > 0.02) { d.vx += (Math.random() - 0.5) * loose * 0.9; d.vy += (Math.random() - 0.5) * loose * 0.9 - loose * 0.15; }
         } else if (kind === 'vinyl') {
           // Dust riding the spinning record
@@ -3334,6 +3349,7 @@
             case 'halo': ax = Math.sin(t * 0.0004 + d.ph) * 0.08; ay = -0.05 - d.s * 0.08; break;
             default: ax = Math.cos(flow) * d.s * 0.6; ay = Math.sin(flow) * d.s * 0.6 - 0.03;
           }
+          if (hyper) { ax *= 2.6; ay *= 2.6; }
           const depth = 0.35 + d.z * 0.9; // far particles drift slower
           d.vx = lerp(d.vx, ax * depth, 0.04);
           d.vy = lerp(d.vy, ay * depth, 0.04);
@@ -3476,15 +3492,17 @@
         ctx.fillRect(w / 2 - r, h * 0.46 - r, r * 2, r * 2);
         return;
       }
-      const buckets = [0, 1, 2, 3].map(i => {
-        const k = i / 3;
-        return `rgb(${Math.round(lerp(cur.a[0], cur.b[0], k))},${Math.round(lerp(cur.a[1], cur.b[1], k))},${Math.round(lerp(cur.a[2], cur.b[2], k))})`;
-      });
+      const paperLike = kind === 'ink' || (kind === 'form' && root.dataset.theme === 'light');
+      const buckets = hyper
+        ? [0, 1, 2, 3].map(i => `hsl(${Math.round(t * 0.07 + i * 75) % 360},${paperLike ? '75%,42%' : '95%,72%'})`)
+        : [0, 1, 2, 3].map(i => {
+          const k = i / 3;
+          return `rgb(${Math.round(lerp(cur.a[0], cur.b[0], k))},${Math.round(lerp(cur.a[1], cur.b[1], k))},${Math.round(lerp(cur.a[2], cur.b[2], k))})`;
+        });
       const size = kind === 'form' ? 1.9 : kind === 'ink' ? 1.5 : kind === 'sky' ? 1.15 : 1;
       const rgb = c => c.map(Math.round).join(',');
 
       // Near layer: big soft lights, shifted most by the mouse
-      const paperLike = kind === 'ink' || (kind === 'form' && root.dataset.theme === 'light');
       const lightStrength = paperLike ? 0.5 : 1;
       for (const l of lights) {
         const lx = l.x + par.x * 60, ly = l.y + par.y * 40, col = rgb(l.c ? cur.b : cur.a);
@@ -3602,7 +3620,10 @@
       fctx.globalCompositeOperation = 'source-over';
     }
 
-    const api = { setMode, refreshColors, playIntro, skipIntro, setAnchors, flash, setWord, mode: () => mode, onFrame: null, quality: () => budget };
+    const api = {
+      setMode, refreshColors, playIntro, skipIntro, setAnchors, flash, setWord, burst, mode: () => mode, onFrame: null, quality: () => budget,
+      hyper(v) { hyper = !!v; }, pings: () => ripples
+    };
     window.__particleShare = () => budget; // for checking the adaptive quality from the console
     // One bad frame must never stop the animation for good: carry on, and put back any particle that went astray
     function heal() {
@@ -3624,7 +3645,14 @@
 
     addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { mouse.x = e.clientX; mouse.y = e.clientY; mouse.on = true; } });
     addEventListener('pointerdown', e => {
-      if (KIND[mode] !== 'halo' || reduce) return;
+      if (reduce) return;
+      // Echo: a click sends an echo of your own, like in the game
+      if (KIND[mode] === 'echo' && !flashing()) {
+        ripples.push({ x: e.clientX, y: e.clientY, t0: performance.now(), v: 0.45, life: 2600, soft: true });
+        if (ripples.length > 6) ripples.shift();
+        return;
+      }
+      if (KIND[mode] !== 'halo') return;
       ripples.push({ x: e.clientX, y: e.clientY, t0: performance.now() });
       if (ripples.length > 5) ripples.shift();
       cring.squeeze = 0.6;
@@ -3652,6 +3680,9 @@
       mouse.x = e.clientX; mouse.y = e.clientY; mouse.on = true; mouse.at = performance.now();
     }, { passive: true });
     document.addEventListener('pointerleave', () => { mouse.on = false; });
+    // On a touch screen, the last tap (Nocturne's lamp goes there for a while)
+    const tap = { x: 0, y: 0, at: -1e9 };
+    addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') { tap.x = e.clientX; tap.y = e.clientY; tap.at = performance.now(); } }, { passive: true });
     const lerp = (a, b, k) => a + (b - a) * k;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
     const titleOf = sc => sc.querySelector('.title:not(.title-copy)');
@@ -3695,12 +3726,14 @@
           this.glow = sc.querySelector('.lamp-glow');
           this.t.classList.add('dim');
           this.p = { x: 0, y: 0 };
+          sc.__lamp = this.p; // where the lamp is, in the scene (js/shiny.js hides something only the lamp shows)
         },
         enter(sc) { place(this.copy, this.t); },
         frame(t, sc) {
           const r = sc.getBoundingClientRect(), tb = { x: this.t.offsetLeft, y: this.t.offsetTop, w: this.t.offsetWidth, h: this.t.offsetHeight };
           let tx, ty;
           if (recently(t)) { tx = mouse.x - r.left; ty = mouse.y - r.top; }
+          else if (t - tap.at < 6000) { tx = tap.x - r.left; ty = tap.y - r.top; }
           else {
             // No mouse: the lamp wanders slowly along the name by itself
             tx = tb.x + tb.w * (0.62 + 0.36 * Math.sin(t * 0.00023)); ty = tb.y + tb.h * (0.5 + 0.35 * Math.sin(t * 0.00037));
@@ -4276,11 +4309,11 @@
     const btn = document.getElementById('sound');
     const hintEl = document.getElementById('sound-hint');
     // Music is off on the public site until there is a track we're allowed to use
-    if (btn.hidden) return { showHint() {} };
+    if (btn.hidden) return { showHint() {}, setRate() {}, isOn: () => false };
     const SRC = 'audio/loop.mp3';
     const VOLUME = 0.018; // the track is mastered very loud, so keep this low: quiet background level
     let ctx = null, gain = null, source = null, buffer = null, el = null, mode = null, loading = null;
-    let on = false, started = false, resumeOnShow = false, suspendTimer, rafId, hintTimer;
+    let on = false, started = false, resumeOnShow = false, suspendTimer, rafId, hintTimer, rate = 1;
     let wanted = store.get('stezy-sound') !== 'off';
 
     function ui() {
@@ -4348,6 +4381,7 @@
           const { padded, loopEnd } = seamlessCopy(buffer);
           source = ctx.createBufferSource();
           source.buffer = padded; source.loop = true; source.loopStart = 0; source.loopEnd = loopEnd;
+          source.playbackRate.value = rate;
           source.connect(gain);
           source.start(0);
         }
@@ -4357,6 +4391,7 @@
         // First time: a slow swell over about five seconds. After a mute: back in about a second and a half.
         gain.gain.setTargetAtTime(VOLUME, now, firstTime ? 1.7 : 0.45);
       } else {
+        el.preservesPitch = false; el.playbackRate = rate;
         try { await el.play(); } catch (e) { on = false; ui(); return; }
         rampElement(VOLUME, firstTime ? 5 : 1.4);
       }
@@ -4398,8 +4433,14 @@
       hintTimer = setTimeout(hideHint, 7000);
     }
     function hideHint() { hintEl.classList.remove('show'); }
+    // ADHD mode plays the loop sped up (and a little higher), like a sped-up edit; it eases between speeds
+    function setRate(r) {
+      rate = r;
+      if (mode === 'buffer' && source) source.playbackRate.setTargetAtTime(r, ctx.currentTime, 0.5);
+      else if (mode === 'element' && el) { el.preservesPitch = false; el.playbackRate = r; }
+    }
     ui();
-    return { showHint };
+    return { showHint, setRate, isOn: () => on };
   })();
 
   // Start each GPU effect the first time its scene comes near. Without WebGPU, the CSS look stays.
@@ -4523,6 +4564,8 @@
     setTimeout(music.showHint, 1500);
   }
   route(true);
+  // What the shiny-things hunt and ADHD mode (js/shiny.js, js/adhd.js) may use from the page
+  window.__stezy = { field, toast, store, reduce, onPhone, music, scroller: () => scroller };
 })();
 </script>
 <script>

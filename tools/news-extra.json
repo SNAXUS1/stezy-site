@@ -88,6 +88,16 @@
     ]
   },
   {
+    "id": "site-shiny",
+    "kind": "site",
+    "date": "2026-10-13T16:52:36Z",
+    "title": "Something’s hidden",
+    "summary": [
+      "Seven shiny things are hiding around stezy.lt. Find all seven and something unlocks.",
+      "That’s all we’re saying. Keep your eyes open."
+    ]
+  },
+  {
     "patch": "drop-2026-10-09-1504",
     "title": "The first projects",
     "summary": [
