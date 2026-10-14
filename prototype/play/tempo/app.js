@@ -13,7 +13,7 @@
   // settings can be nested ("boost.stepBack")
   const getSet = k => k.split('.').reduce((o, p) => o == null ? undefined : o[p], S.settings);
   function putSet(k, v) { const ps = k.split('.'); let o = S.settings; ps.slice(0, -1).forEach(p => { o[p] = o[p] || {}; o = o[p]; }); o[ps[ps.length - 1]] = v; }
-  const DEFAULT_ON = new Set(['overlay', 'autoOff', 'artBehindDial', 'boost.stepBack', 'boost.gameFirst', 'boost.gameMode', 'boost.recording', 'boost.powerPlan', 'boost.memoryRelief', 'boost.strongGpu']);
+  const DEFAULT_ON = new Set(['overlay', 'autoOff', 'artBehindDial', 'boost.stepBack', 'boost.gameFirst', 'boost.gameMode', 'boost.recording', 'boost.powerPlan', 'boost.memoryRelief', 'boost.strongGpu', 'boost.smoothWindowed']);
   const isOn = k => { const v = getSet(k); return v === true || (v === undefined && DEFAULT_ON.has(k)); };
   const BOOST_KEYS = ['boost.stepBack', 'boost.gameFirst', 'boost.gameMode', 'boost.recording', 'boost.powerPlan'];
   const boostCount = () => BOOST_KEYS.filter(isOn).length;
@@ -242,44 +242,118 @@
     requestAnimationFrame(step);
   }
   // A session was saved: a small receipt rises under the dial with the numbers counting up
+  // A match was saved: a card with what happened, against this game's usual, and what held it back
   function receipt(s) {
     const box = $('receipt');
     if (!box || !s) return;
     clearTimeout(receipt.t);
-    box.innerHTML = `<div class="rc-top"><span class="rc-k">SESSION SAVED</span><span class="rc-g">${esc(s.gameName)} · ${dur(s.seconds)}</span><button type="button" class="rc-x" aria-label="Close">&#10005;</button></div>
-      <div class="rc-nums"><div><b id="rc-a">0</b><small>FPS AVERAGE</small></div><div><b id="rc-l">0</b><small>1% LOW</small></div><div><b id="rc-h">0</b><small>STUTTERS</small></div></div>
-      <button type="button" class="rc-go" data-see="${esc(s.gameId)}|${esc(s.id)}">See what held it back &rarr;</button>`;
+    const u = usualOf(s), sm = smoothOf(s), why = heldBack(s);
+    const d = (v, base, unit = '') => base == null || v == null ? '' : (() => { const x = v - base; const r = Math.round(x); return `<em class="${Math.abs(x) < 0.5 ? '' : x > 0 ? 'up' : 'down'}">${r > 0 ? '+' : ''}${r}${unit} vs usual</em>`; })();
+    box.innerHTML = `<div class="rc-top"><span class="rc-k">MATCH SAVED</span><span class="rc-g">${esc(s.gameName)} · ${dur(s.seconds)}</span><button type="button" class="rc-x" aria-label="Close">&#10005;</button></div>
+      <p class="rc-say">${matchSay(s, u)}${delayLine(s, u)}</p>
+      <div class="rc-nums four"><div><b id="rc-a">0</b><small>FPS AVERAGE</small>${d(s.avgFps, u && u.avg)}</div><div title="The 1% low: the slowest 1% of frames"><b id="rc-l">0</b><small>WORST MOMENTS</small>${d(s.low1, u && u.low)}</div>
+        <div><b id="rc-s">${sm == null ? '&#8211;' : '0'}</b><small>SMOOTH %</small>${sm == null ? '' : d(sm, u && u.smooth)}</div><div><b id="rc-h">0</b><small>STUTTERS</small></div></div>
+      ${why ? `<div class="rc-why"><span class="k">WHAT HELD YOU BACK</span><b>${why.k}</b> ${why.v}</div>` : ''}
+      ${coolLine(s)}
+      ${freezeGone(s)}
+      ${tryIt(s)}
+      ${testSide(s)}
+      <button type="button" class="rc-go" data-see="${esc(s.gameId)}|${esc(s.id)}">See the whole match &rarr;</button>`;
     box.hidden = false;
     if (!still()) box.animate([{ opacity: 0, transform: 'translateY(14px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: EASE });
     countUp($('rc-a'), s.avgFps); countUp($('rc-l'), s.low1, 1000); countUp($('rc-h'), s.hitches ?? 0, 700);
-    receipt.t = setTimeout(() => { box.hidden = true; }, 14000);
+    if (sm != null) countUp($('rc-s'), sm, 900);
+    const hide = () => { receipt.t = setTimeout(() => { box.hidden = true; }, 30000); };
+    box.onmouseenter = () => clearTimeout(receipt.t);
+    box.onmouseleave = () => { clearTimeout(receipt.t); hide(); };
+    hide();
+  }
+  // what TEMPO's fans did, against the same game's matches on the card's own control
+  function coolLine(s) {
+    if (!s.fanCurve || !(s.maxGpuTemp > 0)) return '';
+    const before = S.sessions.filter(x => x.gameId === s.gameId && x !== s && !x.fanCurve && x.maxGpuTemp > 0 && x.seconds >= 300).slice(0, 5);
+    const peak = before.length ? before.reduce((a, x) => a + x.maxGpuTemp, 0) / before.length : null;
+    const heldMin = x => x.gpuSlowSeconds / 60;
+    const usualHeld = before.length ? before.reduce((a, x) => a + heldMin(x), 0) / before.length : null;
+    const cooler = peak != null && peak - s.maxGpuTemp >= 2;
+    return `<div class="rc-why rc-cool"><span class="k">FANS</span><b>${cooler ? `${Math.round(peak - s.maxGpuTemp)}° cooler.` : `Peaked at ${fmt(s.maxGpuTemp)} °C.`}</b> ${cooler ? `Peaked at ${fmt(s.maxGpuTemp)} °C, usually ${fmt(peak)} °C, ` : ''}fans ${fmt(s.avgFan)}% on average${s.maxFan > 0 ? `, ${fmt(s.maxFan)}% at most` : ''}. ${s.gpuSlowSeconds >= 60 ? `Held back for heat ${dur(s.gpuSlowSeconds)}${usualHeld != null ? ` (usually ${Math.round(usualHeld)} min)` : ''}.` : usualHeld >= 1 ? `Never held back for heat (usually ${Math.round(usualHeld)} min).` : 'Never held back for heat.'}</div>`;
   }
   // after an update: what's new, once, in the same card as the session receipt
   function whatsNew(version) {
     const box = $('receipt');
     if (!box) return;
+    if (!S.fans && !whatsNew.waited) { whatsNew.waited = true; setTimeout(() => whatsNew(version), 1200); return; } // knows first whether this PC has fan control
+    const fansOk = !(S.fans && S.fans.able === false);
     box.innerHTML = `<div class="rc-top"><span class="rc-k">NEW IN ${esc(String(version).split('.').slice(0, 2).join('.'))}</span><span class="rc-g">TEMPO updated</span><button type="button" class="rc-x" aria-label="Close">&#10005;</button></div>
-      <ul class="rc-new"><li><b>Apps step back by themselves.</b> No more picking each one; tap any app on the Boost page to decide yourself.</li>
-      <li><b>Calls, music and anything your game needs are kept</b>, from Discord to Lossless Scaling and Steam.</li>
-      <li><b>Steam launch options explained</b> on the Tune page, and TEMPO stays on if the game restarts.</li></ul>
-      <button type="button" class="rc-go" data-go-page="boost">See the Boost page &rarr;</button>`;
+      <ul class="rc-new">${fansOk ? `<li><b>Fans:</b> your graphics card's fans follow a curve you choose while you play, never past your highest speed, and go back to normal when the game closes.</li>` : ''}
+      <li><b>Play checks first:</b> what could cost this match (memory, downloads, the drive, launch options, no fps limit), with one-click fixes.</li>
+      <li><b>After each match:</b> how it went against your usual, how smooth it was, the one thing that held it back, and the whole match minute by minute.</li>
+      <li><b>Game settings that reach the game</b> on any PC, a mouse check, and an NVIDIA driver fps limit for any game.</li></ul>
+      <button type="button" class="rc-go" data-go-page="${fansOk ? 'fans' : 'sessions'}">${fansOk ? 'Set up your fans' : 'See your matches'} &rarr;</button>`;
     box.hidden = false;
     if (!still()) box.animate([{ opacity: 0, transform: 'translateY(14px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: EASE });
   }
   document.addEventListener('click', e => {
-    if (e.target.closest('[data-go-page="boost"]') && e.target.closest('#receipt')) $('receipt').hidden = true;
+    if (e.target.closest('[data-go-page]') && e.target.closest('#receipt')) $('receipt').hidden = true;
     if (e.target.closest('.rc-x')) { $('receipt').hidden = true; return; }
     const see = e.target.closest('[data-see]');
     if (see) { const [gid, id] = see.dataset.see.split('|'); S.sessSel = S.sessions.find(x => x.gameId === gid && x.id === id) || null; $('receipt').hidden = true; go('sessions'); }
   });
 
+
+  // ------------------------------------------------------------------ icons: one line set, drawn for TEMPO (24 px grid, 1.7 stroke)
+  const ICON = {
+    layers: '<path d="M12 3.5 3.5 8 12 12.5 20.5 8Z"/><path d="m3.5 12.2 8.5 4.5 8.5-4.5"/><path d="m3.5 16.2 8.5 4.5 8.5-4.5" opacity=".45"/>',
+    up: '<path d="M12 20V6"/><path d="m6 11.5 6-6 6 6"/><path d="M5 3.5h14" opacity=".45"/>',
+    pad: '<rect x="2.5" y="7" width="19" height="11" rx="5.5"/><path d="M7.5 10.6v3.8M5.6 12.5h3.8"/><circle cx="15.4" cy="11.2" r="1" fill="currentColor" stroke="none"/><circle cx="17.6" cy="13.8" r="1" fill="currentColor" stroke="none"/>',
+    rec: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.3" fill="currentColor" stroke="none"/>',
+    bolt: '<path d="M13.2 2.5 5 13.5h6.2l-.9 8 8.2-11h-6.2Z"/>',
+    chip: '<rect x="6" y="6" width="12" height="12" rx="2.2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1" opacity=".5"/><path d="M9.5 2.8V6M14.5 2.8V6M9.5 18v3.2M14.5 18v3.2M2.8 9.5H6M2.8 14.5H6M18 9.5h3.2M18 14.5h3.2"/>',
+    pause: '<rect x="6.2" y="5" width="3.8" height="14" rx="1.4"/><rect x="14" y="5" width="3.8" height="14" rx="1.4"/>',
+    window: '<rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="M3 9h18"/><path d="M6 6.8h.01M8.4 6.8h.01"/>',
+    gpu: '<rect x="2.5" y="6.5" width="19" height="10.5" rx="2.2"/><circle cx="8.6" cy="11.75" r="2.6"/><circle cx="15.4" cy="11.75" r="2.6"/><path d="M5 17v3"/>',
+    fan: '<circle cx="12" cy="12" r="9.2" opacity=".45"/><circle cx="12" cy="12" r="1.5"/><path d="M12 10.3c-.2-2.9.9-5.3 3.1-5.3 1.7 0 2.4 1.7 1.3 3.1-1 1.2-2.5 1.8-4.4 2.2Z"/><g transform="rotate(120 12 12)"><path d="M12 10.3c-.2-2.9.9-5.3 3.1-5.3 1.7 0 2.4 1.7 1.3 3.1-1 1.2-2.5 1.8-4.4 2.2Z"/></g><g transform="rotate(240 12 12)"><path d="M12 10.3c-.2-2.9.9-5.3 3.1-5.3 1.7 0 2.4 1.7 1.3 3.1-1 1.2-2.5 1.8-4.4 2.2Z"/></g>',
+    eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/>',
+    eyeoff: '<path d="M3 3l18 18"/><path d="M10.6 5.6c.5-.1.9-.1 1.4-.1 6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.6 3.4M6.4 6.5C3.9 8.2 2.5 12 2.5 12s3.5 6.5 9.5 6.5c1.6 0 3-.4 4.2-1.1"/>',
+    layout: '<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M3.5 9.5h17M9.5 9.5v11"/>',
+    square: '<rect x="4" y="4" width="16" height="16" rx="3.5" fill="currentColor" fill-opacity=".18"/>',
+    resize: '<path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/>',
+    corner: '<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><rect x="6.5" y="6.5" width="5" height="3.5" rx="1" fill="currentColor" stroke="none"/>',
+    palette: '<path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.2 0 1.7-.9 1.4-1.8-.4-1.2.3-2.2 1.6-2.2h1.8a3.7 3.7 0 0 0 3.7-3.7C20.5 7.1 16.7 3.5 12 3.5Z"/><circle cx="7.8" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1" fill="currentColor" stroke="none"/><circle cx="14.8" cy="7.8" r="1" fill="currentColor" stroke="none"/>',
+    list: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.8" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4.8" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4.8" cy="18" r="1" fill="currentColor" stroke="none"/>',
+    image: '<rect x="3" y="4.5" width="18" height="15" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-9.5 8.5"/>',
+    sparkle: '<path d="M12 3.5c.7 4.3 2.4 6 6.5 6.6-4.1.7-5.8 2.4-6.5 6.6-.7-4.2-2.4-5.9-6.5-6.6 4.1-.6 5.8-2.3 6.5-6.6Z"/><path d="M18.5 15.5c.3 1.8 1 2.5 2.7 2.8-1.7.3-2.4 1-2.7 2.7-.3-1.7-1-2.4-2.7-2.7 1.7-.3 2.4-1 2.7-2.8Z" opacity=".55"/>',
+    wave: '<path d="M2.5 12c2.4 0 2.4-5 4.75-5S9.6 17 12 17s2.4-10 4.75-10S19.1 12 21.5 12"/>',
+    power: '<path d="M12 3v8.5"/><path d="M6.6 6.6a7.5 7.5 0 1 0 10.8 0"/>',
+  };
+  const svgIcon = (name, size = 16) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name] || ''}</svg>`;
+  // every settings row gets its icon (in a small tile that takes on the accent when the row is on)
+  const ROW_ICON = { 'boost.stepBack': 'layers', 'boost.gameFirst': 'up', 'boost.gameMode': 'pad', 'boost.recording': 'rec', 'boost.powerPlan': 'bolt', 'boost.memoryRelief': 'chip',
+    'boost.pause': 'pause', 'boost.smoothWindowed': 'window', 'boost.strongGpu': 'gpu', 'cooling.on': 'fan', overlay: 'eye', overlayStyle: 'layout', overlayBox: 'square',
+    overlaySize: 'resize', overlayCorner: 'corner', overlayNumbers: 'palette', overlayHideFromCapture: 'eyeoff', artStyle: 'image', grain: 'sparkle', motion: 'wave', autoOff: 'power' };
+  document.querySelectorAll('.set .rowx').forEach(r => {
+    const c = r.querySelector('[data-set]'), key = c ? c.dataset.set : r.querySelector('#ov-show') ? 'show' : null;
+    const name = key === 'show' ? 'list' : ROW_ICON[key];
+    if (!name || r.querySelector('.ri')) return;
+    const i = document.createElement('i');
+    i.className = 'ri';
+    i.innerHTML = svgIcon(name);
+    r.prepend(i);
+    r.classList.add('has-ri');
+  });
+  // a shimmer while something is being looked at (instead of a line of text)
+  const skel = (rows = 2) => Array.from({ length: rows }, (_, i) => `<div class="skel-card"><i class="sk" style="width:${[38, 46, 30][i % 3]}%"></i><i class="sk" style="width:${[92, 84, 88][i % 3]}%"></i><i class="sk" style="width:${[64, 72, 58][i % 3]}%"></i></div>`).join('');
+
   // ------------------------------------------------------------------ pages
   function go(page) {
+    if (page === 'fans' && S.fans && S.fans.able === false) { const b = document.querySelector('.nav [data-go="fans"]'); pop(b, b.dataset.naTitle, b.dataset.naWhy); return; }
     S.page = page;
     body.dataset.page = page;
     document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('on', b.dataset.go === page));
-    for (const p of ['play', 'boost', 'tune', 'sessions', 'checkup', 'overlay', 'look']) $('page-' + p).hidden = p !== page;
-    if (page === 'checkup') { renderCheckup(); send({ t: 'checkup' }); }
+    for (const p of ['play', 'boost', 'fans', 'tune', 'sessions', 'checkup', 'overlay', 'look']) $('page-' + p).hidden = p !== page;
+    if (page === 'fans') { renderFans(); send({ t: 'fans' }); }
+    if (page === 'checkup') { renderCheckup(); renderAim(); send({ t: 'checkup' }); }
+    if (page !== 'checkup' && aim.on) send({ t: 'aimStop' });
     if (page === 'tune') { renderTune(); requestTune(); }
     if (page === 'overlay') send({ t: 'phoneState' });
     movePill();
@@ -289,7 +363,40 @@
     if (page === 'look') renderLook();
     if (page === 'play') { renderPlay(); drawStrip(); } // redraw charts in the current colours
   }
-  $('nav').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
+  $('nav').addEventListener('click', e => {
+    const b = e.target.closest('[data-go]');
+    if (!b) return;
+    if (b.classList.contains('na')) { pop(b, b.dataset.naTitle || 'Not on this PC', b.dataset.naWhy || ''); return; }
+    go(b.dataset.go);
+  });
+  // a small note under a control (why a tab is greyed out); goes away by itself or on the next click
+  function pop(anchor, title, text) {
+    let p = $('pop');
+    if (!p) { p = document.createElement('div'); p.id = 'pop'; p.className = 'pop'; p.setAttribute('role', 'status'); document.body.appendChild(p); }
+    p.innerHTML = `<b>${esc(title)}</b>${text ? `<p>${esc(text)}</p>` : ''}`;
+    const r = anchor.getBoundingClientRect();
+    p.hidden = false;
+    const w = p.offsetWidth;
+    p.style.left = Math.max(12, Math.min(innerWidth - w - 12, r.left + r.width / 2 - w / 2)) + 'px';
+    p.style.top = (r.bottom + 12) + 'px';
+    p.style.setProperty('--ax', (r.left + r.width / 2 - parseFloat(p.style.left)) + 'px');
+    p.classList.remove('in'); void p.offsetWidth; p.classList.add('in');
+    clearTimeout(pop.t);
+    pop.t = setTimeout(() => { p.hidden = true; }, 6000);
+    setTimeout(() => document.addEventListener('click', function off(ev) { if (!p.contains(ev.target)) { p.hidden = true; document.removeEventListener('click', off); } }), 0);
+  }
+  // the Fans tab: greyed out on a PC whose card or driver doesn't let apps set the fans (never a switch that does nothing)
+  function applyFanTab() {
+    const b = document.querySelector('.nav [data-go="fans"]');
+    if (!b) return;
+    const na = !!(S.fans && S.fans.able === false);
+    b.classList.toggle('na', na);
+    b.setAttribute('aria-disabled', na ? 'true' : 'false');
+    b.dataset.naTitle = S.fans && S.fans.kind === 'refused' ? 'The driver said no' : 'Fans aren\'t available on this PC';
+    b.dataset.naWhy = (S.fans && S.fans.why) || '';
+    b.title = na ? b.dataset.naWhy : '';
+    if (na && S.page === 'fans') go('play');
+  }
   function movePill() {
     const b = document.querySelector('.nav button.on'), pill = $('nav-pill');
     if (!b || !pill) return;
@@ -323,6 +430,7 @@
     if (!b || S.st.state !== 'off') return;
     S.settings.selectedGame = b.dataset.game;
     send({ t: 'select', game: b.dataset.game });
+    hidePre();
     renderPlay();
   });
   $('add-game').addEventListener('click', () => send({ t: 'addGame' }));
@@ -330,7 +438,9 @@
   // ------------------------------------------------------------------ play
   const MODES = [
     [/Legacy/i, 'Old-style exclusive fullscreen', 'Windows lets nothing sit on top in this mode, so the overlay can\'t show. Your fps is still measured. The game\'s borderless option (or its other fullscreen setting) lets the overlay through.'],
+    [/Hardware Composed/i, 'Fast path, with the overlay on its own layer', 'Your graphics card draws the overlay on a layer of its own, so the game keeps fullscreen speed.'],
     [/Independent Flip/i, 'Fullscreen, on Windows\' fast path', 'As fast as exclusive fullscreen, and the overlay can show on top.'],
+    [/Composed: Copy/i, 'Windowed, on Windows\' old copy path', 'An older way of drawing that adds delay. Next time, TEMPO turns on Windows\' optimizations for windowed games for it (Boost page), which puts it on the fast path.'],
     [/Composed/i, 'Windowed or borderless', 'Windows draws the game through its compositor. The overlay shows on top.'],
   ];
   const modeOf = m => MODES.find(([re]) => re.test(m || ''));
@@ -361,7 +471,9 @@
     const auto = S.settings.autoOff !== false;
     const ovs = { minimal: 'Minimal', detailed: 'Detailed', bar: 'Bar' }[S.settings.overlayStyle] || 'Minimal';
     const bc = boostCount();
-    $('chips').innerHTML = (st === 'off'
+    const preN = st === 'off' ? preItems().length : 0;
+    $('chips').innerHTML = (preN ? `<button type="button" class="chip pre-chip" data-pre-open><span class="d"></span>${preN === 1 ? '1 thing' : `${preN} things`} to know before you play</button>` : '') +
+      (st === 'off'
       ? `<button type="button" class="chip" data-go-page="boost"><span class="d"></span>${bc ? `Boost · ${bc} change${bc === 1 ? '' : 's'}` : 'Boost off'}</button>`
       : '') +
       `<button type="button" class="chip${auto ? '' : ' offc'}" id="chip-auto"><span class="ck">${auto ? '&#10003;' : '&#9675;'}</span>Turns off with the game</button>` +
@@ -369,10 +481,16 @@
     $('left-off').hidden = st !== 'off';
     $('left-on').hidden = st === 'off';
     $('learn').hidden = st !== 'off' || !boostCount();
-    $('play').hidden = st !== 'off' || !(g && g.canLaunch);
-    if (g && g.canLaunch) $('play').innerHTML = `<svg width="10" height="12" viewBox="0 0 10 12" aria-hidden="true"><path d="M0 0L10 6L0 12Z" fill="currentColor"/></svg>Turn on and open ${esc(g.name)}`;
+    const launchable = !!(g && g.canLaunch);
+    $('power-b').textContent = launchable ? 'PLAY' : 'TURN ON';
+    $('power-s').textContent = launchable ? ('OPENS ' + g.name.toUpperCase()).slice(0, 24) + (g.name.length > 18 ? '…' : '') : 'CTRL ALT T';
+    $('play').hidden = st !== 'off' || !launchable;
+    if (launchable) $('play').textContent = 'Turn on only, I\'ll open it myself';
+    if (st !== 'off') hidePre();
+    else requestPre();
     const stepped = S.st.stepped || [];
     const applied = (S.st.applied || []).filter(a => !/ stepped back$/.test(a)).concat(stepped.length ? [`Apps stepped back · ${stepped.slice(0, 4).join(', ')}${stepped.length > 4 ? ` +${stepped.length - 4}` : ''}`] : (S.st.applied || []).filter(a => / stepped back$/.test(a)));
+    if ((S.st.paused || []).length) applied.push(`Paused · ${S.st.paused.slice(0, 3).join(', ')}${S.st.paused.length > 3 ? ` +${S.st.paused.length - 3}` : ''}${S.st.pausedMb >= 50 ? ` (${(S.st.pausedMb / 1024).toFixed(1)} GB back)` : ''}`);
     $('applied-lab').textContent = S.st.learn ? 'Measuring only' : applied.length ? `Boost on · ${applied.length}` : 'Boost on';
     $('applied').innerHTML = S.st.learn
       ? `<div class="ch dim"><div class="t">No changes this time<span>A clean baseline, so the boost can be measured against it.</span></div></div>`
@@ -397,9 +515,9 @@
     const p = e.target.closest('[data-go-page]');
     if (p) go(p.dataset.goPage);
   });
-  $('power').addEventListener('click', () => send({ t: 'on', game: S.settings.selectedGame || 'any' }));
+  $('power').addEventListener('click', () => startPlay(!!(sel() && sel().canLaunch)));
   $('learn').addEventListener('click', () => send({ t: 'on', game: S.settings.selectedGame || 'any', learn: true }));
-  $('play').addEventListener('click', () => send({ t: 'on', game: S.settings.selectedGame || 'any', launch: true }));
+  $('play').addEventListener('click', () => startPlay(false));
   $('update').addEventListener('click', () => send({ t: 'open', url: $('update').dataset.url }));
   $('stop').addEventListener('click', () => send({ t: 'off' }));
 
@@ -429,6 +547,7 @@
 
   function tips(s) {
     const out = [];
+    if (s.culprit && s.culprit.freezes >= 2) out.push(`<b>${esc(s.culprit.label)} spiked at ${s.culprit.freezes} freezes</b> (it suddenly took a big share of the processor each time). ${esc(s.culprit.fix)}`);
     if (s.overlayBlocked) out.push(blockedText(gameOf(s.gameId)));
     const prot = new Set((S.settings.protectedApps || []).map(x => x.toLowerCase()));
     const left = new Set(((S.settings.boost || {}).leaveAlone || []).map(x => x.toLowerCase()));
@@ -500,6 +619,12 @@
       <p class="note" style="margin-top:6px">${comp.length} windowed or borderless and ${fast.length} fullscreen session${fast.length === 1 ? '' : 's'}. Near zero means borderless costs you nothing, and the fps counter can sit on top.</p></div>`;
   }
 
+  // a smooth line through points (midpoint curves), for every chart
+  function smooth(g, pts) {
+    g.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length - 1; i++) { const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2; g.quadraticCurveTo(pts[i][0], pts[i][1], mx, my); }
+    const L = pts[pts.length - 1]; g.lineTo(L[0], L[1]);
+  }
   function drawSeries(c, series, before, sess) {
     if (!c || !series || series.length < 2) return;
     const low = sess && sess.seriesLow && sess.seriesLow.length === series.length ? sess.seriesLow : null;
@@ -510,17 +635,28 @@
     const all = series.concat(before || []).concat(low || []);
     const lo = Math.max(0, Math.min(...all) * 0.85), hi = Math.max(...all) * 1.08;
     const y = v => h - 3 - (v - lo) / (hi - lo || 1) * (h - 8);
-    const line = (arr, color, width, dash, fill) => {
-      g.beginPath();
-      arr.forEach((v, i) => { const x = i / (arr.length - 1) * w; i ? g.lineTo(x, y(v)) : g.moveTo(x, y(v)); });
-      g.setLineDash(dash || []);
-      g.strokeStyle = color; g.lineWidth = width; g.lineJoin = 'round'; g.stroke();
-      if (fill) { g.lineTo(w, h); g.lineTo(0, h); g.closePath(); g.fillStyle = fill; g.fill(); }
-    };
-    const rgb = getComputedStyle(document.documentElement).getPropertyValue('--acc-rgb');
-    if (before && before.length > 1) line(before, '#3A4048', 1.3, [3, 2]);
-    if (low) line(low, `rgba(${rgb}, .32)`, 1, null);
-    line(series, ACC(), 1.6, null, `rgba(${rgb}, .08)`);
+    c._y = y; c._n = series.length;
+    const rgb = getComputedStyle(document.documentElement).getPropertyValue('--acc-rgb').trim();
+    // faint guides at round fps values
+    const step = hi - lo > 120 ? 40 : hi - lo > 60 ? 20 : 10;
+    g.font = '9px "Geist Mono"'; g.textAlign = 'left';
+    for (let v = Math.ceil(lo / step) * step; h >= 120 && v < hi; v += step) {
+      g.strokeStyle = 'rgba(255,255,255,.045)'; g.lineWidth = 1; g.setLineDash([]);
+      g.beginPath(); g.moveTo(0, Math.round(y(v)) + .5); g.lineTo(w, Math.round(y(v)) + .5); g.stroke();
+      g.fillStyle = 'rgba(162,169,179,.45)'; g.fillText(String(v), 2, y(v) - 3);
+    }
+    const P = arr => arr.map((v, i) => [i / (arr.length - 1) * w, y(v)]);
+    const line = (arr, color, width, dash) => { g.beginPath(); smooth(g, P(arr)); g.setLineDash(dash || []); g.strokeStyle = color; g.lineWidth = width; g.lineJoin = 'round'; g.lineCap = 'round'; g.stroke(); };
+    if (before && before.length > 1) line(before, 'rgba(162,169,179,.38)', 1.2, [3, 3]);
+    if (low) line(low, `rgba(${rgb}, .3)`, 1, null);
+    // the fps line: a light fill fading down, and a soft glow under the line
+    const pts = P(series);
+    const grad = g.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, `rgba(${rgb}, .18)`); grad.addColorStop(1, `rgba(${rgb}, 0)`);
+    g.beginPath(); smooth(g, pts); g.lineTo(w, h); g.lineTo(0, h); g.closePath(); g.fillStyle = grad; g.fill();
+    g.save(); g.shadowColor = `rgba(${rgb}, .55)`; g.shadowBlur = 8;
+    g.beginPath(); smooth(g, pts); g.setLineDash([]); g.strokeStyle = ACC(); g.lineWidth = 1.7; g.lineJoin = 'round'; g.stroke();
+    g.restore();
     // the worst stutters, as small marks along the bottom
     if (sess && sess.worstHitches && sess.seconds) {
       g.setLineDash([]);
@@ -532,6 +668,58 @@
     }
   }
 
+  // heat (a line coloured by how hot) and fan speed (dashed) along the match; shaded where the card held itself back for heat
+  function drawHeat(c, s) {
+    if (!c) return;
+    const t = s.seriesTemp, f = s.seriesFan || [], hh = s.seriesHeat || [];
+    const dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+    c.width = w * dpr; c.height = h * dpr;
+    const g = c.getContext('2d');
+    g.scale(dpr, dpr);
+    const n = t.length, X = i => i / (n - 1) * w;
+    // held back for heat: soft red columns
+    g.fillStyle = 'rgba(255,107,87,.13)';
+    hh.forEach((v, i) => { if (v >= 0.5) g.fillRect(X(i) - w / n / 2, 0, w / n + 0.5, h); });
+    const valid = t.filter(v => v > 0);
+    if (!valid.length) return;
+    const lo = Math.min(40, Math.min(...valid) - 3), hi = Math.max(90, Math.max(...valid) + 2);
+    const Y = v => h - 4 - (v - lo) / (hi - lo) * (h - 10);
+    g.font = '9px "Geist Mono"'; g.fillStyle = 'rgba(162,169,179,.45)'; g.textAlign = 'left';
+    [60, 80].forEach(v => { if (v > lo && v < hi) { g.strokeStyle = 'rgba(255,255,255,.045)'; g.beginPath(); g.moveTo(0, Math.round(Y(v)) + .5); g.lineTo(w, Math.round(Y(v)) + .5); g.stroke(); g.fillText(v + '°', 2, Y(v) - 3); } });
+    // fans: dashed, on their own 0-100% scale
+    const fv = f.filter(v => v >= 0);
+    if (fv.length > 3 && f.length === n) {
+      const FY = v => h - 4 - v / 100 * (h - 10);
+      g.beginPath(); smooth(g, f.map((v, i) => [X(i), FY(Math.max(0, v))])); g.setLineDash([3, 3]); g.strokeStyle = 'rgba(111,227,255,.7)'; g.lineWidth = 1.2; g.stroke(); g.setLineDash([]);
+    }
+    // heat: blue when cool, amber when warm, red when hot
+    const grad = g.createLinearGradient(0, Y(lo), 0, Y(hi));
+    const stop = v => Math.max(0, Math.min(1, (v - lo) / (hi - lo)));
+    grad.addColorStop(stop(55), '#6FE3FF'); grad.addColorStop(stop(72), '#FFB547'); grad.addColorStop(stop(84), '#FF6B57');
+    g.beginPath(); smooth(g, t.map((v, i) => [X(i), Y(v > 0 ? v : valid[0])])); g.strokeStyle = grad; g.lineWidth = 1.6; g.lineJoin = 'round'; g.stroke();
+  }
+  // pointing at the chart: that moment's fps, its dips, heat, fans, and any stutter nearby
+  function xray(s) {
+    const wrap = $('xray'), c = $('sd-chart'), line = $('xr-line'), tip = $('xr-tip');
+    if (!wrap || !c || !s.series || s.series.length < 2) return;
+    const n = s.series.length;
+    const mmss = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+    wrap.onpointermove = e => {
+      const r = wrap.getBoundingClientRect();
+      const x = Math.max(0, Math.min(r.width, e.clientX - r.left));
+      const i = Math.round(x / r.width * (n - 1)), t = i / (n - 1) * s.seconds;
+      const temp = s.seriesTemp && s.seriesTemp[i] > 0 ? s.seriesTemp[i] : null, fan = s.seriesFan && s.seriesFan[i] >= 0 ? s.seriesFan[i] : null;
+      const hot = s.seriesHeat && s.seriesHeat[i] >= 0.5;
+      const near = (s.worstHitches || []).filter(hh => Math.abs(hh.t - t) <= s.seconds / n * 1.5).sort((a, b) => b.ms - a.ms)[0];
+      line.hidden = false; tip.hidden = false;
+      line.style.transform = `translateX(${x}px)`;
+      tip.innerHTML = `<b>${mmss(t)}</b><span><em>${fmt(s.series[i])}</em> fps</span>${s.seriesLow ? `<span class="lo">dips to ${fmt(s.seriesLow[i])}</span>` : ''}${temp != null ? `<span class="tp">${fmt(temp)} °C</span>` : ''}${fan != null ? `<span class="fn">fans ${fmt(fan)}%</span>` : ''}${hot ? '<span class="hot">held back for heat</span>' : ''}${near ? `<span class="st">stutter ${Math.round(near.ms)} ms${near.detail ? `: ${esc(near.detail.split('.')[0])}` : ''}</span>` : ''}`;
+      const tw = tip.offsetWidth;
+      tip.style.transform = `translateX(${Math.max(0, Math.min(r.width - tw, x + 14 > r.width - tw ? x - tw - 14 : x + 14))}px)`;
+    };
+    wrap.onpointerleave = () => { line.hidden = true; tip.hidden = true; };
+  }
+
   // ------------------------------------------------------------------ live
   let sinceTimer = 0;
   function onLive(l) {
@@ -540,6 +728,8 @@
     dial.target = l.fps || 0;
     $('big').textContent = l.fps ? Math.round(l.fps) : '–';
     $('big-low').textContent = l.low1 ? Math.round(l.low1) : '–';
+    $('big-lat').hidden = !(l.latency > 0);
+    if (l.latency > 0) $('big-lat').innerHTML = `FRAME DELAY <em>${Math.round(l.latency)} MS</em>`;
     kick();
     const s = l.sys;
     const sysKey = s ? JSON.stringify(s) : '';
@@ -555,7 +745,8 @@
         (s.gpu != null ? m('Graphics card', `${fmt(s.gpu)}%`, s.gpu, l.limiter === 'gpu') : '') +
         (s.vramTotal ? m('Graphics memory', `${gb(s.vramUsed)} / ${gb(s.vramTotal)} GB`, vr, vr > 92) : '') +
         m('Memory free', `${gb(s.ramAvail)} GB`, ramUsed, s.ramAvail < 2.2 * 1073741824) +
-        (s.temp != null ? m('Graphics card heat', `${fmt(s.temp)} °C`, (s.temp - 30) / 60 * 100, s.temp > 83) : '');
+        (s.temp != null ? m('Graphics card heat', `${fmt(s.temp)} °C`, (s.temp - 30) / 60 * 100, s.temp > 83) : '') +
+        (s.fan != null ? m(`Graphics card fans${l.cool && l.cool.state === 'on' ? '<em class="m-tag">TEMPO</em>' : ''}`, `${fmt(s.fan)}%`, s.fan, l.cool && l.cool.state === 'on') : '');
       $('bg-apps').innerHTML = s.top && s.top.length
         ? `<div class="lab" style="margin:4px 0 6px">Also using your processor</div>` + s.top.slice(0, 4).map(p => {
             const nm = p.label || p.name.replace(/\.exe$/i, ''), kept = (S.settings.protectedApps || []).some(x => x.toLowerCase() === p.name.toLowerCase());
@@ -571,14 +762,23 @@
       $('holder-p').textContent = p;
     }
     const mo = modeOf(l.mode);
-    $('mode-note').hidden = !mo && l.overlay !== 'blocked';
+    $('mode-note').hidden = !mo && l.overlay !== 'blocked' && l.overlayPath !== 'costs';
     if (l.overlay === 'blocked') $('mode-note').innerHTML = blockedText(gameOf(S.st.game));
+    else if (l.overlayPath === 'costs') $('mode-note').innerHTML = `<b>The counter costs a frame here.</b> Without it the game goes straight to the screen; with it, Windows has to draw it on top (about one refresh more delay). Ctrl Alt O hides it for ranked.`;
     else if (mo) $('mode-note').innerHTML = `<b>${mo[1]}.</b> ${mo[2]}`;
     if (l.overlay === 'blocked' && !S.blockedTold) { S.blockedTold = true; toast('The game\'s exclusive fullscreen is hiding the fps counter. Your fps is still measured.'); }
-    $('strip-now').textContent = l.frameMs ? `${fmt(1000 / Math.max(l.fps, 1), 1)} ms now` : '';
+    const pace = paceOf(l.recent || []);
+    $('strip-now').textContent = l.frameMs ? `${fmt(1000 / Math.max(l.fps, 1), 1)} ms now${pace != null ? ` · ${pace}% smooth` : ''}` : '';
     drawStrip();
+    if (S.page === 'fans') drawFanGraph();
   }
 
+  // share of recent frames on pace (within a quarter of the ones just before), like the match card's Smooth
+  function paceOf(fr) {
+    let ema = 0, n = 0, off = 0;
+    for (const f of fr) { if (ema > 0) { n++; if (Math.abs(f - ema) > 0.25 * ema) off++; } ema = ema ? ema + (Math.min(f, ema * 3) - ema) * 0.05 : f; }
+    return n > 30 ? Math.round((1 - off / n) * 100) : null;
+  }
   function drawStrip() {
     const c = $('strip-canvas');
     if (!c || $('strip').hidden || !S.live || !S.live.recent) return;
@@ -600,10 +800,16 @@
     guide(1000 / D.hz, 'rgba(236,238,241,.35)', `${D.hz} Hz · ${(1000 / D.hz).toFixed(1)} ms`);
     if (p99) guide(p99, 'rgba(255,181,71,.55)', `1% low · ${p99.toFixed(1)} ms`);
     const rgb = getComputedStyle(document.documentElement).getPropertyValue('--acc-rgb');
-    g.beginPath();
-    fr.forEach((v, i) => { const x = i / Math.max(1, fr.length - 1) * w; i ? g.lineTo(x, y(v)) : g.moveTo(x, y(v)); });
-    g.strokeStyle = ACC(); g.lineWidth = 1.4; g.lineJoin = 'round'; g.stroke();
-    g.lineTo(w, h); g.lineTo(0, h); g.closePath(); g.fillStyle = `rgba(${rgb}, .07)`; g.fill();
+    const pts = fr.map((v, i) => [i / Math.max(1, fr.length - 1) * w, y(v)]);
+    const grad = g.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, `rgba(${rgb.trim()}, .14)`); grad.addColorStop(1, `rgba(${rgb.trim()}, 0)`);
+    g.beginPath(); smooth(g, pts); g.lineTo(w, h); g.lineTo(0, h); g.closePath(); g.fillStyle = grad; g.fill();
+    g.save(); g.shadowColor = `rgba(${rgb.trim()}, .5)`; g.shadowBlur = 6;
+    g.beginPath(); smooth(g, pts); g.strokeStyle = ACC(); g.lineWidth = 1.4; g.lineJoin = 'round'; g.stroke();
+    g.restore();
+    // the newest frame: a bright point at the end of the line
+    const L = pts[pts.length - 1];
+    g.beginPath(); g.arc(L[0] - 2, L[1], 2.6, 0, Math.PI * 2); g.fillStyle = '#fff'; g.shadowColor = ACC(); g.shadowBlur = 10; g.fill(); g.shadowBlur = 0;
   }
 
   function tickSince() {
@@ -655,15 +861,25 @@
       <button type="button" class="sd-del" id="sd-del">Delete</button>
       <div class="sd-head"><div class="h2">${esc(s.gameName.toUpperCase())}</div></div>
       <div class="sd-sub">${when(s.started)} · ${dur(s.seconds)} · ${Number(s.frames).toLocaleString()} frames measured</div>
-      <div class="sd-grid">
+      <p class="sd-say">${matchSay(s, usualOf(s))}${(() => { const w = heldBack(s); return w ? `<small>What held it back: <b>${w.k}</b> ${w.v}</small>` : ''; })()}</p>
+      ${freezeGone(s)}
+      ${tryIt(s)}
+      ${coolLine(s) ? `<div class="sd-cool">${coolLine(s)}</div>` : ''}
+      <div class="sd-grid five">
         <div><div class="k">AVERAGE</div><div class="v">${fmt(s.avgFps)}<small>fps</small></div></div>
         <div><div class="k">1% LOW</div><div class="v">${fmt(s.low1)}<small>fps</small></div></div>
         <div><div class="k">0.1% LOW</div><div class="v">${fmt(s.low01)}<small>fps</small></div></div>
         <div><div class="k">STUTTERS</div><div class="v">${hasStutters(s) ? s.hitches : '–'}<small>${hasStutters(s) ? fmt(s.hitchesPerMin, 1) + '/min' : 'not counted yet'}</small></div></div>
+        <div title="Frames that came at the same pace as the ones before"><div class="k">SMOOTH</div><div class="v">${smoothOf(s) == null ? '–' : smoothOf(s)}<small>${smoothOf(s) == null ? 'new in 2.0' : '% on pace'}</small></div></div>
       </div>
-      <canvas class="sd-chart" id="sd-chart"></canvas>
+      ${s.overlayPath === 'costs' ? `<p class="facts" style="margin:-8px 0 16px"><b>The fps counter cost a frame here:</b> with it showing, Windows drew the game through its compositor instead of straight to the screen, about one screen refresh more delay. Ctrl Alt O hides it.</p>` : ''}
+      <div class="xray" id="xray">
+        <canvas class="sd-chart" id="sd-chart"></canvas>
+        ${s.seriesTemp && s.seriesTemp.length === (s.series || []).length ? `<canvas class="sd-heat" id="sd-heat"></canvas>` : ''}
+        <i class="xr-line" id="xr-line" hidden></i><div class="xr-tip" id="xr-tip" hidden></div>
+      </div>
       <div class="axis"><span>0</span><span>${dur(s.seconds / 2)}</span><span>${dur(s.seconds)}</span></div>
-      <p class="facts" style="margin-bottom:12px">${s.seriesLow ? 'The faint line is the slowest moment of each stretch, the dips you feel.' : ''}${s.worstHitches && s.worstHitches.length ? ' Orange marks are the worst stutters.' : ''}${prev ? ` Dashed: the session before (${fmt(prev.avgFps)} fps average).` : ''}</p>
+      <p class="facts" style="margin-bottom:12px">${s.seriesTemp && s.seriesTemp.length ? '<span class="xr-legend"><i class="t"></i>heat <i class="f"></i>fans <i class="h"></i>held back for heat</span> Point at the chart to see any moment. ' : ''}${s.seriesLow ? 'The faint line is the slowest moment of each stretch, the dips you feel.' : ''}${s.worstHitches && s.worstHitches.length ? ' Orange marks are the worst stutters.' : ''}${prev ? ` Dashed: the session before (${fmt(prev.avgFps)} fps average).` : ''}</p>
       ${s.hitchCauses && Object.keys(s.hitchCauses).length ? causesHtml(s) : s.worstHitches && s.worstHitches.length ? `<div class="lab" style="margin-bottom:6px">Worst stutters</div><div class="hitches">${s.worstHitches.map(h => `<span><b>${Math.round(h.ms)} ms</b> at ${Math.floor(h.t / 60)}:${String(Math.floor(h.t % 60)).padStart(2, '0')}</span>`).join('')}</div>` : ''}
       ${s.events && s.events.length ? `<div class="lab" style="margin:16px 0 6px">What TEMPO did</div>${s.events.map(ev => `<p class="facts">${esc(ev)}</p>`).join('')}` : ''}
       ${s.experimentId ? (() => { const ex = (S.settings.experiments || []).find(x => x.id === s.experimentId); return ex ? `<p class="facts" style="margin-top:10px"><b>Part of a test:</b> ${esc(ex.label)}, ${s.variant === 'b' ? 'with the change' : 'as before'}.</p>` : ''; })() : ''}
@@ -684,11 +900,13 @@
           Busiest processor core <b>${fmt(s.avgCpuMaxCore)}%</b> on average<br>
           Memory free <b>${s.avgRamFreeGb ? fmt(s.avgRamFreeGb, 1) + ' GB' : '–'}</b> on average, <b>${fmt(s.minRamFreeGb, 1)} GB</b> at the lowest<br>
           Graphics memory <b>${fmt(s.avgVramGb, 1)} of ${fmt(s.vramTotalGb, 0)} GB</b><br>
-          TEMPO itself <b>${fmt(s.tempoCpu, 1)}%</b> of your processor</p>
+          TEMPO itself <b>${fmt(s.tempoCpu, 1)}%</b> of your processor${s.medianLatencyMs > 0 ? `<br>Frame delay <b>${fmt(s.medianLatencyMs)} ms</b> typical, <b>${fmt(s.p95LatencyMs)} ms</b> at the slowest 5% (from the game starting a frame to it on screen)` : ''}</p>
           ${s.background && s.background.length ? `<div class="lab" style="margin-top:16px">Other apps using the processor</div><div class="bg-apps" style="margin-top:0">` + s.background.map(b => `<div class="row${(S.settings.protectedApps || []).some(p => p.toLowerCase() === b.name.toLowerCase()) ? ' kept' : ''}"><span>${esc(b.label || b.name.replace(/\.exe$/i, ''))}</span><b>${fmt(b.cpu, 1)}%</b></div>`).join('') + '</div>' : ''}
         </div>
       </div>`;
     drawSeries($('sd-chart'), s.series, prev && prev.series, s);
+    drawHeat($('sd-heat'), s);
+    xray(s);
     $('sd-del').addEventListener('click', () => {
       if ($('sd-del').dataset.armed) { send({ t: 'deleteSession', game: s.gameId, id: s.id }); return; }
       $('sd-del').dataset.armed = '1';
@@ -717,6 +935,7 @@
     send({ t: 'set', key, value });
     if (['accent', 'background', 'artBehindDial', 'artStyle', 'grain', 'motion'].includes(key)) applyTheme();
     if (key.startsWith('boost') || key === 'protectedApps') renderBoost();
+    if (key.startsWith('cooling')) renderFans();
     syncControls();
     if (S.page === 'overlay') renderOverlaySample();
     if (S.page === 'look') renderLook();
@@ -736,7 +955,7 @@
 
   // ------------------------------------------------------------------ tune page
   const LOAD = { gpu: 'Graphics card', cpu: 'Processor', both: 'Processor + graphics', vram: 'Graphics memory' };
-  const TAG = { fix: 'Fix', try: 'Worth a test', looks: 'Free looks' };
+  const TAG = { fix: 'Fix', try: 'Worth a test', looks: 'Free looks', feel: 'Less delay' };
   const BOOST_TESTS = [
     ['boost.all', 'The whole boost', 'Every part of the boost against none of it.'],
     ['boost.stepBack', 'Apps step back', 'Background apps waiting their turn, against running as usual.'],
@@ -791,7 +1010,12 @@
     const g = tuneGame();
     $('tune-game').innerHTML = g ? `<span class="art" style="${artStyle(g, 'header')}"></span><label><span class="k">GAME</span><select id="tune-pick">${S.games.map(x => `<option value="${esc(x.id)}"${x.id === g.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : '';
     const T = S.tune && g && S.tune.game === g.id ? S.tune : null;
-    if (!T) { $('tune-sugs').innerHTML = '<p class="note">Looking at this game…</p>'; ['tune-test', 'tune-cap', 'tune-boost', 'tune-past', 'tune-settings', 'tune-kept'].forEach(id => $(id).innerHTML = ''); return; }
+    if (!T) { $('tune-sugs').innerHTML = skel(2); $('tune-settings').innerHTML = skel(3); ['tune-missed', 'tune-test', 'tune-cap', 'tune-boost', 'tune-past', 'tune-kept'].forEach(id => $(id).innerHTML = ''); return; }
+    const missed = (T.kept || []).filter(k => k.missed);
+    $('tune-missed').innerHTML = missed.length ? `<div class="missed"><div class="sug-top"><span class="pill fix">MISSED</span><b>${missed.length === 1 ? '1 change' : missed.length + ' changes'} never reached ${esc(g.name)}</b></div>
+      <p>${esc(g.name)} moved its settings to your Steam account's own folder, and TEMPO was still changing the old copy, which the game no longer reads. So these were never applied, and the matches since were played without them. TEMPO now uses the right file.</p>
+      <ul class="ms-list">${missed.map(k => `<li>${esc(k.label)}</li>`).join('')}</ul>
+      <div class="sug-act">${T.running ? `<span class="note" style="margin:0">Close ${esc(g.name)} first.</span>` : `<button type="button" class="btn acc" data-missed="apply">Apply them now</button><button type="button" class="btn" data-missed="forget">Forget them</button>`}</div></div>` : '';
     const exps = T.experiments || [];
     const running = exps.find(x => x.exp.status === 'running');
     $('tune-test').innerHTML = running ? testCard(running, true) : '';
@@ -840,11 +1064,13 @@
     // the game's own settings
     $('tune-set-h').textContent = T.config ? `${g.name}'s own settings` : 'The game\'s own settings';
     if (!T.config) {
-      $('tune-settings').innerHTML = `<div class="empty"><b>Not readable yet</b>TEMPO can read and change settings for Deadlock, Counter-Strike 2, games made with Unreal Engine, and the display mode of Unity games. ${esc(g.name)} keeps its settings somewhere else, so change them in its own menu; the suggestions on the left still apply.</div>`;
+      $('tune-settings').innerHTML = `<div class="empty"><b>Not readable yet</b>TEMPO can read and change settings for Deadlock, Counter-Strike 2, Apex Legends, Minecraft, Schedule I, games made with Unreal Engine (Fortnite, Marvel Rivals and many more), and the display mode of Unity games. ${esc(g.name)} keeps its settings somewhere else, so change them in its own menu; the suggestions on the left still apply.</div>`;
       $('tune-kept').innerHTML = '';
     } else {
-      const groups = [['display', 'Display'], ['limit', 'Limits'], ['quality', 'Quality']];
-      $('tune-settings').innerHTML = `<p class="note" style="margin-bottom:10px">${esc(T.config.note)} <span class="mono">${esc(T.config.file)}</span></p>` + busy +
+      const groups = [['display', 'Display'], ['limit', 'Limits'], ['quality', 'Quality'], ['driver', 'NVIDIA driver']];
+      const seen = T.config.seen === 'yes' ? `<span class="cfg-seen ok">&#10003; ${esc(g.name)} saved this file during a match, so it's the one it reads.</span>`
+        : T.config.seen === 'no' ? `<span class="cfg-seen">Not confirmed yet: ${esc(g.name)} hasn't saved this file during a match. Some games only save it when you change a setting in their own menu.</span>` : '';
+      $('tune-settings').innerHTML = `<div class="cfg-where"><p class="note">${esc(T.config.note)}</p>${T.config.place ? `<span class="mono cfg-path" title="${esc(T.config.place)}">${esc(T.config.place)}</span>` : `<span class="mono">${esc(T.config.file)}</span>`}${seen}</div>` + busy +
         groups.map(([k, name]) => {
           const list = (T.settings || []).filter(s => s.group === k);
           if (!list.length) return '';
@@ -855,8 +1081,9 @@
               : `<div class="gs-num"><input type="number" min="${s.min}" max="${s.max}" step="1" value="${Math.round(parseFloat(s.value) || 0)}"><span class="note">${parseFloat(s.value) ? 'fps' : 'no limit'}</span><button type="button" class="btn" data-gnum>Use</button></div>`}
             <div class="gs-pick" hidden></div></div>`).join('');
         }).join('');
-      const kept = T.kept || [];
-      $('tune-kept').innerHTML = kept.length ? `<div class="lab" style="margin:22px 0 6px">Changed for good by TEMPO</div>` + kept.map(k => `<div class="brow"><div><b>${esc(k.label)}</b><small>${when(k.when)} · was ${esc(k.original)}</small></div><button type="button" class="btn" data-putback="${esc(k.key)}">Put back</button></div>`).join('') : '';
+      const kept = (T.kept || []).filter(k => !k.missed);
+      const nowNote = k => k.now != null && String(k.now).toLowerCase() !== String(k.value).toLowerCase() ? ` · <span class="warn-t">the game has it at ${esc(k.now)} now</span>` : '';
+      $('tune-kept').innerHTML = kept.length ? `<div class="lab" style="margin:22px 0 6px">Changed for good by TEMPO</div>` + kept.map(k => `<div class="brow"><div><b>${esc(k.label)}</b><small>${when(k.when)} · was ${esc(k.original)}${nowNote(k)}</small></div><button type="button" class="btn" data-putback="${esc(k.key)}">Put back</button></div>`).join('') : '';
     }
   }
 
@@ -888,6 +1115,8 @@
     if (kp) { send({ t: 'keep', id: kp.dataset.keep }); return; }
     const pb = e.target.closest('[data-putback]');
     if (pb) { send({ t: 'putBack', game: tuneGame().id, key: pb.dataset.putback }); return; }
+    const ms = e.target.closest('[data-missed]');
+    if (ms) { ms.disabled = true; send({ t: 'missed', game: tuneGame().id, do: ms.dataset.missed }); return; }
     // a game setting: picking another value offers a test or a change for good
     const gv = e.target.closest('[data-gv]'), gn = e.target.closest('[data-gnum]');
     if (gv || gn) {
@@ -905,6 +1134,233 @@
     const gc = e.target.closest('[data-gcancel]');
     if (gc) { gc.closest('.gs-pick').hidden = true; }
   });
+
+  // ------------------------------------------------------------------ fans page
+  const FAN_PRESETS = [
+    ['quiet', 'Quiet', 'Barely heard. Runs a little warmer.'],
+    ['balanced', 'Balanced', 'About 60 to 70% in a long match.'],
+    ['cool', 'Cool', "Cooler, and you'll hear it."],
+    ['custom', 'Your own', 'Drag the points on the graph.'],
+  ];
+  const FAN_FALLBACK = { quiet: [[50, 30], [65, 45], [75, 58], [83, 70]], balanced: [[45, 35], [60, 50], [70, 62], [78, 72]], cool: [[40, 40], [55, 55], [65, 68], [72, 80]] };
+  const FG = { w: 640, h: 340, l: 46, r: 16, t: 16, b: 34, t0: 30, t1: 95 };
+  const fgX = t => FG.l + (t - FG.t0) / (FG.t1 - FG.t0) * (FG.w - FG.l - FG.r);
+  const fgY = f => FG.t + (1 - f / 100) * (FG.h - FG.t - FG.b);
+  const coolOpts = () => S.settings.cooling || {};
+  const fanLimit = () => Math.max(40, Math.min(90, Math.round(coolOpts().max || 75)));
+  const presetPts = name => ((S.fans && S.fans.presets) || FAN_FALLBACK)[name] || FAN_FALLBACK.balanced;
+  function curvePts() {
+    const c = coolOpts();
+    const own = c.points && c.points.length >= 2 ? c.points : null;
+    return (c.preset === 'custom' && own ? own : presetPts(c.preset || 'balanced')).map(p => p.slice());
+  }
+  function curveAt(pts, t, max, min = 0, exact = false) {
+    let s;
+    if (t <= pts[0][0]) s = pts[0][1];
+    else if (t >= pts[pts.length - 1][0]) s = pts[pts.length - 1][1];
+    else { let i = 1; while (pts[i][0] < t) i++; const k = (t - pts[i - 1][0]) / (pts[i][0] - pts[i - 1][0]); s = pts[i - 1][1] + k * (pts[i][1] - pts[i - 1][1]); }
+    const v = Math.max(min, Math.min(max, s));
+    return exact ? v : Math.round(v);
+  }
+  // what the fans are doing, in a few words (the chip) and in a sentence (the card)
+  const COOL_CHIP = { off: '', ready: 'ready for your game', on: 'cooling now', learn: 'measure only', tool: 'another app in charge', unsupported: 'not on this card', denied: 'not allowed', handed: 'handed back', nosensor: 'no heat reading', listen: 'listening' };
+  function coolState() { return (S.live && S.live.cool && S.st.state === 'live' ? S.live.cool : S.st.cool) || { state: coolOpts().on ? 'ready' : 'off' }; }
+  function fanCardHtml() {
+    const F = S.fans, c = coolState(), hw = S.hw.gpu || 'Your graphics card';
+    if (!F) return skel(1);
+    const sys = S.live && S.live.sys;
+    if (c.state === 'tool' || F.tool) {
+      const tool = c.tool || F.tool;
+      return `<div class="fc-row warn"><span class="fc-dot"></span><div><b>${esc(tool)} is running and sets your fans itself</b><p>TEMPO leaves the fans to it while it runs, so the two never fight. To let TEMPO cool while you play, close ${esc(tool)} (and untick its Start with Windows), or switch its fan control off.</p></div></div>`;
+    }
+    if (!F.ready || c.state === 'unsupported') return `<div class="fc-row off"><span class="fc-dot"></span><div><b>Not on this graphics card</b><p>TEMPO sets fans through NVIDIA's own driver library, on cards and drivers that allow it. ${esc(hw)} doesn't offer it here, so nothing is changed. Your card keeps its own fan control.</p></div></div>`;
+    if (c.state === 'denied') return `<div class="fc-row warn"><span class="fc-dot"></span><div><b>The driver didn't allow it</b><p>NVIDIA's driver said no when TEMPO asked to set the fans, so nothing was changed. A newer driver may allow it.</p></div></div>`;
+    if (c.state === 'handed') return `<div class="fc-row warn"><span class="fc-dot"></span><div><b>Another app changed the fans mid-game</b><p>So TEMPO handed them back and stayed out of it for the rest of the session, rather than fight over them. It tries again next time.</p></div></div>`;
+    if (c.state === 'nosensor') return `<div class="fc-row warn"><span class="fc-dot"></span><div><b>No heat reading from the card</b><p>Without it TEMPO can't follow a curve, so the card keeps its own fan control.</p></div></div>`;
+    const temp = sys && sys.temp != null ? sys.temp : F.temp, fan = sys && sys.fan != null ? sys.fan : F.speed;
+    const mode = c.state === 'on' ? `on TEMPO's curve` : c.state === 'listen' ? 'for a moment, so you can hear it' : F.policy === 1 ? 'a fixed speed someone set' : "the card's own control";
+    return `<div class="fc-row ${c.state === 'on' || c.state === 'listen' ? 'live' : ''}"><span class="fc-dot"></span><div><b>${esc(hw)} · ${F.count === 1 ? '1 fan' : F.count + ' fans'}</b>
+      <p>Now <em>${fan != null ? fmt(fan) + '%' : '–'}</em> at <em>${temp != null ? fmt(temp) + '°C' : '–'}</em>, ${mode}. It runs between ${F.min}% and ${F.max}%.${c.state === 'learn' ? ' This is a measure-only session, so the fans are left alone.' : ''}</p></div></div>`;
+  }
+  function presetsHtml() {
+    const cur = coolOpts().preset || 'balanced', max = fanLimit();
+    return FAN_PRESETS.map(([id, name, line]) => {
+      const pts = id === 'custom' ? (coolOpts().points && coolOpts().points.length >= 2 ? coolOpts().points : null) : presetPts(id);
+      const spark = pts ? (() => {
+        const X = t => 4 + (t - 30) / 65 * 72, Y = f => 30 - Math.min(f, max) / 100 * 26;
+        const d = [[30, pts[0][1]], ...pts, [95, pts[pts.length - 1][1]]].map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join(' ');
+        return `<svg viewBox="0 0 80 34" aria-hidden="true"><path d="${d} L76 32 L4 32 Z" class="sp-fill"/><path d="${d}" class="sp-line"/></svg>`;
+      })() : `<svg viewBox="0 0 80 34" aria-hidden="true"><path d="M4 26 C 24 26, 30 10, 44 14 S 66 6, 76 6" class="sp-line dash"/></svg>`;
+      return `<button type="button" class="preset${cur === id ? ' on' : ''}" data-preset="${id}">${spark}<b>${name}</b><small>${line}</small></button>`;
+    }).join('');
+  }
+  function renderFans() {
+    if (S.page !== 'fans') return;
+    const c = coolState(), max = fanLimit();
+    const chip = $('fan-chip');
+    chip.textContent = c.state === 'on' && c.speed >= 0 ? `cooling · ${c.speed}%` : COOL_CHIP[c.state] || '';
+    chip.className = 'st-chip' + (c.state === 'on' || c.state === 'listen' ? ' new' : c.state === 'tool' || c.state === 'denied' || c.state === 'handed' ? ' warn' : '');
+    $('fan-card').innerHTML = fanCardHtml();
+    $('fan-presets').innerHTML = presetsHtml();
+    const r = $('fan-max');
+    if (document.activeElement !== r) r.value = max;
+    paintFanMax();
+    const can = S.fans && S.fans.ready && !S.fans.tool && c.state !== 'on' && !S.listenLeft;
+    $('fan-hear').disabled = !can;
+    $('fan-hear').textContent = S.listenLeft ? `Listening · ${S.listenLeft}` : 'Hear it';
+    $('fan-hear').title = can ? `Runs the fans at ${max}% for 8 seconds, then hands them back` : '';
+    drawFanGraph();
+    renderFanHistory();
+  }
+  function paintFanMax() {
+    const r = $('fan-max'), v = +r.value;
+    r.style.setProperty('--p', ((v - 40) / 50 * 100) + '%');
+    $('fan-max-v').textContent = v + '%';
+    const w = $('fan-warn');
+    w.className = 'fan-warn' + (v > 80 ? ' hot' : v < 55 ? ' low' : '');
+    w.textContent = v >= 90 ? "90% is as far as TEMPO goes. It's loud, and only a degree or two cooler than 80%."
+      : v > 80 ? 'Above 80% the fans get loud and wear faster, for a few degrees at most. Most cards are happiest between 60 and 75%.'
+      : v < 55 ? 'Low: in a long match your card may run hotter than it would by itself. It still protects itself.'
+      : 'Around 60 to 75% keeps most cards cool without much noise.';
+  }
+  $('fan-max').addEventListener('input', () => { paintFanMax(); putSet('cooling.max', +$('fan-max').value); drawFanGraph(); $('fan-presets').innerHTML = presetsHtml(); });
+  $('fan-max').addEventListener('change', () => set('cooling.max', +$('fan-max').value));
+  $('fan-hear').addEventListener('click', () => { if (!$('fan-hear').disabled) { $('fan-hear').disabled = true; send({ t: 'fanListen', percent: fanLimit() }); } });
+  function listenCountdown(sec) {
+    S.listenLeft = sec;
+    clearInterval(listenCountdown.t);
+    listenCountdown.t = setInterval(() => { S.listenLeft--; if (S.listenLeft <= 0) { clearInterval(listenCountdown.t); S.listenLeft = 0; send({ t: 'fans' }); } renderFans(); }, 1000);
+    renderFans();
+  }
+  document.addEventListener('click', e => {
+    const p = e.target.closest('[data-preset]');
+    if (!p) return;
+    const id = p.dataset.preset;
+    if (id === 'custom' && !(coolOpts().points && coolOpts().points.length >= 2)) { set('cooling.points', curvePts()); return; } // start from the curve you see
+    set('cooling.preset', id);
+  });
+
+  // the graph: heat across, fan speed up; your highest speed, the loud band, the card's heat limit, where it spent the last match
+  function lastTemps() {
+    const s = S.sessions.find(x => x.seriesTemp && x.seriesTemp.some(v => v > 0));
+    return s ? s.seriesTemp.filter(v => v > 0) : null;
+  }
+  function drawFanGraph() {
+    const svg = $('fan-svg');
+    if (!svg || S.page !== 'fans') return;
+    const pts = S.fanDrag ? S.fanDrag.pts : curvePts(), max = fanLimit();
+    const F = S.fans || {}, min = F.min || 0, hot = F.hot || 87;
+    const rgb = getComputedStyle(document.documentElement).getPropertyValue('--acc-rgb').trim();
+    const x0 = FG.l, x1 = FG.w - FG.r, y0 = FG.t, y1 = FG.h - FG.b;
+    let h = `<defs><linearGradient id="fg-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgb(${rgb})" stop-opacity=".26"/><stop offset="1" stop-color="rgb(${rgb})" stop-opacity="0"/></linearGradient>
+      <pattern id="fg-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="rgba(255,107,87,.22)" stroke-width="2"/></pattern>
+      <filter id="fg-glow" x="-10%" y="-30%" width="120%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+    // zones: never (90-100), loud (80-90), above your limit
+    h += `<rect x="${x0}" y="${fgY(100)}" width="${x1 - x0}" height="${fgY(90) - fgY(100)}" fill="url(#fg-hatch)"/><text x="${x1 - 6}" y="${fgY(95) + 3.5}" class="fg-z" text-anchor="end">TEMPO never goes here</text>`;
+    h += `<rect x="${x0}" y="${fgY(90)}" width="${x1 - x0}" height="${fgY(80) - fgY(90)}" fill="rgba(255,181,71,.06)"/><text x="${x1 - 6}" y="${fgY(85) + 3.5}" class="fg-z amber" text-anchor="end">loud</text>`;
+    // grid
+    for (let f = 0; f <= 100; f += 20) h += `<line x1="${x0}" x2="${x1}" y1="${fgY(f)}" y2="${fgY(f)}" class="fg-grid"/><text x="${x0 - 8}" y="${fgY(f) + 3.5}" class="fg-ax" text-anchor="end">${f}%</text>`;
+    for (let t = 30; t <= 90; t += 10) h += `<line x1="${fgX(t)}" x2="${fgX(t)}" y1="${y0}" y2="${y1}" class="fg-grid v"/><text x="${fgX(t)}" y="${y1 + 18}" class="fg-ax" text-anchor="middle">${t}°</text>`;
+    // where the card spent the last match: a soft histogram on the floor
+    const temps = lastTemps();
+    if (temps && temps.length > 4) {
+      const bins = new Array(33).fill(0);
+      temps.forEach(v => { const i = Math.max(0, Math.min(32, Math.floor((v - 30) / 2))); bins[i]++; });
+      const top = Math.max(...bins);
+      bins.forEach((n, i) => { if (!n) return; const bh = n / top * 52; h += `<rect x="${fgX(30 + i * 2) + 1}" y="${y1 - bh}" width="${fgX(32) - fgX(30) - 2}" height="${bh}" rx="2" class="fg-hist"/>`; });
+    }
+    // the heat limit: from here, your highest speed straight away
+    h += `<line x1="${fgX(hot)}" x2="${fgX(hot)}" y1="${y0}" y2="${y1}" class="fg-hot"/><text x="${fgX(hot) + 5}" y="${y1 - 8}" class="fg-z amber">heat limit</text>`;
+    // your highest speed
+    h += `<line x1="${x0}" x2="${x1}" y1="${fgY(max)}" y2="${fgY(max)}" class="fg-max"/><text x="${x0 + 8}" y="${fgY(max) - 7}" class="fg-maxt">YOUR HIGHEST · ${max}%</text>`;
+    // the curve, as the fans will follow it (flat before the first point and after the last, never above your highest)
+    const at = t => t >= hot ? max : curveAt(pts, t, max, min);
+    const exact = t => t >= hot ? max : curveAt(pts, t, max, min, true);
+    const line = [];
+    for (let t = FG.t0; t <= FG.t1 + 0.01; t += 0.5) { if (t > hot - 0.5 && t < hot) { line.push([fgX(hot), fgY(exact(hot - 0.01))]); } line.push([fgX(t), fgY(exact(t))]); }
+    const d = line.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+    h += `<path d="${d} L${x1} ${y1} L${x0} ${y1} Z" fill="url(#fg-fill)"/>`;
+    // where your own points ask for more than your highest: shown faint, so it's clear what's cut off
+    const raw = pts.map(p => [fgX(p[0]), fgY(p[1])]);
+    if (pts.some(p => p[1] > max)) h += `<path d="${raw.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')}" class="fg-raw"/>`;
+    h += `<path d="${d}" class="fg-line" filter="url(#fg-glow)"/>`;
+    pts.forEach((p, i) => { h += `<g class="fg-pt${S.fanDrag && S.fanDrag.i === i ? ' drag' : ''}" data-i="${i}"><circle cx="${fgX(p[0])}" cy="${fgY(Math.min(p[1], 100))}" r="14" class="fg-hit"/><circle cx="${fgX(p[0])}" cy="${fgY(Math.min(p[1], 100))}" r="6" class="fg-dot"/></g>`; });
+    // now: the card's heat and its fans
+    const sys = S.live && S.live.sys, cs = coolState();
+    const temp = sys && sys.temp != null ? sys.temp : F.temp, fan = sys && sys.fan != null ? sys.fan : F.speed;
+    if (temp != null && temp > 0) {
+      const nx = fgX(Math.max(FG.t0, Math.min(FG.t1, temp))), ny = fgY(fan != null ? fan : at(temp));
+      h += `<line x1="${nx}" x2="${nx}" y1="${ny}" y2="${y1}" class="fg-now-l"/><line x1="${x0}" x2="${nx}" y1="${ny}" y2="${ny}" class="fg-now-l"/>`;
+      h += `<circle cx="${nx}" cy="${ny}" r="12" class="fg-now-ring${cs.state === 'on' || cs.state === 'listen' ? ' live' : ''}"/><circle cx="${nx}" cy="${ny}" r="5" class="fg-now"/>`;
+      h += `<text x="${nx + (nx > x1 - 120 ? -12 : 12)}" y="${ny - 12}" class="fg-nowt" text-anchor="${nx > x1 - 120 ? 'end' : 'start'}">NOW ${fmt(temp)}° · ${fan != null ? fmt(fan) : at(temp)}%</text>`;
+    }
+    // hover: what the fans would do at any heat
+    if (S.fanHover != null && !S.fanDrag) {
+      const t = S.fanHover, hx = fgX(t), hy = fgY(at(t));
+      h += `<line x1="${hx}" x2="${hx}" y1="${y0}" y2="${y1}" class="fg-hover"/><circle cx="${hx}" cy="${hy}" r="4" class="fg-hdot"/>`;
+    }
+    svg.innerHTML = h;
+    const tRead = S.fanDrag ? S.fanDrag.pts[S.fanDrag.i][0] : S.fanHover;
+    $('fg-read').innerHTML = tRead != null ? `At <b>${Math.round(tRead)} °C</b> the fans run at <b>${at(tRead)}%</b>` : `<span>Drag a point to make the curve your own</span>`;
+    $('fg-note').innerHTML = (temps ? `The soft bars along the bottom are where your card spent your last match${temps.length ? `, up to <b>${fmt(Math.max(...temps))} °C</b>` : ''}. ` : '') +
+      `From the heat limit (<b>${hot} °C</b>) the fans go straight to your highest speed. Below the card's lowest (${min}%) they never go.`;
+  }
+  // dragging a point: across for heat, up for speed (it becomes your own curve)
+  (() => {
+    const svg = $('fan-svg');
+    const toData = e => {
+      const r = svg.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width * FG.w, y = (e.clientY - r.top) / r.height * FG.h;
+      return [FG.t0 + (x - FG.l) / (FG.w - FG.l - FG.r) * (FG.t1 - FG.t0), (1 - (y - FG.t) / (FG.h - FG.t - FG.b)) * 100];
+    };
+    svg.addEventListener('pointerdown', e => {
+      const g = e.target.closest('.fg-pt');
+      if (!g) return;
+      svg.setPointerCapture(e.pointerId);
+      S.fanDrag = { i: +g.dataset.i, pts: curvePts() };
+      body.classList.add('fan-dragging');
+      drawFanGraph();
+    });
+    svg.addEventListener('pointermove', e => {
+      const [t, f] = toData(e);
+      if (!S.fanDrag) { S.fanHover = t >= FG.t0 && t <= FG.t1 ? t : null; drawFanGraph(); return; }
+      const { i, pts } = S.fanDrag;
+      const lo = i > 0 ? pts[i - 1][0] + 3 : 25, hi = i < pts.length - 1 ? pts[i + 1][0] - 3 : 95;
+      pts[i] = [Math.round(Math.max(lo, Math.min(hi, t))), Math.round(Math.max(0, Math.min(100, f)))];
+      drawFanGraph();
+    });
+    const end = () => {
+      if (!S.fanDrag) return;
+      const pts = S.fanDrag.pts;
+      S.fanDrag = null;
+      body.classList.remove('fan-dragging');
+      putSet('cooling.preset', 'custom');
+      set('cooling.points', pts);
+    };
+    svg.addEventListener('pointerup', end);
+    svg.addEventListener('pointercancel', end);
+    svg.addEventListener('pointerleave', () => { if (!S.fanDrag) { S.fanHover = null; drawFanGraph(); } });
+  })();
+  // the last matches, any game: how hot, how loud, how long the card held itself back
+  function renderFanHistory() {
+    const list = S.sessions.filter(s => s.maxGpuTemp > 0).slice(0, 6);
+    const box = $('fg-hist');
+    if (!list.length) { box.innerHTML = `<p class="note" style="margin:0">After a match, its heat and fan speed show here, so you can see what the curve did.</p>`; return; }
+    const spark = s => {
+      const t = (s.seriesTemp || []).filter(v => v > 0);
+      if (t.length < 4) return '';
+      const lo = 40, hi = 95, X = i => i / (t.length - 1) * 96 + 2, Y = v => 24 - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * 20;
+      const fan = (s.seriesFan || []).filter(v => v >= 0);
+      const fx = i => i / (fan.length - 1) * 96 + 2, fy = v => 24 - v / 100 * 20;
+      return `<svg viewBox="0 0 100 26" class="fh-spark" aria-hidden="true">${fan.length > 3 ? `<path d="${fan.map((v, i) => `${i ? 'L' : 'M'}${fx(i).toFixed(1)} ${fy(v).toFixed(1)}`).join(' ')}" class="fh-fan"/>` : ''}<path d="${t.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ')}" class="fh-temp"/></svg>`;
+    };
+    box.innerHTML = list.map(s => {
+      const heat = s.maxGpuTemp >= 83 ? 'hot' : s.maxGpuTemp >= 76 ? 'warm' : 'ok';
+      const held = s.gpuSlowSeconds >= 60 ? `held back ${dur(s.gpuSlowSeconds)}` : 'never held back';
+      return `<div class="fh-row"><div class="fh-g"><b>${esc(s.gameName)}</b><small>${when(s.started)} · ${dur(s.seconds)}${s.fanCurve ? ` · <em>TEMPO's curve</em>` : ''}</small></div>
+        ${spark(s)}<div class="fh-n ${heat}"><b>${fmt(s.maxGpuTemp)}°</b><small>peak</small></div><div class="fh-n"><b>${s.avgFan >= 0 ? fmt(s.avgFan) + '%' : '–'}</b><small>fans</small></div><div class="fh-held ${s.gpuSlowSeconds >= 60 ? 'warn' : ''}">${held}</div></div>`;
+    }).join('');
+  }
 
   // ------------------------------------------------------------------ the phone view
   function renderPhone() {
@@ -934,16 +1390,23 @@
     cpuclock: ['Processor slowed down', 'The processor dropped below its usual speed.', 'Usually heat or power saving: check the cooler, and keep the boost\'s high performance power on.'],
     cpu: ['Processor full', 'Every core was busy at that moment.', 'Fewer background apps, and lower view distance or effects in the game.'],
     game: ['Inside the game', 'Nothing outside the game stood out.', 'Often shaders being prepared the first time something appears; they settle after a few matches.'],
+    appdisk: ['Another app on the drive', 'Another app was reading or writing the drive hard, so the game waited for it.', 'Usually a download or an update: pause it while you play, or let it finish first.'],
   };
+  // which apps, by name: "NVIDIA container 41 (12 froze it) · Spotify 9"
+  function appsLine(s) {
+    const a = s.hitchApps || {}, f = s.freezeApps || {};
+    const names = Object.keys(a).sort((x, y) => a[y] - a[x]).slice(0, 4);
+    return names.length ? `<p class="mono" style="margin-top:3px">${names.map(n => `${esc(n)} ${a[n]}${f[n] ? ` (${f[n]} froze it)` : ''}`).join(' · ')}</p>` : '';
+  }
   function causesHtml(s) {
     const c = s.hitchCauses || {};
     const total = Object.values(c).reduce((a, b) => a + b, 0);
     if (!total) return '';
     const order = Object.keys(c).sort((a, b) => c[b] - c[a]);
-    const color = k => ({ memory: '#FF6B57', heat: '#FFB547', app: '#B79BFF', loading: '#6FE3FF', cpuclock: '#FFD15C', cpu: 'var(--acc)', game: '#59606A' })[k] || '#59606A';
+    const color = k => ({ memory: '#FF6B57', heat: '#FFB547', app: '#B79BFF', loading: '#6FE3FF', cpuclock: '#FFD15C', cpu: 'var(--acc)', game: '#59606A', appdisk: '#5CFFB5' })[k] || '#59606A';
     return `<div class="lab" style="margin:4px 0 8px">Why it stuttered <b>${total} stutter${total === 1 ? '' : 's'}</b></div>
       <div class="lbar">${order.map(k => `<i style="flex:${c[k]};background:${color(k)}"></i>`).join('')}</div>
-      <div class="causes">${order.map(k => { const m = CAUSE[k] || [k, '', '']; return `<div class="cause"><i style="background:${color(k)}"></i><div><b>${m[0]}</b> <span class="mono">${c[k]}</span><p>${m[1]} ${m[2]}</p></div></div>`; }).join('')}</div>
+      <div class="causes">${order.map(k => { const m = CAUSE[k] || [k, '', '']; const apps = k === 'app' || k === 'appdisk' ? appsLine(s) : ''; return `<div class="cause"><i style="background:${color(k)}"></i><div><b>${m[0]}</b> <span class="mono">${c[k]}</span><p>${m[1]} ${m[2]}</p>${apps}</div></div>`; }).join('')}</div>
       ${s.worstHitches && s.worstHitches.length ? `<div class="lab" style="margin:14px 0 6px">The worst ones</div><div class="worst">${s.worstHitches.map(h => `<div class="w"><span class="mono">${Math.floor(h.t / 60)}:${String(Math.floor(h.t % 60)).padStart(2, '0')}</span><b>${Math.round(h.ms)} ms</b><span>${esc(h.detail || '')}</span></div>`).join('')}</div>` : ''}`;
   }
 
@@ -963,7 +1426,7 @@
     const order = { warn: 0, tip: 1, info: 2, ok: 3 };
     items.sort((a, b) => order[a.level] - order[b.level]);
     const icon = l => l === 'ok' ? '&#10003;' : l === 'warn' ? '!' : l === 'tip' ? '&#8599;' : 'i';
-    $('ckp-list').innerHTML = S.checkup == null ? '<p class="note">Looking at your PC…</p>' : items.map(f =>
+    $('ckp-list').innerHTML = S.checkup == null ? skel(4) : items.map(f =>
       `<div class="find ${f.level}"><span class="ic">${icon(f.level)}</span><div><div class="t">${f.title}</div><p>${f.text}</p></div></div>`).join('');
   }
 
@@ -976,12 +1439,33 @@
     chip('bs-rec', st.recordingOff ? 'already off' : '');
     chip('bs-pw', st.onBattery ? 'on battery' : st.powerHigh ? 'already on' : st.powerAvailable === false ? 'not on this PC' : '');
     $('bs-gpu-row').hidden = (S.hw.adapters || 1) < 2;
+    renderPause();
     $('bs-test').innerHTML = `<div class="brow" style="margin-top:18px"><div><b>Is it worth it on your PC?</b><small>The Tune page can test the boost, or any one part of it, over real sessions.</small></div><button type="button" class="btn" data-go-page="tune">Open Tune</button></div>`;
     renderApps();
     const g = sel();
     $('bs-compare').innerHTML = compareHtml(g && g.id);
     syncControls();
   }
+  // ---------------- pausing apps while you play: the list, with running apps to add
+  const PAUSE_NAMES = { 'opera.exe': 'Opera', 'chrome.exe': 'Chrome', 'msedge.exe': 'Edge', 'firefox.exe': 'Firefox', 'brave.exe': 'Brave', 'vivaldi.exe': 'Vivaldi', 'wallpaper32.exe': 'Wallpaper Engine', 'wallpaper64.exe': 'Wallpaper Engine (64-bit)' };
+  function renderPause() {
+    const b = S.settings.boost || {};
+    const list = b.pauseApps || [];
+    body.classList.toggle('pause-on', !!b.pause);
+    const label = n => (S.appsData && (S.appsData.apps || []).find(a => a.name.toLowerCase() === n.toLowerCase()) || {}).label || PAUSE_NAMES[n.toLowerCase()] || bare(n);
+    const running = new Set(((S.appsData && S.appsData.apps) || []).map(a => a.name.toLowerCase()));
+    const extra = ((S.appsData && S.appsData.apps) || []).filter(a => !a.locked && !list.some(x => x.toLowerCase() === a.name.toLowerCase()) && !/^(steam|explorer)\.exe$/i.test(a.name));
+    $('bs-pause').innerHTML = list.map(n => `<button type="button" class="ach on" data-unpause="${esc(n)}" title="Tap to take it off the list"><i></i><span>${esc(label(n))}</span>${running.has(n.toLowerCase()) ? '<small>running</small>' : ''}</button>`).join('') +
+      (extra.length ? `<select id="pause-add" aria-label="Add an app to pause"><option value="">+ Add a running app</option>${extra.map(a => `<option value="${esc(a.name)}">${esc(a.label || bare(a.name))}</option>`).join('')}</select>` : '');
+  }
+  document.addEventListener('click', e => {
+    const u = e.target.closest('[data-unpause]');
+    if (u) { const list = ((S.settings.boost || {}).pauseApps || []).filter(x => x !== u.dataset.unpause); set('boost.pauseApps', list); renderPause(); }
+  });
+  document.addEventListener('change', e => {
+    if (e.target.id === 'pause-add' && e.target.value) { const list = ((S.settings.boost || {}).pauseApps || []).concat([e.target.value]); set('boost.pauseApps', list); renderPause(); }
+  });
+
   // ---------------- which apps step back: TEMPO decides by kind (automatic), or only the ones you tap
   const bare = n => String(n || '').replace(/\.exe$/i, '');
   function appChip(a) {
@@ -993,7 +1477,7 @@
     const A = S.appsData;
     const auto = A ? A.auto !== false : true;
     document.querySelectorAll('#ap-mode button').forEach(b => b.classList.toggle('on', (b.dataset.mode === 'auto') === auto));
-    if (!A) { $('apps').innerHTML = '<p class="note">Looking at what\'s running…</p>'; $('protected').innerHTML = ''; $('ap-note').textContent = ''; return; }
+    if (!A) { $('apps').innerHTML = `<div class="ag-grid">${skel(4)}</div>`; $('protected').innerHTML = ''; $('ap-note').textContent = ''; return; }
     const apps = A.apps || [];
     const stepping = apps.filter(a => a.step);
     $('apps-count').textContent = `${stepping.length} stepping back`;
@@ -1071,13 +1555,27 @@
   });
 
   // overlay page
-  const SHOW = [['fps', 'FPS'], ['low1', '1% low'], ['frametime', 'Frame time'], ['graph', 'Graph'], ['cpu', 'Processor'], ['gpu', 'Graphics card'], ['heat', 'Heat']];
+  const SHOW = [['fps', 'FPS'], ['low1', '1% low'], ['frametime', 'Frame time'], ['delay', 'Frame delay'], ['graph', 'Graph'], ['cpu', 'Processor'], ['gpu', 'Graphics card'], ['heat', 'Heat']];
   function renderOverlayPage() {
     const shown = new Set(S.settings.overlayShow || []);
     $('ov-show').innerHTML = SHOW.map(([k, label]) => `<button type="button" data-show="${k}" class="${shown.has(k) || k === 'fps' ? 'on' : ''}"${k === 'fps' ? ' disabled' : ''}>${label}</button>`).join('');
     const g = sel() || S.games[0];
     const hero = g && (g.art.hero || g.art.header);
     $('ov-game').style.backgroundImage = hero ? `url('${hero}')` : '';
+    // what showing the counter did to each game's way to the screen, checked once per session
+    const seen = {};
+    for (const s of S.sessions) if (s.overlayPath && !seen[s.gameId]) seen[s.gameId] = s;
+    const PATH = {
+      costs: n => `<b>In ${n} the counter costs a frame.</b> Without it the game goes straight to the screen; with it showing, Windows draws the game through its compositor, about one screen refresh more delay. Fine for casual games; for ranked, Ctrl Alt O hides it.`,
+      free: n => `<b>In ${n} the counter is free.</b> Your graphics card draws it on a layer of its own, so the game keeps its fast path.`,
+      composed: n => `<b>In ${n} the counter adds nothing.</b> The game runs windowed through Windows' compositor anyway.`,
+      blocked: n => `<b>${n} hides the counter</b> (exclusive fullscreen), so it isn't drawn at all and costs nothing. Borderless would show it; TEMPO checks whether that costs you anything.`,
+    };
+    const rows = Object.values(seen).slice(0, 3).map(s => `<p>${(PATH[s.overlayPath] || (() => ''))(esc(s.gameName))}</p>`).filter(x => x.length > 7);
+    const worst = Object.values(seen).some(s => s.overlayPath === 'costs') ? 'costs' : 'free';
+    $('ov-path').className = 'ov-path ' + worst;
+    $('ov-path').innerHTML = rows.length ? `<div class="lab" style="margin-bottom:6px">What it costs, checked in your games</div>` + rows.join('') : '';
+    $('ov-path').hidden = !rows.length;
     syncControls();
     renderOverlaySample();
   }
@@ -1101,6 +1599,7 @@
     if (shown.has('cpu')) parts.push(`CPU ${Math.round(sys.cpuMax ?? 0)}%`);
     if (shown.has('gpu') && sys.gpu != null) parts.push(`GPU ${Math.round(sys.gpu)}%`);
     if (shown.has('heat') && sys.temp != null) parts.push(`HEAT ${Math.round(sys.temp)}°`);
+    if (shown.has('delay')) parts.push(`DELAY ${Math.round(l.latency || 23)} ms`);
     const s = st.overlaySize || 1, a = st.overlayBox || 0;
     const boxCss = a > 0 ? `background:rgba(6,7,9,${(a * .92).toFixed(2)});border:1px solid rgba(255,255,255,${Math.min(.16, a / 4).toFixed(2)});` : '';
     const outline = a < .47 ? ' o-out' : '';
@@ -1149,6 +1648,270 @@
   $('swatches').addEventListener('change', e => { if (e.target.id === 'own-color') set('accent', e.target.value.toUpperCase()); });
   $('tiles').addEventListener('click', e => { const b = e.target.closest('[data-bg]'); if (b) set('background', b.dataset.bg); });
 
+  // ------------------------------------------------------------------ 2.0: the match, against this game's usual
+  const median = arr => { const a = arr.filter(v => v != null && isFinite(v)).sort((x, y) => x - y); return a.length ? a[Math.floor((a.length - 1) / 2)] : null; };
+  const smoothOf = s => s && s.uneven != null && s.uneven >= 0 ? Math.round((1 - s.uneven) * 100) : null;
+  // the usual for this game: the median of up to five matches before this one
+  function usualOf(s) {
+    const prev = S.sessions.filter(x => x.gameId === s.gameId && x.id !== s.id && new Date(x.started) < new Date(s.started)).slice(0, 5);
+    if (!prev.length) return null;
+    return { n: prev.length, avg: median(prev.map(x => x.avgFps)), low: median(prev.map(x => x.low1)), smooth: median(prev.map(smoothOf)), lat: median(prev.map(x => x.medianLatencyMs > 0 ? x.medianLatencyMs : null)) };
+  }
+  // the frame delay, against the usual: what a mouse movement waits for on top of the mouse itself
+  function delayLine(s, u) {
+    if (!(s.medianLatencyMs > 0)) return '';
+    const d = u && u.lat ? s.medianLatencyMs - u.lat : null;
+    return ` <span class="rc-lat">Frame delay ${Math.round(s.medianLatencyMs)} ms${d != null && Math.abs(d) >= 1 ? ` (${d > 0 ? '+' : ''}${Math.round(d)} vs usual)` : ''}.</span>`;
+  }
+  function matchSay(s, u) {
+    const sm = smoothOf(s);
+    if (!u) return `First ${esc(s.gameName)} match measured: ${fmt(s.avgFps)} fps on average, ${fmt(s.low1)} at the worst moments${sm != null ? `, ${sm}% of frames on pace` : ''}. Next time this compares with it.`;
+    const dl = u.low ? (s.low1 - u.low) / u.low : 0, da = u.avg ? (s.avgFps - u.avg) / u.avg : 0, ds = sm != null && u.smooth != null ? sm - u.smooth : 0;
+    const score = dl * 1.5 + da + ds / 100 * 2;
+    if (score >= 0.12) return `<b>Better than usual.</b> ${dl >= 0.08 ? `The worst moments held ${fmt(s.low1)} fps, usually ${fmt(u.low)}.` : da >= 0.06 ? `${fmt(s.avgFps)} fps on average, usually ${fmt(u.avg)}.` : `Smoother: ${sm}% of frames on pace, usually ${fmt(u.smooth)}.`}`;
+    if (score <= -0.12) return `<b>Rougher than usual.</b> ${dl <= -0.08 ? `The worst moments dropped to ${fmt(s.low1)} fps, usually ${fmt(u.low)}.` : da <= -0.06 ? `${fmt(s.avgFps)} fps on average, usually ${fmt(u.avg)}.` : `${sm}% of frames on pace, usually ${fmt(u.smooth)}.`}${heldBack(s) ? '' : ' Matches differ; nothing on the PC stood out.'}`;
+    return `<b>About your usual.</b> ${fmt(s.avgFps)} fps on average, worst moments ${fmt(s.low1)}${u.n > 1 ? ` (usually ${fmt(u.avg)} and ${fmt(u.low)})` : ''}.`;
+  }
+  // the one thing that held this match back most, in a sentence, with what helps
+  function heldBack(s) {
+    if (s.culprit && s.culprit.freezes >= 2) return { k: `${esc(s.culprit.label)} spiked at ${s.culprit.freezes} freezes.`, v: `Each time, it had suddenly taken a big share of the processor. ${esc(s.culprit.fix)}` };
+    if (s.swapSeconds >= 10) return { k: 'Memory ran out.', v: `Windows moved things to the drive for ${fmt(s.swapSeconds)} s (${fmt(s.minRamFreeGb, 1)} GB free at the lowest). Close browser tabs before you play.` };
+    if (s.gpuSlowSeconds >= 60 && s.gpuLimited >= 0.4) return { k: 'Heat.', v: `The graphics card slowed itself down for ${dur(s.gpuSlowSeconds)} (${fmt(s.maxGpuTemp)} °C). A steady fps limit keeps it cooler; dust and fan curves do the rest.` };
+    const hc = s.hitchCauses || {}, top = Object.keys(hc).filter(k => k !== 'game').sort((a, b) => hc[b] - hc[a])[0];
+    if (top && hc[top] >= 5 && s.hitchesPerMin >= 1) {
+      const w = (s.worstHitches || []).find(h => h.cause === top);
+      const m = CAUSE[top] || [top, '', ''];
+      return { k: m[0] + '.', v: `${hc[top]} of the stutters. ${w && w.detail ? esc(w.detail) + ' ' : ''}${m[2]}` };
+    }
+    if (s.cpuLimited >= 0.55) return { k: 'The processor', v: `on ${Math.round(s.cpuLimited * 100)}% of frames. Lower view distance, effects or crowds; graphics-only settings cost nothing here.` };
+    if (s.gpuLimited >= 0.55) return { k: 'The graphics card', v: `on ${Math.round(s.gpuLimited * 100)}% of frames. Lower the resolution scale (or FSR/DLSS), shadows or effects.` };
+    if (s.capped >= 0.5) return { k: 'Your fps limit', v: `on ${Math.round(s.capped * 100)}% of frames, which is what a limit is for.` };
+    return null;
+  }
+  // Freezes per app in a session: the new count, or read from the worst moments of older sessions
+  function freezesOf(s) {
+    const out = {};
+    // counted per app (by the name people know) since 2.0; an empty count means nothing froze it
+    if (s.freezeApps && Object.keys(s.freezeApps).length) { for (const [l, n] of Object.entries(s.freezeApps)) out[l] = (out[l] || 0) + n; return out; }
+    if (s.hitchApps) return out;
+    for (const h of s.worstHitches || []) {
+      if (!(h.cause === 'app' || h.cause === 'appdisk') || h.ms < 300) continue;
+      const m = /^(.+?) (suddenly used|was using your drive hard)/.exec(h.detail || '');
+      if (m) out[m[1]] = (out[m[1]] || 0) + 1;
+    }
+    return out;
+  }
+  // An app froze the matches before; this one it didn't: say so, it's the clearest sign a change worked
+  function freezeGone(s) {
+    const prev = S.sessions.filter(x => x.gameId === s.gameId && new Date(x.started) < new Date(s.started)).slice(0, 3);
+    if (!prev.length || !hasStutters(s)) return '';
+    const before = {};
+    for (const p of prev) for (const [l, n] of Object.entries(freezesOf(p))) before[l] = (before[l] || 0) + n;
+    const [label, n] = Object.entries(before).sort((a, b) => b[1] - a[1])[0] || [];
+    if (!label || n < 2) return '';
+    const now = freezesOf(s)[label] || (s.culprit && s.culprit.label === label ? s.culprit.freezes : 0);
+    if (now > 0) return '';
+    return `<div class="tryit good"><span class="k">FREEZES</span><p><b>No freezes with ${esc(label)} this match.</b> It spiked at ${n} freezes in the ${prev.length === 1 ? 'match' : `${prev.length} matches`} before, so whatever changed, it helped.</p></div>`;
+  }
+
+  // A game setting changed between matches: the matches since, against the ones before, measured per frame too
+  function tryIt(s) {
+    const k = (S.settings.kept || []).filter(x => x.gameId === s.gameId && !x.confirmed && !x.missed && new Date(x.when) < new Date(s.started)).sort((a, b) => new Date(b.when) - new Date(a.when))[0];
+    if (!k) return '';
+    const all = S.sessions.filter(x => x.gameId === s.gameId);
+    const after = all.filter(x => new Date(x.started) > new Date(k.when) && new Date(x.started) <= new Date(s.started)).slice(0, 5);
+    const before = all.filter(x => new Date(x.started) < new Date(k.when)).slice(0, 5);
+    if (!after.length) return '';
+    const m = (arr, f) => median(arr.map(f));
+    const sign = v => (v > 0 ? '+' : '') + Math.round(v);
+    let body;
+    if (!before.length) body = `No matches from before the change to compare with, so this one sets the baseline.`;
+    else {
+      const fa = m(after, x => x.avgFps), fb = m(before, x => x.avgFps), la = m(after, x => x.low1), lb = m(before, x => x.low1);
+      const sa = m(after, smoothOf), sb = m(before, smoothOf);
+      // work per frame on the part that held the game back: far less sensitive to which map or fight it was
+      const gpuBound = m(before, x => x.gpuLimited) > m(before, x => x.cpuLimited);
+      const key = gpuBound ? 'medianGpuBusyMs' : 'medianCpuBusyMs', part = gpuBound ? 'graphics card' : 'processor';
+      const wa = m(after, x => x[key] || null), wb = m(before, x => x[key] || null);
+      const work = wa && wb ? ` The ${part}'s work per frame went from ${wb.toFixed(1)} to ${wa.toFixed(1)} ms (${sign((wa - wb) / wb * 100)}%).` : '';
+      const better = (lb && la > lb * 1.05) || (fb && fa > fb * 1.05) || (wa && wb && wa < wb * 0.93) || (sb != null && sa != null && sa > sb + 3);
+      const worse = (lb && la < lb * 0.93) || (sb != null && sa != null && sa < sb - 4);
+      body = `${better && !worse ? '<b>It helped.</b>' : worse && !better ? '<b>It made it worse.</b>' : '<b>No clear difference yet.</b>'} ${fmt(fa)} fps on average (was ${fmt(fb)}), worst moments ${fmt(la)} (was ${fmt(lb)})${sa != null && sb != null ? `, ${Math.round(sa)}% smooth (was ${Math.round(sb)})` : ''}.${work}${after.length === 1 ? ' One match is a first look; matches differ, so TEMPO keeps comparing.' : ''}`;
+    }
+    return `<div class="tryit"><span class="k">SINCE YOU CHANGED ${esc(k.label.toUpperCase())}</span><p>${body}</p>
+      <div class="tc-act"><button type="button" class="btn acc" data-kept-ok="${esc(s.gameId)}|${esc(k.key)}">Keep it</button><button type="button" class="btn" data-kept-back="${esc(s.gameId)}|${esc(k.key)}">Put it back (${esc(((k.label.split(': ')[1] || '').split(' → ')[0]) || limitLabel(k.original))})</button></div></div>`;
+  }
+  document.addEventListener('click', e => {
+    const ok = e.target.closest('[data-kept-ok]'), back = e.target.closest('[data-kept-back]');
+    if (ok) { const [game, key] = ok.dataset.keptOk.split('|'); send({ t: 'keepKept', game, key }); ok.closest('.tryit').innerHTML = '<p><b>Kept.</b> It stays; the Tune page can put it back any time.</p>'; }
+    if (back) { const [game, key] = back.dataset.keptBack.split('|'); send({ t: 'putBack', game, key }); back.closest('.tryit').innerHTML = '<p><b>Put back</b> to how it was.</p>'; }
+  });
+
+  function testSide(s) {
+    if (s.learn) return `<p class="rc-test">Measured only: TEMPO changed nothing this match, so it's a clean baseline.</p>`;
+    if (!s.experimentId) return '';
+    const ex = (S.settings.experiments || []).find(x => x.id === s.experimentId);
+    if (!ex) return '';
+    return `<p class="rc-test">Part of the test "${esc(ex.label)}": this match played ${s.variant === 'b' ? 'with the change' : 'as before'}${ex.kind === 'boost' && s.variant !== 'b' ? ' (so the boost part was off on purpose)' : ''}.</p>`;
+  }
+
+  // ------------------------------------------------------------------ 2.0: the check before you play
+  // Something you've seen and played anyway doesn't stop you again for a while: three days for tips, half an hour for warnings
+  const SNOOZE_KEY = 'tempo-pre-snooze';
+  const snoozed = () => { try { return JSON.parse(localStorage.getItem(SNOOZE_KEY) || '{}'); } catch { return {}; } };
+  const isSnoozed = (game, it) => (snoozed()[game + '|' + it.id] || 0) > Date.now();
+  function snooze(game, items) {
+    const all = snoozed(), now = Date.now();
+    for (const k of Object.keys(all)) if (all[k] < now) delete all[k];
+    for (const it of items) all[game + '|' + it.id] = now + (it.level === 'warn' ? 30 * 60e3 : 3 * 86400e3);
+    try { localStorage.setItem(SNOOZE_KEY, JSON.stringify(all)); } catch { }
+  }
+  const preItems = () => { const p = S.pre, id = S.settings.selectedGame || 'any'; return p && p.game === id ? p.items.filter(i => !i.done && !isSnoozed(id, i)) : []; };
+  let preAsked = 0;
+  function requestPre(force) {
+    const id = S.settings.selectedGame || 'any';
+    if (!force && S.pre && S.pre.game === id && Date.now() - S.pre.at < 30000) return;
+    if (!force && Date.now() - preAsked < 2500) return;
+    preAsked = Date.now();
+    send({ t: 'preflight', game: id, then: '' });
+  }
+  function startPlay(launch) {
+    const id = S.settings.selectedGame || 'any';
+    const fresh = S.pre && S.pre.game === id && Date.now() - S.pre.at < 30000;
+    if (fresh) { if (preItems().length) showPre(launch); else goPlay(launch); return; }
+    S.preWant = { launch, id };
+    $('power').classList.add('busy');
+    send({ t: 'preflight', game: id, then: launch ? 'play' : 'on' });
+    clearTimeout(startPlay.t);
+    startPlay.t = setTimeout(() => { if (S.preWant) { S.preWant = null; $('power').classList.remove('busy'); goPlay(launch); } }, 4000); // never hold anyone up
+  }
+  function goPlay(launch) {
+    hidePre();
+    send({ t: 'on', game: S.settings.selectedGame || 'any', launch: !!launch });
+  }
+  function showPre(launch) {
+    const g = sel(), id = S.settings.selectedGame || 'any', items = ((S.pre && S.pre.items) || []).filter(i => i.done || !isSnoozed(id, i));
+    const left = items.filter(i => !i.done).length;
+    $('pre').innerHTML = `<div class="pre-top"><span class="pre-k">BEFORE YOU PLAY</span><span class="pre-g">${esc(g ? g.name : 'Any game')}</span><button type="button" class="rc-x" data-pre-close aria-label="Close">&#10005;</button></div>
+      <div class="pre-items">${items.map(it => `<div class="pre-it ${it.level}${it.done ? ' ok' : ''}"><i></i><div><b>${esc(it.title)}</b><p>${esc(it.text)}</p></div>${it.done ? `<span class="done">&#10003; ${esc(it.doneText || 'Done')}</span>` : it.action ? `<button type="button" class="btn" data-pre-act="${S.pre.items.indexOf(it)}">${esc(it.actionLabel)}</button>` : ''}</div>`).join('')}</div>
+      <p class="note" style="margin-top:6px">Play anyway and these won't stop you again for a while.</p>
+      <div class="pre-act"><button type="button" class="btn acc" data-pre-go="${launch ? 1 : 0}">${left ? (launch ? 'Play anyway' : 'Turn on anyway') : (launch ? 'Play' : 'Turn on')}</button><button type="button" class="link" data-pre-close>Not now</button></div>`;
+    $('pre').hidden = false;
+    body.classList.add('pre-on');
+    S.preLaunch = launch;
+  }
+  function hidePre() { $('pre').hidden = true; body.classList.remove('pre-on'); }
+  document.addEventListener('click', e => {
+    if (e.target.closest('[data-pre-open]')) { showPre(!!(sel() && sel().canLaunch)); return; }
+    if (e.target.closest('[data-pre-close]')) { hidePre(); return; }
+    const goB = e.target.closest('[data-pre-go]');
+    if (goB) { if (S.pre) snooze(S.pre.game, S.pre.items.filter(i => !i.done)); goPlay(goB.dataset.preGo === '1'); return; }
+    const a = e.target.closest('[data-pre-act]');
+    if (a && S.pre) {
+      const it = S.pre.items[+a.dataset.preAct];
+      if (!it) return;
+      if (it.action === 'setNow') { send({ t: 'setNow', game: S.pre.game, key: it.key, value: it.value, label: `Fps limit at ${it.value}` }); it.doneText = `Limit ${it.value}`; }
+      if (it.action === 'overlayOff') { set('overlay', false); it.doneText = 'Hidden (Ctrl Alt O)'; }
+      if (it.action === 'pauseOn') { set('boost.pause', true); it.doneText = 'Pausing once you\'re in'; }
+      if (it.action === 'fansOn') { set('cooling.on', true); it.doneText = 'Fans on TEMPO\'s curve'; }
+      it.done = true;
+      showPre(S.preLaunch);
+      renderPlay();
+    }
+  });
+
+  // ------------------------------------------------------------------ 2.0: the mouse check
+  const aim = { on: false, x: 0, y: 0, pts: [], raf: 0 };
+  function aimCanvas() {
+    const c = $('aim-canvas'), dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+    if (c.width !== w * dpr) { c.width = w * dpr; c.height = h * dpr; }
+    const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return [g, w, h];
+  }
+  // the trail: the mouse's own movement, scaled to fit, fading behind
+  function aimDraw(faint) {
+    aim.raf = 0;
+    const [g, w, h] = aimCanvas();
+    g.clearRect(0, 0, w, h);
+    const pts = aim.pts, fade = faint === true ? 0.3 : 1;
+    if (pts.length > 1) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const [x, y] of pts) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+      const k = Math.min((w - 30) / Math.max(1, maxX - minX), (h - 30) / Math.max(1, maxY - minY));
+      const ox = w / 2 - (minX + maxX) / 2 * k, oy = h / 2 - (minY + maxY) / 2 * k;
+      const rgb = getComputedStyle(document.documentElement).getPropertyValue('--acc-rgb');
+      for (let i = 1; i < pts.length; i++) {
+        g.strokeStyle = `rgba(${rgb}, ${((0.08 + 0.7 * i / pts.length) * fade).toFixed(3)})`;
+        g.lineWidth = 1.2;
+        g.beginPath(); g.moveTo(ox + pts[i - 1][0] * k, oy + pts[i - 1][1] * k); g.lineTo(ox + pts[i][0] * k, oy + pts[i][1] * k); g.stroke();
+      }
+    }
+  }
+  function aimLive(m) {
+    for (const [dx, dy] of m.moves || []) { aim.x += dx; aim.y += dy; aim.pts.push([aim.x, aim.y]); }
+    if (aim.pts.length > 1600) aim.pts = aim.pts.slice(-1600);
+    $('aim-hz').textContent = m.moved ? Math.round(m.rate) : '0';
+    $('aim-unit').textContent = m.moved ? 'REPORTS A SECOND NOW' : 'MOVE THE MOUSE';
+    const done = m.moved ? (8 - m.left) / 8 * 100 : 0;
+    $('aim-bar').style.width = done.toFixed(1) + '%';
+    $('aim-say').innerHTML = m.moved ? `<b>Keep going</b>: big, quick circles. ${Math.ceil(m.left)} s left.` : 'Move your mouse in big, quick circles. The clock starts when you do.';
+    if (!aim.raf) aim.raf = requestAnimationFrame(aimDraw);
+  }
+  function aimStart() {
+    Object.assign(aim, { on: true, x: 0, y: 0, pts: [] });
+    $('aim').classList.add('running');
+    $('aim').classList.remove('done');
+    $('aim-go').textContent = 'Stop';
+    $('aim-stats').innerHTML = ''; $('aim-notes').innerHTML = '';
+    send({ t: 'aimStart' });
+  }
+  const AIM_SAY = {
+    ok: r => `<b>Steady.</b> Your mouse sends ${r.nominal} reports a second and ${Math.round(r.onTime * 100)}% arrive right on time, so the mouse itself isn't what makes aim feel rough.`,
+    uneven: r => `<b>Uneven.</b> It's set to ${r.nominal} reports a second, but ${Math.round((1 - r.onTime) * 100)}% come late or bunched up. Try a USB port on the back of the PC (not a hub or the front panel), and test once with the mouse's own software closed.`,
+    slow: r => `<b>Slow.</b> Your mouse only sends ${r.nominal} reports a second. Most gaming mice do 1000: look for "polling rate" or "report rate" in its software.`,
+    none: () => `<b>Not enough movement.</b> Move the mouse in big, quick circles for the whole 8 seconds, then it can tell.`,
+    error: r => `<b>The mouse couldn't be read.</b> ${esc(r.error || '')}`,
+  };
+  function aimResult(r) {
+    aim.on = false;
+    $('aim').classList.remove('running');
+    $('aim-go').textContent = 'Check again';
+    $('aim-bar').style.width = '0';
+    if (aim.raf) { cancelAnimationFrame(aim.raf); aim.raf = 0; }
+    if (!r) return;
+    $('aim-dev').textContent = [r.device, r.vendor && r.vendor !== r.device ? r.vendor : ''].filter(Boolean).join(' · ');
+    $('aim-hz').textContent = r.nominal || '–';
+    $('aim-unit').textContent = r.nominal ? 'HZ POLLING' : 'REPORTS A SECOND';
+    $('aim-say').innerHTML = (AIM_SAY[r.verdict] || AIM_SAY.none)(r) + pacingLine();
+    $('aim-stats').innerHTML = r.verdict === 'none' || r.verdict === 'error' ? '' :
+      `<div><div class="k">ON TIME</div><div class="v">${Math.round(r.onTime * 100)}%</div></div><div title="${r.late} came late, ${r.bunched} arrived bunched together"><div class="k">OFF BEAT</div><div class="v">${r.late + r.bunched}</div></div><div><div class="k">LONGEST GAP</div><div class="v">${fmt(r.worstGapMs, 1)} ms</div></div>`;
+    $('aim-notes').innerHTML = (r.notes || []).map(n => `<div class="n"><b>${esc(n.title)}</b>${esc(n.text)}</div>`).join('');
+    // the intervals as dots: steady reports sit on one line
+    if (r.intervals && r.intervals.length) {
+      aimDraw(true); // the movement, faint, behind
+      const [g, w, h] = aimCanvas();
+      const nom = 1e6 / (r.nominal || 1000), top = nom * 3;
+      const y = v => h - 12 - Math.min(v, top) / top * (h * 0.42);
+      g.strokeStyle = 'rgba(236,238,241,.25)'; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(0, y(nom)); g.lineTo(w, y(nom)); g.stroke(); g.setLineDash([]);
+      const rgb = getComputedStyle(document.documentElement).getPropertyValue('--acc-rgb');
+      r.intervals.forEach((v, i) => { g.fillStyle = Math.abs(v - nom) <= nom * .25 ? `rgba(${rgb}, .55)` : 'rgba(255,181,71,.85)'; g.fillRect(i / r.intervals.length * w, y(v) - 1, 2, 2); });
+      $('aim').classList.add('done');
+    }
+  }
+  // the other half of aim: how evenly the frames came in the last match
+  function pacingLine() {
+    const s = S.sessions.find(x => smoothOf(x) != null);
+    if (!s) return '';
+    const sm = smoothOf(s);
+    return ` In your last ${esc(s.gameName)} match, <b>${sm}% of frames</b> came on pace${sm < 90 ? ': uneven frames feel like rough aim too, and a steady fps limit helps there' : ''}.`;
+  }
+  $('aim-go').addEventListener('click', () => { if (aim.on) send({ t: 'aimStop' }); else aimStart(); });
+  function renderAim() {
+    if (aim.on) return;
+    const r = S.settings.lastAim;
+    if (r && r.verdict && r.verdict !== 'none') aimResult(r);
+  }
+
   // ------------------------------------------------------------------ messages from the app
   function onMsg(m) {
     switch (m.t) {
@@ -1176,6 +1939,7 @@
         if (m.experimentNote && was === 'off') toast(m.experimentNote);
         if (m.pending && m.state === 'off') toast('A game setting goes back as soon as the game closes (it rewrites its settings on exit).');
         renderPlay();
+        if (S.page === 'fans') renderFans();
         if (was === 'off' && m.state === 'waiting') toast('TEMPO is on. Open your game now.');
         break;
       }
@@ -1200,6 +1964,21 @@
       case 'whatsnew': whatsNew(m.version); break;
       case 'phone': S.phone = m; renderPhone(); break;
       case 'apps': S.appsData = m; S.apps = m.apps; S.boostStatus = m.boostStatus || S.boostStatus; renderBoost(); break;
+      case 'preflight': {
+        S.pre = { game: m.game, at: Date.now(), items: m.items || [] };
+        const want = S.preWant;
+        if (want && want.id === m.game) {
+          S.preWant = null; clearTimeout(startPlay.t);
+          $('power').classList.remove('busy');
+          if (S.pre.items.length) showPre(want.launch); else goPlay(want.launch);
+        }
+        if (S.page === 'play' && S.st.state === 'off') { const keep = $('pre').hidden; renderPlay(); if (!keep) showPre(S.preLaunch); }
+        break;
+      }
+      case 'aimLive': aimLive(m); break;
+      case 'fans': S.fans = m; applyFanTab(); renderFans(); break;
+      case 'listening': listenCountdown(m.seconds || 8); break;
+      case 'aim': if (m.cancelled) aimResult(null); else { S.settings.lastAim = m.result; aimResult(m.result); } break;
     }
   }
   window.__deliver = onMsg;

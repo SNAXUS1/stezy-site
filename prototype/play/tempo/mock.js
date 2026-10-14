@@ -27,7 +27,8 @@
     frames: Math.round(avg * mins * 60), avgFps: avg, low1, low01, avgFrameMs: Math.round(10000 / avg) / 10, cpuLimited: cpu, gpuLimited: gpu, capped: cap,
     presentMode: 'Composed: Flip', avgGpu: 71, maxGpuTemp: 74, avgCpuMaxCore: 91, minRamFreeGb: 2.8, avgRamFreeGb: 4.1, avgVramGb: 4.6, vramTotalGb: 6, tempoCpu: 0.4,
     background: bg, backgroundCpu: bg.reduce((a, b) => a + b.cpu, 0), series: series(220, avg, avg * .14), changes, overlayBlocked: false,
-    hitches: Math.round(mins * 0.6), hitchesPerMin: 0.6,
+    medianLatencyMs: +(24 + rnd() * 8).toFixed(1), p95LatencyMs: +(40 + rnd() * 10).toFixed(1), medianGpuBusyMs: +(9 + rnd() * 2).toFixed(2), medianCpuBusyMs: +(11 + rnd() * 2).toFixed(2), medianFrameMs: +(1000 / avg).toFixed(2),
+    hitches: Math.round(mins * 0.6), hitchesPerMin: 0.6, uneven: +(0.04 + rnd() * 0.08).toFixed(3), swapSeconds: 0, gpuSlowSeconds: 0, overlayPath: ago < 2 ? 'costs' : '',
     hitchCauses: { game: Math.round(mins * 0.3), loading: Math.round(mins * 0.15), app: Math.round(mins * 0.1) || 1, memory: Math.round(mins * 0.05) || 1 },
     worstHitches: [
       { t: mins * 9, ms: 74, cause: 'loading', detail: 'The game was loading from the drive (48 MB/s).' },
@@ -40,19 +41,36 @@
   const bgApps = [{ pid: 0, name: 'opera.exe', cpu: 3.1 }, { pid: 0, name: 'Discord.exe', cpu: 1.4 }, { pid: 0, name: 'Spotify.exe', cpu: 1.2 }];
   const boostList = ['Game Mode on', 'Background recording paused', '2 apps stepped back', 'Game gets the processor first'];
   const withLow = s => { s.seriesLow = s.series.map(v => Math.round(v * (0.62 + rnd() * 0.18) * 10) / 10); return s; };
+  // heat and fans along the match: the newest on TEMPO's curve (cooler), the older ones on the card's own control (hot, held back)
+  const withHeat = (s, i) => {
+    const n = s.series.length, curve = i === 0;
+    s.seriesTemp = s.series.map((_, k) => { const warm = Math.min(1, k / 40); return Math.round(((curve ? 52 + warm * 19 : 54 + warm * 30) + Math.sin(k / 7) * 1.4 + (rnd() - .5) * 1.2) * 10) / 10; });
+    s.seriesFan = s.seriesTemp.map(t => curve ? Math.round(Math.min(72, t <= 45 ? 35 : t <= 60 ? 35 + (t - 45) : t <= 70 ? 50 + (t - 60) * 1.2 : 62 + (t - 70) * 1.25)) : Math.round(Math.max(28, Math.min(58, 28 + (t - 55) * 1.1))));
+    s.seriesHeat = s.seriesTemp.map(t => t >= 83 ? 1 : 0);
+    s.maxGpuTemp = Math.round(Math.max(...s.seriesTemp));
+    s.gpuSlowSeconds = Math.round(s.seriesHeat.filter(v => v).length / n * s.seconds);
+    s.avgFan = Math.round(s.seriesFan.reduce((a, b) => a + b, 0) / n); s.maxFan = Math.max(...s.seriesFan);
+    s.fanCurve = curve ? 'Balanced, up to 75%' : '';
+    if (curve) s.changes = s.changes.concat(["Fans on TEMPO's Balanced curve, up to 75%"]);
+    return s;
+  };
+  // ?freeze=1: the older matches froze while NVIDIA's container spiked (like the owner's), the new one is counted per app
+  const withFreeze = s => { if (q.get('freeze')) s.worstHitches = s.worstHitches.concat([{ t: 80, ms: 938, cause: 'app', detail: 'NVIDIA container suddenly used 17% of your processor (usually 0.4%).' }, { t: 182, ms: 1072, cause: 'app', detail: 'NVIDIA container suddenly used 15% of your processor (usually 0.4%).' }]); return s; };
   const sessions = q.get('empty') ? [] : [
     mk('20261011-2114', 1.5, 31, 71.2, 47.3, 33.1, .62, .33, .05, bgApps, boostList),
     mk('20261010-1902', 26, 44, 66.4, 41.0, 28.6, .70, .26, .04, bgApps.concat([{ pid: 0, name: 'OneDrive.exe', cpu: 1.1 }]), []),
     mk('20261009-2040', 49, 38, 65.8, 39.5, 26.2, .71, .25, .04, bgApps, []),
-  ].map(withLow);
+  ].map(withLow).map(withFreeze).map(withHeat);
   games.forEach(g => { g.canLaunch = true; });
   const settings = {
     accent: q.get('acc') || '#D4FF3F', background: 'graphite', artBehindDial: true, artStyle: q.get('art') || 'tinted', grain: .35, motion: 'full',
     overlay: true, overlayStyle: q.get('ov') || 'minimal', overlayBox: +(q.get('box') || 0), overlaySize: 1, overlayCorner: 'tl', overlayNumbers: 'accent',
     overlayShow: ['fps', 'low1'], overlayHideFromCapture: false, autoOff: true, selectedGame: main.id, phone: q.get('phone') === '1',
     experiments: [{ id: 'e1', label: 'Shadows: Medium → Low', aLabel: 'Medium', bLabel: 'Low' }],
+    kept: q.get('kept') ? [{ gameId: 'steam:1422450', key: 'sg.ViewDistanceQuality', label: 'View distance: High → Medium', original: '2', value: '1', when: new Date(Date.now() - 10 * 3600e3).toISOString(), confirmed: false }] : [],
     protectedApps: ['Discord.exe', 'Spotify.exe', 'TeamSpeak.exe', 'Mumble.exe', 'voicemeeterpro.exe'],
-    boost: { stepBack: true, gameFirst: true, gameMode: true, recording: true, powerPlan: true, auto: true, stepBackApps: [], leaveAlone: [] },
+    cooling: { on: q.get('cool') !== '0', preset: 'balanced', points: null, max: +(q.get('fanmax') || 75) },
+    boost: { stepBack: true, gameFirst: true, gameMode: true, recording: true, powerPlan: true, auto: true, stepBackApps: [], leaveAlone: [], pause: q.get('pause') === '1', pauseApps: ['opera.exe', 'chrome.exe', 'msedge.exe', 'firefox.exe', 'wallpaper64.exe'] },
   };
   // the Boost page's app picker: a few running apps and what the real TEMPO would decide for each (same rules, in short)
   const groups = [
@@ -96,11 +114,14 @@
     { key: 'sg.PostProcessQuality', label: 'Post-processing', group: 'quality', load: 'gpu', value: '0', help: 'Bloom, blur, colour effects. Graphics card only.', options: L(3, 'Low', 'Medium', 'High', 'Epic') },
     { key: 'sg.AntiAliasingQuality', label: 'Anti-aliasing', group: 'quality', load: 'gpu', value: '0', help: 'Smooths jagged edges. Graphics card only.', options: L(3, 'Low', 'Medium', 'High', 'Epic') },
     { key: 'sg.TextureQuality', label: 'Textures', group: 'quality', load: 'vram', value: '2', help: 'Sharper textures need more graphics memory, not much speed. Lower them only if graphics memory runs full.', options: L(3, 'Low', 'Medium', 'High', 'Epic') },
+    { key: 'nv.frl', label: 'Driver fps limit', group: 'driver', load: 'none', value: '0', help: "NVIDIA's own limiter. It works in every game, even ones without a limit of their own, and holds frames as evenly as a game's built-in one. 0 means none.", options: [], min: 0, max: 1000 },
+    { key: 'nv.prerender', label: 'Low latency mode', group: 'driver', load: 'none', value: '0', help: 'Keeps the processor from queueing frames ahead of the graphics card, which cuts input delay when the graphics card is the limit. Games with NVIDIA Reflex do this themselves.', options: [{ value: '0', label: 'Off (the game decides)' }, { value: '1', label: 'On' }] },
+    { key: 'nv.pstate', label: 'Power management', group: 'driver', load: 'none', value: '5', help: "Maximum performance keeps the graphics card's clocks up between frames, so a quiet moment doesn't make the next busy one stutter. Costs a little power.", options: [{ value: '5', label: 'Normal' }, { value: '0', label: 'Adaptive' }, { value: '1', label: 'Prefer maximum performance' }] },
   ];
   const meas = (a, b, lo, hi, call) => ({ a, b, diff: Math.round((b - a) * 100) / 100, lo, hi, call });
   const tunePayload = () => ({
     t: 'tune', game: settings.selectedGame, running: false, sessions: 3,
-    config: { format: 'unreal', note: 'The Unreal Engine settings file. A few games keep their own copy and ignore it; a test session shows whether a change took.', file: 'GameUserSettings.ini', capKey: 'FrameRateLimit' },
+    config: { format: 'unreal', note: 'The Unreal Engine settings file. A few games keep their own copy and ignore it; a test session shows whether a change took.', file: 'GameUserSettings.ini', place: '~\\AppData\\Local\\MarvelGame\\Saved\\Config\\Windows\\GameUserSettings.ini', seen: 'yes', capKey: 'FrameRateLimit' },
     settings: gameSettings,
     suggestions: [
       { id: 'launch:-high', kind: 'launch', key: '-high', tag: 'fix', title: 'Remove -high from Steam\'s launch options', why: 'Asks Windows to put the game above almost everything, including sound and voice chat, which can make Discord and audio crackle. TEMPO\'s "Game first" does the same more gently while it\'s on. In Steam: right-click the game, Properties, Launch options.' },
@@ -115,7 +136,9 @@
       { exp: { id: 'e0', gameId: settings.selectedGame, kind: 'boost', key: 'boost.all', a: 'off', b: 'on', label: 'The whole boost: on or off', aLabel: 'Off', bLabel: 'On', status: 'done', verdict: 'better', outcome: '' },
         result: { sessionsA: 3, sessionsB: 3, minutesA: 92, minutesB: 88, fps: meas(64.9, 70.3, 2.9, 7.9, 'better'), low: meas(39.8, 46.1, 3.4, 9.2, 'better'), jitter: meas(1.7, 1.5, -0.5, 0.1, 'open'), verdict: 'better', moreSessions: 0, summary: 'It helps: +5.4 fps on average and +6.3 at the 1% lows.' } },
     ],
-    kept: [{ gameId: settings.selectedGame, key: 'bUseVSync', label: 'V-Sync: On → Off', original: 'True', value: 'False', when: new Date(Date.now() - 86400e3 * 2).toISOString() }],
+    kept: [{ gameId: settings.selectedGame, key: 'bUseVSync', label: 'V-Sync: On → Off', original: 'True', value: 'False', when: new Date(Date.now() - 86400e3 * 2).toISOString() }].concat(q.get('missed') ? [
+      { gameId: settings.selectedGame, key: 'FrameRateLimit', label: 'Fps limit: 164 → 120', original: '164', value: '120', when: new Date(Date.now() - 86400e3).toISOString(), missed: true, now: '164' },
+      { gameId: settings.selectedGame, key: 'sg.PostProcessQuality', label: 'Motion blur: On → Off', original: '1', value: '0', when: new Date(Date.now() - 86400e3).toISOString(), missed: true, now: '1' }] : []),
     launch: { raw: '-high -threads 6 -novid +fps_max 0', items: [
       { text: '-high', level: 'bad', what: 'Asks Windows to put the game above almost everything, including sound and voice chat, which can make Discord and audio crackle. TEMPO\'s "Game first" does the same more gently while it\'s on.' },
       { text: '-threads 6', level: 'tip', what: 'Old advice. Today\'s engines pick the number of threads themselves, and a wrong number can lower fps. Worth removing.' },
@@ -129,8 +152,9 @@
     const t = (Date.now() - t0) / 1000;
     const fps = 72 + Math.sin(t / 2) * 6 + (Math.random() - .5) * 3;
     const recent = Array.from({ length: 240 }, (_, i) => Math.round((1000 / (72 + Math.sin((t * 60 - 240 + i) / 40) * 6) + (Math.random() - .5) * 1.4 + (i % 61 === 0 ? 7 : 0)) * 100) / 100);
-    deliver({ t: 'live', fps, low1: 48.6, frameMs: 1000 / fps, recent, limiter: 'cpu', share: .64, mode: 'Composed: Flip', overlay: 'showing',
-      sys: { cpuMax: 94, cpu: 66, cores: 6, gpu: 71, temp: 72, vramUsed: 4.4e9, vramTotal: 6.44e9, ramAvail: 4.2e9, ramTotal: 17.1e9, tempo: 0.4,
+    deliver({ t: 'live', fps, low1: 48.6, frameMs: 1000 / fps, latency: 23.4, recent, limiter: 'cpu', share: .64, mode: 'Composed: Flip', overlay: 'showing',
+      cool: { state: settings.cooling.on ? 'on' : 'off', tool: '', speed: settings.cooling.on ? 64 : -1 },
+      sys: { cpuMax: 94, cpu: 66, cores: 6, gpu: 71, temp: 72, fan: settings.cooling.on ? 64 : 47, vramUsed: 4.4e9, vramTotal: 6.44e9, ramAvail: 4.2e9, ramTotal: 17.1e9, tempo: 0.4,
         top: [{ pid: 1, name: 'opera.exe', label: 'Opera', cpu: 1.1 }, { pid: 2, name: 'Discord.exe', label: 'Discord', cpu: 1.4 }, { pid: 3, name: 'Spotify.exe', label: 'Spotify', cpu: 1.2 }] } });
   }
   function setState(st, learn) {
@@ -138,15 +162,23 @@
     clearInterval(liveTimer);
     deliver({ t: 'state', state: st, game: st === 'off' ? null : settings.selectedGame, gameName: (games.find(g => g.id === settings.selectedGame) || main).name, learn: !!learn,
       applied: st === 'off' || learn ? [] : st === 'live' ? boostList : boostList.slice(0, 3), since: st === 'live' ? new Date(Date.now() - 761e3).toISOString() : null,
-      stepped: st === 'off' || learn ? [] : ['Opera', 'OneDrive', 'Epic Games', 'Steam pages', 'Wallpaper Engine', 'VS Code'] });
+      stepped: st === 'off' || learn ? [] : ['Opera', 'OneDrive', 'Epic Games', 'Steam pages', 'Wallpaper Engine', 'VS Code'],
+      cool: { state: !settings.cooling.on ? 'off' : st === 'live' ? (learn ? 'learn' : 'on') : 'ready', tool: '', speed: st === 'live' && settings.cooling.on ? 64 : -1 } });
     if (st === 'live') { t0 = Date.now(); live(); liveTimer = setInterval(live, 250); }
   }
+  // ?nofans=1: a PC whose card can't have its fans set (the tab greys out)
+  const fansPayload = () => q.get('nofans')
+    ? { t: 'fans', ready: false, able: false, kind: 'nonvidia', why: 'Fan control works on NVIDIA graphics cards whose driver allows it. This PC has AMD Radeon RX 6600.' }
+    : Object.assign({ able: true, kind: 'ok' }, { t: 'fans', ready: true, count: 1, min: 20, max: 100, speed: state === 'live' && settings.cooling.on ? 64 : 30, policy: state === 'live' && settings.cooling.on ? 1 : 0, target: 30, temp: state === 'live' ? 72 : 46,
+      tool: q.get('fantool') ? 'MSI Afterburner' : null, hardMax: 90, warnAbove: 80, minMax: 40, hot: 87,
+      presets: { quiet: [[50, 30], [65, 45], [75, 58], [83, 70]], balanced: [[45, 35], [60, 50], [70, 62], [78, 72]], cool: [[40, 40], [55, 55], [65, 68], [72, 80]] } });
   window.__mockSend = m => {
     if (m.t === 'ready') {
       deliver({ t: 'init', version: window.TEMPO_DEMO ? window.TEMPO_DEMO.version : '1.0.0', settings, games, sessions, boostStatus,
         hw: { cpu: 'i5-8400', gpu: 'GTX 1060 6GB', vram: 6, ram: 16, hz: 144 } });
       const st = q.get('state') || 'off';
       if (st !== 'off') setState(st);
+      deliver(fansPayload());
       if (q.get('page')) setTimeout(() => document.querySelector(`[data-go="${q.get('page')}"]`)?.click(), 30);
       if (q.get('new')) deliver({ t: 'whatsnew', version: '1.3.0' });
     }
@@ -154,11 +186,37 @@
     if (m.t === 'off') {
       if (state === 'live') {
         const s = mk(new Date().toISOString().replace(/\D/g, '').slice(0, 14), 0, 12, 73.4, 49.1, 34.0, .6, .34, .06, bgApps, boostList);
+        s.hitchApps = { Opera: 2 }; s.freezeApps = {};
+        withHeat(withLow(s), 0);
         deliver({ t: 'session', session: s });
       }
       setState('off');
     }
     if (m.t === 'apps') deliver(appsPayload());
+    if (m.t === 'fans') setTimeout(() => deliver(fansPayload()), 120);
+    if (m.t === 'fanListen') deliver(site ? { t: 'toast', text: 'In the real TEMPO the fans run at this speed for a few seconds, so you can hear it.' } : { t: 'listening', percent: m.percent, seconds: 8 });
+    if (m.t === 'set' && m.key.startsWith('cooling.')) { const k = m.key.split('.')[1]; settings.cooling[k] = m.value; if (k === 'points') settings.cooling.preset = 'custom'; }
+    if (m.t === 'preflight') setTimeout(() => deliver({ t: 'preflight', game: m.game, then: m.then, items: q.get('nopre') ? [] : [
+      { id: 'memory', level: 'warn', title: '2.4 GB of memory free', text: 'Games stutter when memory runs out, while Windows moves things to the drive. Last time this game ran short and Windows swapped to the drive for 18 s, which shows up as stutters. Using the most: Opera GX 3.1 GB, Wallpaper Engine 0.6 GB, Discord 0.5 GB. Closing browser tabs frees the most.', action: '' },
+      { id: 'launch', level: 'tip', title: 'Steam launch options: -high -fullscreen', text: '-high can make sound and voice chat crackle when the processor is busy; -fullscreen forces exclusive fullscreen, which hides the fps counter. Steam rewrites these while it runs, so remove them there: right-click Deadlock, Properties, Launch options.', action: '' },
+      { id: 'cap', level: 'tip', title: "Deadlock's fps limit is 164, more than your PC holds", text: 'Your fps usually swings between about 71 and 97. A limit of 70 holds steady: frames arrive evenly, which feels smoother, and the graphics card runs cooler. You can put it back on the Tune page any time.', action: 'setNow', actionLabel: 'Set 70', key: 'setting.fps_max', value: '70' }] }), 350);
+    if (m.t === 'aimStart') {
+      let n = 0, a = 0;
+      clearInterval(window.__aimT);
+      window.__aimT = setInterval(() => {
+        n++;
+        const moves = Array.from({ length: 100 }, () => { a += 0.012; return [Math.round(Math.cos(a) * 40 + (Math.random() - .5) * 6), Math.round(Math.sin(a) * 40 + (Math.random() - .5) * 6)]; });
+        const left = Math.max(0, 8 - n / 10);
+        deliver({ t: 'aimLive', reports: n * 100, rate: 990 + Math.random() * 20, left, moved: true, moves });
+        if (left <= 0) {
+          clearInterval(window.__aimT);
+          const intervals = Array.from({ length: 600 }, (_, i) => Math.round(1000 + (Math.random() - .5) * 120 + (i % 97 === 0 ? 1400 : 0)));
+          deliver({ t: 'aim', result: { device: 'G Pro Wireless', vendor: 'Logitech', reports: 7980, movingSeconds: 7.9, rate: 998, nominal: 1000, onTime: 0.982, late: 6, bunched: 3, worstGapMs: 2.6, intervals, verdict: 'ok',
+            notes: [{ id: 'rawaccel', level: 'info', title: "Raw Accel's window is open", text: 'Its driver shapes your mouse movement, on purpose. The window itself draws a live graph as you move; you can close it while you play, the driver keeps your settings.' }], error: '' } });
+        }
+      }, 100);
+    }
+    if (m.t === 'aimStop') { clearInterval(window.__aimT); deliver({ t: 'aim', cancelled: true }); }
     if (m.t === 'set' && m.key === 'boost.auto') { settings.boost.auto = m.value; deliver(appsPayload()); }
     if (m.t === 'set' && m.key === 'boost.group') { groups.find(g => g.id === m.value.id).on = m.value.on; deliver(appsPayload()); }
     if (m.t === 'set' && m.key === 'boost.app') { if (m.value.choice === 'default') delete choices[m.value.name]; else choices[m.value.name] = m.value.choice; deliver(appsPayload()); }
