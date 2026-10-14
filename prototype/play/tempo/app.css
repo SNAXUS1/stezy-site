@@ -948,6 +948,7 @@ body.fan-dragging, body.fan-dragging .fg-pt { cursor: grabbing; }
 /* ---------------- the finder's range ---------------- */
 .trainer { position: fixed; inset: 0; z-index: 180; background: #050608; }
 .trainer canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+body.tr-capture .trainer, body.tr-capture .trainer * { cursor: none !important; }
 .tr-hud { position: absolute; left: 50%; top: 22px; transform: translateX(-50%); width: min(420px, calc(100% - 40px)); pointer-events: none; }
 .tr-h { display: flex; justify-content: space-between; font: 500 10px var(--mono); letter-spacing: .16em; color: rgba(255,255,255,.55); }
 .tr-h b { font-weight: 500; color: var(--acc); }

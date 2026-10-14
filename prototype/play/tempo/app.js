@@ -1741,7 +1741,7 @@
     if (!b) { toast('Pick your game\'s sensitivity first.'); return; }
     const sets = shuffle(MULTS, rng(Date.now() & 0xffff));
     Object.assign(TR, {
-      on: true, base: b, degPerCount: 360 / b.c360, sets, plan: [], i: -1, phase: 'intro', results: [], yaw: 0, pitch: 0, curve: null, analysis: null, result: null, part: null, cur: null,
+      on: true, base: b, degPerCount: 360 / b.c360, sets, plan: [], i: -1, phase: 'intro', results: [], yaw: 0, pitch: 0, curve: null, analysis: null, result: null, part: null, cur: null, native: false,
       locked: false, raw: true, events: 0, lastT: 0, simT: 0, paused: false, path: trackPath(7),
     });
     // the plan: a warm-up, the six sets, and (decided later) the curve trial
@@ -1753,6 +1753,9 @@
     if (!TR.raf) TR.raf = requestAnimationFrame(trFrame);
   }
   function trainerClose() {
+    if (TR.native && TR.locked) send({ t: 'trCapture', on: false });
+    TR.locked = false;
+    body.classList.remove('tr-capture');
     TR.on = false;
     if (document.pointerLockElement) document.exitPointerLock();
     $('trainer').hidden = true;
@@ -1777,7 +1780,7 @@
       <ul class="tr-steps"><li><b>Track</b> the orb as it strafes: keep the crosshair on it.</li><li><b>Flick</b> to each new orb and click it, as fast as you can land it. Some appear behind you: follow the arrow.</li><li>A warm-up, then six short rounds, each at a different sensitivity (four more if a curve looks promising). TEMPO doesn't say which: just aim as well as you can.</li></ul>
       <p class="tr-base">Starting from <b>${esc(b.name)} ${sensFmt(b.sens)}</b>${b.cm ? ` (${b.cm.toFixed(1)} cm per 360°)` : ''}. Use the grip and the arm you play with. Esc pauses.</p>
       <div class="tr-act"><button type="button" class="btn acc tr-go" data-tr="go">Start</button><button type="button" class="btn" data-tr="close">Not now</button></div>`;
-    if (kind === 'pause') box.innerHTML = `<div class="tr-k">PAUSED</div><h3>Take a breath</h3><p>The round you were in starts again when you continue.</p>
+    if (kind === 'pause') box.innerHTML = `<div class="tr-k">PAUSED</div><h3>Take a breath</h3><p>Your mouse is free again. The round you were in starts over when you continue.</p>
       <div class="tr-act"><button type="button" class="btn acc" data-tr="resume">Continue</button><button type="button" class="btn" data-tr="close">Stop</button></div>`;
     if (kind === 'gap') box.innerHTML = `<div class="tr-gap"><div class="tr-k">${esc(extra.k)}</div><div class="tr-gap-t">${esc(extra.t)}</div><div class="tr-gap-s">${esc(extra.s)}</div></div>`;
   }
@@ -1794,14 +1797,36 @@
   function trLock(then) {
     const c = trCanvas();
     if (trSim) { TR.locked = true; trCard(null); then(); return; }
+    if (host) {
+      // TEMPO pins the cursor to the middle of its window and streams the mouse's own reports (see 'raw')
+      Object.assign(TR, { native: true, locked: true, paused: false, lastT: 0, rawT: performance.now() });
+      body.classList.add('tr-capture');
+      send({ t: 'trCapture', on: true });
+      trCard(null);
+      then();
+      return;
+    }
     const done = () => { TR.locked = true; TR.paused = false; trCard(null); then(); };
     let p;
     try { p = c.requestPointerLock({ unadjustedMovement: true }); } catch { p = null; }
     if (p && p.then) p.then(done, () => { TR.raw = false; const q = c.requestPointerLock(); if (q && q.then) q.then(done, () => toast('Windows didn\'t let TEMPO hold the mouse. Click the range and try again.')); else setTimeout(done, 50); });
     else setTimeout(() => { if (document.pointerLockElement === c) done(); }, 80);
   }
+  // the mouse let go (Esc, another window in front): pause, and the round starts over on Continue
+  function trLetGo() {
+    if (!TR.on || !TR.locked) return;
+    TR.locked = false;
+    body.classList.remove('tr-capture');
+    if (TR.native) send({ t: 'trCapture', on: false });
+    if (TR.phase !== 'done' && TR.phase !== 'intro') { TR.paused = true; trCard('pause'); }
+  }
+  // the mouse's own reports from TEMPO: [dx, dy, microseconds since the one before, ...]
+  function trRaw(r) {
+    if (!TR.on || !TR.locked || TR.paused || !r) return;
+    for (let i = 0; i + 2 < r.length; i += 3) { TR.rawT += r[i + 2] / 1000; trMove(r[i], r[i + 1], TR.rawT); }
+  }
   document.addEventListener('pointerlockchange', () => {
-    if (!TR.on || trSim) return;
+    if (!TR.on || trSim || TR.native) return;
     if (document.pointerLockElement !== trCanvas() && TR.locked && TR.phase !== 'done') { TR.locked = false; TR.paused = true; trCard('pause'); }
   });
 
@@ -1822,14 +1847,15 @@
       if (part.type === 'flick' && part.target) part.target.peak = Math.max(part.target.peak || 0, speed);
     }
   }
-  const onRaw = e => { if (TR.on && TR.locked) { trMove(e.movementX, e.movementY, e.timeStamp); TR.events++; } };
+  const onRaw = e => { if (TR.on && TR.locked && !TR.native) { trMove(e.movementX, e.movementY, e.timeStamp); TR.events++; } };
   if ('onpointerrawupdate' in window) document.addEventListener('pointerrawupdate', onRaw);
   else document.addEventListener('mousemove', onRaw);
   document.addEventListener('mousedown', e => { if (TR.on && TR.locked && !TR.paused && e.button === 0) trShoot(); });
   // Esc: pause while playing (the lock lets go), close on the cards
   document.addEventListener('keydown', e => {
     if (!TR.on || e.key !== 'Escape') return;
-    if (document.pointerLockElement) document.exitPointerLock();
+    if (TR.native && TR.locked) trLetGo();
+    else if (document.pointerLockElement) document.exitPointerLock();
     else if (TR.phase === 'intro' || TR.phase === 'done') trainerClose();
   });
 
@@ -2093,6 +2119,7 @@
     }
     TR.phase = 'done';
     TR.part = null;
+    if (TR.native && TR.locked) { send({ t: 'trCapture', on: false }); TR.locked = false; body.classList.remove('tr-capture'); }
     if (document.pointerLockElement) document.exitPointerLock();
     const r = trResultOf();
     TR.result = r;
@@ -2811,6 +2838,8 @@
       case 'update': { const u = $('update'); u.hidden = false; u.dataset.url = m.url; u.textContent = `Update ${m.version}`; break; }
       case 'tune': S.tune = m; renderTune(); renderSA(); break;
       case 'aimState': AIM.st = m; renderAimPage(); break;
+      case 'raw': trRaw(m.r); break;
+      case 'trCaptureLost': if (m.why) toast(m.why); trLetGo(); break;
       case 'whatsnew': whatsNew(m.version); break;
       case 'phone': S.phone = m; renderPhone(); break;
       case 'apps': S.appsData = m; S.apps = m.apps; S.boostStatus = m.boostStatus || S.boostStatus; renderBoost(); break;
