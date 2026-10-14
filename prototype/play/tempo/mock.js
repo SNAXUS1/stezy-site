@@ -64,7 +64,7 @@
   games.forEach(g => { g.canLaunch = true; });
   const settings = {
     accent: q.get('acc') || '#D4FF3F', background: 'graphite', artBehindDial: true, artStyle: q.get('art') || 'tinted', grain: .35, motion: 'full',
-    overlay: true, overlayStyle: q.get('ov') || 'minimal', overlayBox: +(q.get('box') || 0), overlaySize: 1, overlayCorner: 'tl', overlayNumbers: 'accent',
+    intro: q.get('intro') === '1' || site, overlay: true, overlayStyle: q.get('ov') || 'minimal', overlayBox: +(q.get('box') || 0), overlaySize: 1, overlayCorner: 'tl', overlayNumbers: 'accent',
     overlayShow: ['fps', 'low1'], overlayHideFromCapture: false, autoOff: true, selectedGame: main.id, phone: q.get('phone') === '1',
     experiments: [{ id: 'e1', label: 'Shadows: Medium → Low', aLabel: 'Medium', bLabel: 'Low' }],
     kept: q.get('kept') ? [{ gameId: 'steam:1422450', key: 'sg.ViewDistanceQuality', label: 'View distance: High → Medium', original: '2', value: '1', when: new Date(Date.now() - 10 * 3600e3).toISOString(), confirmed: false }] : [],
@@ -175,6 +175,7 @@
   window.__mockSend = m => {
     if (m.t === 'ready') {
       deliver({ t: 'init', version: window.TEMPO_DEMO ? window.TEMPO_DEMO.version : '1.0.0', settings, games, sessions, boostStatus,
+        shortcuts: { desktop: false, start: false, asked: !q.get('sc'), temporary: q.get('sc') === 'zip', home: '~\\AppData\\Local\\Programs\\TEMPO' },
         hw: { cpu: 'i5-8400', gpu: 'GTX 1060 6GB', vram: 6, ram: 16, hz: 144 } });
       const st = q.get('state') || 'off';
       if (st !== 'off') setState(st);
@@ -194,6 +195,7 @@
     }
     if (m.t === 'apps') deliver(appsPayload());
     if (m.t === 'fans') setTimeout(() => deliver(fansPayload()), 120);
+    if (m.t === 'shortcut') { if (site) deliver({ t: 'toast', text: 'In the real TEMPO this puts a shortcut on your desktop or in Start.' }); }
     if (m.t === 'fanListen') deliver(site ? { t: 'toast', text: 'In the real TEMPO the fans run at this speed for a few seconds, so you can hear it.' } : { t: 'listening', percent: m.percent, seconds: 8 });
     if (m.t === 'set' && m.key.startsWith('cooling.')) { const k = m.key.split('.')[1]; settings.cooling[k] = m.value; if (k === 'points') settings.cooling.preset = 'custom'; }
     if (m.t === 'preflight') setTimeout(() => deliver({ t: 'preflight', game: m.game, then: m.then, items: q.get('nopre') ? [] : [

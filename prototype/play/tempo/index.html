@@ -31,7 +31,27 @@
 <script>window.TEMPO_DEMO = { art: '/img/', version: '2.0.0' };</script>
 <link rel="stylesheet" href="app.css">
 </head>
-<body data-page="play" data-state="off">
+<body data-page="play" data-state="off" class="intro-on">
+  <!-- the intro: the mark draws itself, the needle swings up, the gauge sweeps, the name rises -->
+  <div class="intro" id="intro" aria-hidden="true">
+    <div class="in-glow"></div>
+    <div class="in-c">
+      <div class="in-dial">
+        <svg class="in-gauge" viewBox="0 0 220 220" width="220" height="220">
+          <path class="in-track" d="M 51.7 168.3 A 82 82 0 1 1 168.3 168.3"/>
+          <path class="in-sweep" d="M 51.7 168.3 A 82 82 0 1 1 168.3 168.3"/>
+          <g class="in-ticks"></g>
+        </svg>
+        <svg class="in-mark" viewBox="0 0 24 24" width="96" height="96">
+          <path class="in-a" d="M3.5 20.5 L12 3.5 L20.5 20.5"/>
+          <path class="in-needle" d="M12 15 L17.2 7.2"/>
+          <circle class="in-dot" cx="12" cy="15" r="1.9"/>
+        </svg>
+      </div>
+      <div class="in-word"><span>T</span><span>E</span><span>M</span><span>P</span><span>O</span></div>
+      <div class="in-sub"><i></i><span>GAME PERFORMANCE, MEASURED</span><i></i></div>
+    </div>
+  </div>
   <canvas class="grain" id="grain" aria-hidden="true"></canvas>
   <div class="paper" aria-hidden="true"></div>
 
@@ -291,6 +311,9 @@
           <div class="rowx" style="margin-top:22px"><span>Game art behind the dial<small>Tinted takes on your accent</small></span><div class="seg" data-set="artStyle"><button type="button" data-v="tinted">Tinted</button><button type="button" data-v="natural">Natural</button><button type="button" data-v="off">Off</button></div></div>
           <div class="rowx"><span>Grain</span><div class="slider"><input type="range" min="0" max="100" step="5" data-set="grain" data-scale="100" aria-label="Grain"><output></output></div></div>
           <div class="rowx"><span>Motion<small>Calm keeps things still</small></span><div class="seg" data-set="motion"><button type="button" data-v="full">Full</button><button type="button" data-v="calm">Calm</button><button type="button" data-v="off">Off</button></div></div>
+          <div class="rowx"><span>On your desktop<small>A shortcut to TEMPO, made and kept up to date by TEMPO</small></span><button type="button" class="tog" data-sc="desktop" aria-label="Shortcut on your desktop"></button></div>
+          <div class="rowx"><span>In the Start menu<small>Find TEMPO by typing its name in Start</small></span><button type="button" class="tog" data-sc="start" aria-label="Shortcut in the Start menu"></button></div>
+          <div class="rowx"><span>Intro when TEMPO opens<small>A second and a half; a click or any key skips it</small></span><button type="button" class="tog" data-set="intro" aria-label="Intro when TEMPO opens"></button></div>
           <div class="rowx"><span>Turn off when the game closes<small>About 20 seconds after, in case it restarts, so nothing stays on by accident</small></span><button type="button" class="tog" data-set="autoOff" aria-label="Turn off when the game closes"></button></div>
         </div>
         <div class="look-pv">

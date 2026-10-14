@@ -13,7 +13,7 @@
   // settings can be nested ("boost.stepBack")
   const getSet = k => k.split('.').reduce((o, p) => o == null ? undefined : o[p], S.settings);
   function putSet(k, v) { const ps = k.split('.'); let o = S.settings; ps.slice(0, -1).forEach(p => { o[p] = o[p] || {}; o = o[p]; }); o[ps[ps.length - 1]] = v; }
-  const DEFAULT_ON = new Set(['overlay', 'autoOff', 'artBehindDial', 'boost.stepBack', 'boost.gameFirst', 'boost.gameMode', 'boost.recording', 'boost.powerPlan', 'boost.memoryRelief', 'boost.strongGpu', 'boost.smoothWindowed']);
+  const DEFAULT_ON = new Set(['overlay', 'autoOff', 'intro', 'artBehindDial', 'boost.stepBack', 'boost.gameFirst', 'boost.gameMode', 'boost.recording', 'boost.powerPlan', 'boost.memoryRelief', 'boost.strongGpu', 'boost.smoothWindowed']);
   const isOn = k => { const v = getSet(k); return v === true || (v === undefined && DEFAULT_ON.has(k)); };
   const BOOST_KEYS = ['boost.stepBack', 'boost.gameFirst', 'boost.gameMode', 'boost.recording', 'boost.powerPlan'];
   const boostCount = () => BOOST_KEYS.filter(isOn).length;
@@ -325,15 +325,19 @@
     sparkle: '<path d="M12 3.5c.7 4.3 2.4 6 6.5 6.6-4.1.7-5.8 2.4-6.5 6.6-.7-4.2-2.4-5.9-6.5-6.6 4.1-.6 5.8-2.3 6.5-6.6Z"/><path d="M18.5 15.5c.3 1.8 1 2.5 2.7 2.8-1.7.3-2.4 1-2.7 2.7-.3-1.7-1-2.4-2.7-2.7 1.7-.3 2.4-1 2.7-2.8Z" opacity=".55"/>',
     wave: '<path d="M2.5 12c2.4 0 2.4-5 4.75-5S9.6 17 12 17s2.4-10 4.75-10S19.1 12 21.5 12"/>',
     power: '<path d="M12 3v8.5"/><path d="M6.6 6.6a7.5 7.5 0 1 0 10.8 0"/>',
+    play: '<path d="M8 5.2v13.6a.8.8 0 0 0 1.2.7l10.6-6.8a.8.8 0 0 0 0-1.4L9.2 4.5A.8.8 0 0 0 8 5.2Z"/>',
   };
   const svgIcon = (name, size = 16) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name] || ''}</svg>`;
   // every settings row gets its icon (in a small tile that takes on the accent when the row is on)
+  ICON.desktop = '<rect x="2.5" y="4" width="19" height="12.5" rx="2.2"/><path d="M8.5 20h7M12 16.5V20"/>';
+  ICON.start = '<rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.6"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="1.6"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="1.6"/><rect x="13" y="13" width="7.5" height="7.5" rx="1.6"/>';
   const ROW_ICON = { 'boost.stepBack': 'layers', 'boost.gameFirst': 'up', 'boost.gameMode': 'pad', 'boost.recording': 'rec', 'boost.powerPlan': 'bolt', 'boost.memoryRelief': 'chip',
     'boost.pause': 'pause', 'boost.smoothWindowed': 'window', 'boost.strongGpu': 'gpu', 'cooling.on': 'fan', overlay: 'eye', overlayStyle: 'layout', overlayBox: 'square',
-    overlaySize: 'resize', overlayCorner: 'corner', overlayNumbers: 'palette', overlayHideFromCapture: 'eyeoff', artStyle: 'image', grain: 'sparkle', motion: 'wave', autoOff: 'power' };
+    overlaySize: 'resize', overlayCorner: 'corner', overlayNumbers: 'palette', overlayHideFromCapture: 'eyeoff', artStyle: 'image', grain: 'sparkle', motion: 'wave', autoOff: 'power', intro: 'play' };
   document.querySelectorAll('.set .rowx').forEach(r => {
-    const c = r.querySelector('[data-set]'), key = c ? c.dataset.set : r.querySelector('#ov-show') ? 'show' : null;
-    const name = key === 'show' ? 'list' : ROW_ICON[key];
+    const c = r.querySelector('[data-set]'), sc = r.querySelector('[data-sc]');
+    const key = c ? c.dataset.set : r.querySelector('#ov-show') ? 'show' : null;
+    const name = sc ? sc.dataset.sc : key === 'show' ? 'list' : ROW_ICON[key];
     if (!name || r.querySelector('.ri')) return;
     const i = document.createElement('i');
     i.className = 'ri';
@@ -343,6 +347,65 @@
   });
   // a shimmer while something is being looked at (instead of a line of text)
   const skel = (rows = 2) => Array.from({ length: rows }, (_, i) => `<div class="skel-card"><i class="sk" style="width:${[38, 46, 30][i % 3]}%"></i><i class="sk" style="width:${[92, 84, 88][i % 3]}%"></i><i class="sk" style="width:${[64, 72, 58][i % 3]}%"></i></div>`).join('');
+
+  // ------------------------------------------------------------------ shortcuts: TEMPO on the desktop and in Start
+  function syncShortcuts() {
+    const sc = S.shortcuts || {};
+    document.querySelectorAll('.tog[data-sc]').forEach(t => t.classList.toggle('on', !!sc[t.dataset.sc]));
+  }
+  document.addEventListener('click', e => {
+    const t = e.target.closest('.tog[data-sc]');
+    if (t) { const on = !t.classList.contains('on'); t.classList.toggle('on', on); send({ t: 'shortcut', where: t.dataset.sc, on }); return; }
+    const a = e.target.closest('[data-sc-offer]');
+    if (!a) return;
+    if (a.dataset.scOffer === 'add') { send({ t: 'shortcut', where: 'desktop', on: true }); send({ t: 'shortcut', where: 'start', on: true }); a.closest('#receipt').querySelector('.rc-say').innerHTML = '<b>Done.</b> TEMPO is on your desktop and in Start. You can change it on the Look page.'; a.parentElement.remove(); setTimeout(() => $('receipt').hidden = true, 2600); }
+    else { send({ t: 'shortcutAsked' }); $('receipt').hidden = true; }
+  });
+  // once, the first time TEMPO opens: offer the shortcuts (in the same card as the match receipt)
+  function offerShortcuts() {
+    const sc = S.shortcuts;
+    if (!sc || sc.asked || sc.desktop || !$('receipt').hidden || S.st.state !== 'off') return;
+    const box = $('receipt');
+    box.innerHTML = `<div class="rc-top"><span class="rc-k">WELCOME</span><span class="rc-g">One click to keep TEMPO close</span><button type="button" class="rc-x" aria-label="Close" data-sc-offer="no">&#10005;</button></div>
+      <p class="rc-say">Put TEMPO on your desktop and in the Start menu? ${sc.temporary ? `It's running from inside the zip right now, so it first copies itself to a lasting place (${esc(sc.home)}).` : 'The shortcuts open this TEMPO, and follow it to newer versions.'}</p>
+      <div class="tc-act"><button type="button" class="btn acc" data-sc-offer="add">Add shortcuts</button><button type="button" class="btn" data-sc-offer="no">Not now</button></div>`;
+    box.hidden = false;
+    if (!still()) box.animate([{ opacity: 0, transform: 'translateY(14px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: EASE });
+  }
+
+  // ------------------------------------------------------------------ the intro
+  // Shown from the first frame (so the app never flashes before it); played or skipped once TEMPO says how it's set.
+  (() => {
+    const g = document.querySelector('.in-ticks');
+    if (!g) return;
+    let h = '';
+    for (let i = 0; i <= 18; i++) {
+      const a = (135 + i * 15) * Math.PI / 180, r1 = i % 3 ? 94 : 91, r2 = 99;
+      h += `<line x1="${(110 + Math.cos(a) * r1).toFixed(1)}" y1="${(110 + Math.sin(a) * r1).toFixed(1)}" x2="${(110 + Math.cos(a) * r2).toFixed(1)}" y2="${(110 + Math.sin(a) * r2).toFixed(1)}" style="--i:${i}"${i % 3 ? '' : ' class="major"'}/>`;
+    }
+    g.innerHTML = h;
+  })();
+  // if TEMPO never answers (it always does), the intro still gets out of the way
+  setTimeout(() => { if (!intro.started && $('intro')) { $('intro').remove(); body.classList.remove('intro-on'); } }, 4000);
+  function intro(skip) {
+    const el = $('intro');
+    if (!el || intro.started) return;
+    intro.started = true;
+    const done = () => { el.remove(); body.classList.remove('intro-on'); };
+    if (skip || S.settings.intro === false || still()) { done(); return; }
+    const end = fast => {
+      if (el.dataset.out) return;
+      el.dataset.out = '1';
+      el.classList.add('out');
+      if (fast) el.classList.add('fast');
+      body.classList.add('arriving');
+      body.classList.remove('intro-on');
+      setTimeout(() => { el.remove(); body.classList.remove('arriving'); }, fast ? 260 : 620);
+    };
+    setTimeout(() => end(false), 1500);
+    addEventListener('pointerdown', () => end(true), { once: true });
+    addEventListener('keydown', () => end(true), { once: true });
+  }
 
   // ------------------------------------------------------------------ pages
   function go(page) {
@@ -1921,6 +1984,10 @@
         $('hw').textContent = [S.hw.cpu, S.hw.gpu && `${S.hw.gpu}${S.hw.vram && !/GB/i.test(S.hw.gpu) ? ` ${S.hw.vram}GB` : ''}`, S.hw.ram && `${S.hw.ram} GB`, S.hw.hz && `${S.hw.hz} Hz`].filter(Boolean).join(' · ');
         S.boostStatus = m.boostStatus || {};
         applyTheme();
+        intro(!!m.noIntro);
+        S.shortcuts = m.shortcuts || null;
+        syncShortcuts();
+        setTimeout(offerShortcuts, m.noIntro || S.settings.intro === false || still() ? 300 : 2400); // after the intro, if there is one
         syncControls();
         renderPlay();
         movePill();
@@ -1977,6 +2044,7 @@
       }
       case 'aimLive': aimLive(m); break;
       case 'fans': S.fans = m; applyFanTab(); renderFans(); break;
+      case 'shortcuts': S.shortcuts = m.shortcuts; syncShortcuts(); break;
       case 'listening': listenCountdown(m.seconds || 8); break;
       case 'aim': if (m.cancelled) aimResult(null); else { S.settings.lastAim = m.result; aimResult(m.result); } break;
     }
