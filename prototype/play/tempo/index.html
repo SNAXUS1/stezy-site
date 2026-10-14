@@ -65,6 +65,7 @@
       <button type="button" data-go="boost">Boost</button>
       <button type="button" data-go="fans">Fans</button>
       <button type="button" data-go="tune">Tune</button>
+      <button type="button" data-go="aim">Aim</button>
       <button type="button" data-go="sessions">Sessions</button>
       <button type="button" data-go="checkup">Checkup</button>
       <button type="button" data-go="overlay">Overlay</button>
@@ -228,6 +229,33 @@
       </div>
     </section>
 
+    <!-- ======================= AIM ======================= -->
+    <section class="page" id="page-aim" hidden>
+      <div class="aimp">
+        <div class="aimp-l">
+          <div class="h2">AIM</div>
+          <p class="lead">Smoother, steadier aim: what gets in its way on your PC, the sensitivity your hand is best at, and a curve that's slow for tracking and quick for big turns.</p>
+          <div class="sa" id="sa"></div>
+          <div class="aim" id="aim">
+            <div class="aim-top"><span class="aim-k">MOUSE CHECK</span><span class="aim-dev" id="aim-dev"></span></div>
+            <div class="aim-stage" id="aim-stage"><canvas id="aim-canvas"></canvas>
+              <div class="aim-read"><b id="aim-hz">&#8211;</b><small id="aim-unit">REPORTS A SECOND</small></div>
+              <i class="aim-bar" id="aim-bar"></i>
+            </div>
+            <p class="aim-say" id="aim-say">Does your aim feel rough? Move your mouse in big, quick circles for 8 seconds. TEMPO listens to the reports your mouse sends, the same ones games read, and checks how evenly they arrive.</p>
+            <div class="aim-stats" id="aim-stats"></div>
+            <div class="aim-act"><button type="button" class="btn acc" id="aim-go">Check my mouse</button></div>
+            <div class="aim-notes" id="aim-notes"></div>
+          </div>
+        </div>
+        <div class="aimp-r">
+          <div class="ac" id="as-card"></div>
+          <div class="ac" id="fd-card"></div>
+          <div class="ac" id="cv-card"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ======================= SESSIONS ======================= -->
     <section class="page" id="page-sessions" hidden>
       <div class="sess">
@@ -246,17 +274,7 @@
         <div class="ckp-head">
           <div class="h2">CHECKUP</div>
           <p class="lead">The things that quietly cost fps on a gaming PC, checked on yours. TEMPO only looks here; nothing is changed.</p>
-          <div class="aim" id="aim">
-            <div class="aim-top"><span class="aim-k">MOUSE CHECK</span><span class="aim-dev" id="aim-dev"></span></div>
-            <div class="aim-stage" id="aim-stage"><canvas id="aim-canvas"></canvas>
-              <div class="aim-read"><b id="aim-hz">&#8211;</b><small id="aim-unit">REPORTS A SECOND</small></div>
-              <i class="aim-bar" id="aim-bar"></i>
-            </div>
-            <p class="aim-say" id="aim-say">Does your aim feel rough? Move your mouse in big, quick circles for 8 seconds. TEMPO listens to the reports your mouse sends, the same ones games read, and checks how evenly they arrive.</p>
-            <div class="aim-stats" id="aim-stats"></div>
-            <div class="aim-act"><button type="button" class="btn acc" id="aim-go">Check my mouse</button></div>
-            <div class="aim-notes" id="aim-notes"></div>
-          </div>
+          <div class="aim-moved"><b>The mouse check moved</b><p>It's on the new Aim page now, next to everything else that makes aim feel smooth.</p><button type="button" class="btn" data-go-page="aim">Open Aim</button></div>
         </div>
         <div class="ckp-list" id="ckp-list"></div>
       </div>
@@ -334,6 +352,12 @@
   </footer>
 
   <div class="toast" id="toast" hidden></div>
+  <!-- the sensitivity finder: a small range over everything -->
+  <div class="trainer" id="trainer" hidden>
+    <canvas id="tr-canvas"></canvas>
+    <div class="tr-hud" id="tr-hud"></div>
+    <div class="tr-card" id="tr-card" hidden></div>
+  </div>
   <script src="qrcode.js"></script>
   <script>
     function fit() {

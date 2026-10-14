@@ -64,6 +64,8 @@
   games.forEach(g => { g.canLaunch = true; });
   const settings = {
     accent: q.get('acc') || '#D4FF3F', background: 'graphite', artBehindDial: true, artStyle: q.get('art') || 'tinted', grain: .35, motion: 'full',
+    aim: { dpi: site ? 800 : 1600, base: site ? 'manual' : '', manualEngine: 'cs2', manualSens: site ? 1.1 : 0, finds: [], rawAccelDir: '', rawAccelBackup: '', curve: null },
+    lastAim: q.get('aim') === '0' ? null : { device: 'DeathAdder V3', vendor: 'Razer', reports: 7980, movingSeconds: 7.9, rate: 998, nominal: 1000, onTime: 0.982, late: 6, bunched: 3, worstGapMs: 2.6, intervals: [], verdict: 'ok', notes: [] },
     intro: q.get('intro') === '1' || site, overlay: true, overlayStyle: q.get('ov') || 'minimal', overlayBox: +(q.get('box') || 0), overlaySize: 1, overlayCorner: 'tl', overlayNumbers: 'accent',
     overlayShow: ['fps', 'low1'], overlayHideFromCapture: false, autoOff: true, selectedGame: main.id, phone: q.get('phone') === '1',
     experiments: [{ id: 'e1', label: 'Shadows: Medium → Low', aLabel: 'Medium', bLabel: 'Low' }],
@@ -166,6 +168,33 @@
       cool: { state: !settings.cooling.on ? 'off' : st === 'live' ? (learn ? 'learn' : 'on') : 'ready', tool: '', speed: st === 'live' && settings.cooling.on ? 64 : -1 } });
     if (st === 'live') { t0 = Date.now(); live(); liveTimer = setInterval(live, 250); }
   }
+  // the Aim page: a finder result (?find=1), Raw Accel (?ra=1 ready, ?ra=on with TEMPO's curve), the screen
+  const sampleFind = () => {
+    const tb = Math.log(0.86), fb = Math.log(1.18);
+    const ft = [-2.6, -2.6 * -2 * tb, 0.2 - 2.6 * tb * tb], ff = [-1.9, -1.9 * -2 * fb, 1.1 - 1.9 * fb * fb];
+    const at = (f, x) => f[0] * x * x + f[1] * x + f[2];
+    const jit = [0.02, -0.03, 0.015, -0.01, 0.025];
+    return { when: new Date(Date.now() - 3 * 3600e3).toISOString(), baseGame: site ? 'manual:cs2' : 'steam:1422450', baseName: site ? 'Counter-Strike 2' : 'Deadlock', baseSens: site ? 1.1 : 1.15, baseYaw: 0.022, raw: true,
+      best: 0.95, trackBest: 0.86, flickBest: 1.18, gain: 0.06, close: false,
+      say: `Slow for tracking, quick for big turns. Set ${site ? 'Counter-Strike 2 to 0.95' : 'Deadlock to 0.99'} for tracking, and let a curve speed up fast moves to ×1.32: in the test it kept your tracking (−1%) and made your flicks +9%.`,
+      points: [0.75, 0.87, 1, 1.15, 1.33].map((m, i) => ({ m, track: at(ft, Math.log(m)) + jit[i], flick: at(ff, Math.log(m)) - jit[i] })),
+      fit: { t: ft, f: ff }, curve: { start: 2.4, top: 11.5, max: 1.32 }, curveTest: { track: -0.01, flick: 0.09 },
+      speeds: { track: Array.from({ length: 220 }, (_, i) => +(0.2 + Math.abs(Math.sin(i * 1.7)) * 2.6 + (i % 7) * 0.05).toFixed(2)), flick: Array.from({ length: 60 }, (_, i) => +(8 + Math.abs(Math.sin(i * 2.3)) * 9).toFixed(2)) } };
+  };
+  if (q.get('find')) settings.aim.finds = [sampleFind()];
+  const raState = () => {
+    const ra = q.get('ra');
+    if (!ra) return { driver: false, dir: '', hasSettings: false, editable: false, mode: '', note: '' };
+    return { driver: true, dir: 'C:\\Tools\\RawAccel', hasSettings: true, editable: true, mode: ra === 'on' ? 'classic' : 'noaccel', gain: false, offset: 2.4, accel: 0.0352, cap: 1.32, exponent: 2,
+      ours: ra === 'on' ? { start: 2.4, top: 11.5, max: 1.32, applied: new Date(Date.now() - 86400e3).toISOString() } : null, note: '' };
+  };
+  const aimState = () => ({ t: 'aimState',
+    sens: site ? [] : [{ gameId: 'steam:1422450', name: 'Deadlock', sens: 1.15, yaw: 0.022, place: 'Steam\\userdata\\…\\user_convars_0_slot0.vcfg' }],
+    engines: [['deadlock', 'Deadlock', 0.022], ['cs2', 'Counter-Strike 2', 0.022], ['apex', 'Apex Legends', 0.022], ['valorant', 'Valorant', 0.07], ['overwatch', 'Overwatch 2', 0.0066], ['tf2', 'Team Fortress 2', 0.022]].map(([id, name, yaw]) => ({ id, name, yaw })),
+    rawAccel: raState(), vendor: 4318,
+    screen: { name: 'EI242QR', hz: 144, link: site ? 'displayport' : 'hdmi', vrr: true, vrrKind: 'freesync', vrrMin: 48, vrrMax: 144 },
+    sync: site ? { kind: 'turnon', level: 'info', title: 'Your screen has FreeSync (48–144 Hz)', text: 'With it on, the screen waits for each frame instead of showing frames for uneven times, so aim stays smooth when your fps moves around. TEMPO can\'t see whether it\'s switched on: NVIDIA Control Panel, Display, Set up G-SYNC.' }
+      : { kind: 'cable', level: 'tip', title: 'EI242QR has FreeSync (48–144 Hz), but not over HDMI with NVIDIA', text: 'NVIDIA cards can only follow the game\'s frames on this screen through DisplayPort. If the screen has a DisplayPort input, a DisplayPort cable lets you switch on G-SYNC Compatible (NVIDIA Control Panel, Display, Set up G-SYNC): no more tearing or judder when your fps moves around. A steady fps limit at 72 (half of 144 Hz) shows every frame for the same time instead.' } });
   // ?nofans=1: a PC whose card can't have its fans set (the tab greys out)
   const fansPayload = () => q.get('nofans')
     ? { t: 'fans', ready: false, able: false, kind: 'nonvidia', why: 'Fan control works on NVIDIA graphics cards whose driver allows it. This PC has AMD Radeon RX 6600.' }
@@ -195,6 +224,10 @@
     }
     if (m.t === 'apps') deliver(appsPayload());
     if (m.t === 'fans') setTimeout(() => deliver(fansPayload()), 120);
+    if (m.t === 'aimState') setTimeout(() => deliver(aimState()), 150);
+    if (m.t === 'aimSet') { if (m.dpi != null) settings.aim.dpi = m.dpi; if (m.base != null) settings.aim.base = m.base; if (m.engine) settings.aim.manualEngine = m.engine; if (m.sens != null) settings.aim.manualSens = m.sens; deliver({ t: 'settings', settings }); }
+    if (m.t === 'aimFind') { settings.aim.finds.unshift(m.result); deliver({ t: 'settings', settings }); }
+    if (m.t === 'rawAccel') deliver({ t: 'toast', text: site ? 'In the real TEMPO this sets the curve in Raw Accel (if it\'s installed).' : 'Mock: Raw Accel ' + m.do });
     if (m.t === 'shortcut') { if (site) deliver({ t: 'toast', text: 'In the real TEMPO this puts a shortcut on your desktop or in Start.' }); }
     if (m.t === 'fanListen') deliver(site ? { t: 'toast', text: 'In the real TEMPO the fans run at this speed for a few seconds, so you can hear it.' } : { t: 'listening', percent: m.percent, seconds: 8 });
     if (m.t === 'set' && m.key.startsWith('cooling.')) { const k = m.key.split('.')[1]; settings.cooling[k] = m.value; if (k === 'points') settings.cooling.preset = 'custom'; }

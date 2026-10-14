@@ -285,11 +285,11 @@
     if (!S.fans && !whatsNew.waited) { whatsNew.waited = true; setTimeout(() => whatsNew(version), 1200); return; } // knows first whether this PC has fan control
     const fansOk = !(S.fans && S.fans.able === false);
     box.innerHTML = `<div class="rc-top"><span class="rc-k">NEW IN ${esc(String(version).split('.').slice(0, 2).join('.'))}</span><span class="rc-g">TEMPO updated</span><button type="button" class="rc-x" aria-label="Close">&#10005;</button></div>
-      <ul class="rc-new">${fansOk ? `<li><b>Fans:</b> your graphics card's fans follow a curve you choose while you play, never past your highest speed, and go back to normal when the game closes.</li>` : ''}
-      <li><b>Play checks first:</b> what could cost this match (memory, downloads, the drive, launch options, no fps limit), with one-click fixes.</li>
-      <li><b>After each match:</b> how it went against your usual, how smooth it was, the one thing that held it back, and the whole match minute by minute.</li>
-      <li><b>Game settings that reach the game</b> on any PC, a mouse check, and an NVIDIA driver fps limit for any game.</li></ul>
-      <button type="button" class="rc-go" data-go-page="${fansOk ? 'fans' : 'sessions'}">${fansOk ? 'Set up your fans' : 'See your matches'} &rarr;</button>`;
+      <ul class="rc-new"><li><b>Aim:</b> what makes your aim feel rough on this PC, your sensitivity in real numbers, and a finder for the sensitivity your hand is best at.</li>
+      ${fansOk ? `<li><b>Fans:</b> your graphics card's fans follow a curve you choose while you play, never past your highest speed.</li>` : ''}
+      <li><b>Play checks first,</b> and after each match a card with how it went, minute by minute.</li>
+      <li><b>Game settings that reach the game</b> on any PC, and an NVIDIA driver fps limit for any game.</li></ul>
+      <button type="button" class="rc-go" data-go-page="aim">Try the new Aim page &rarr;</button>`;
     box.hidden = false;
     if (!still()) box.animate([{ opacity: 0, transform: 'translateY(14px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: EASE });
   }
@@ -413,10 +413,11 @@
     S.page = page;
     body.dataset.page = page;
     document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('on', b.dataset.go === page));
-    for (const p of ['play', 'boost', 'fans', 'tune', 'sessions', 'checkup', 'overlay', 'look']) $('page-' + p).hidden = p !== page;
+    for (const p of ['play', 'boost', 'fans', 'tune', 'aim', 'sessions', 'checkup', 'overlay', 'look']) $('page-' + p).hidden = p !== page;
+    if (page === 'aim') { renderAimPage(); renderAim(); send({ t: 'aimState' }); const g = sel(); if (g) send({ t: 'tune', game: g.id }); }
     if (page === 'fans') { renderFans(); send({ t: 'fans' }); }
-    if (page === 'checkup') { renderCheckup(); renderAim(); send({ t: 'checkup' }); }
-    if (page !== 'checkup' && aim.on) send({ t: 'aimStop' });
+    if (page === 'checkup') { renderCheckup(); send({ t: 'checkup' }); }
+    if (page !== 'aim' && aim.on) send({ t: 'aimStop' });
     if (page === 'tune') { renderTune(); requestTune(); }
     if (page === 'overlay') send({ t: 'phoneState' });
     movePill();
@@ -1425,6 +1426,787 @@
     }).join('');
   }
 
+  // ------------------------------------------------------------------ aim page
+  // Smoother aim: what gets in its way on this PC (mouse, frames, screen sync, freezes, sensitivity), the sensitivity in
+  // real numbers, a finder that measures the sensitivity the hand is best at, and a curve set through Raw Accel.
+  const AIM = { st: null, open: null, draft: null, drag: null };
+  const ENGINES = [['deadlock', 'Deadlock', 0.022], ['cs2', 'Counter-Strike 2', 0.022], ['apex', 'Apex Legends', 0.022], ['valorant', 'Valorant', 0.07], ['overwatch', 'Overwatch 2', 0.0066], ['tf2', 'Team Fortress 2', 0.022]]
+    .map(([id, name, yaw]) => ({ id, name, yaw }));
+  const aimOpts = () => S.settings.aim || {};
+  const engines = () => (AIM.st && AIM.st.engines && AIM.st.engines.length ? AIM.st.engines : ENGINES);
+  const sensFmt = v => !isFinite(v) || v <= 0 ? '–' : v >= 10 ? v.toFixed(1) : v >= 0.5 ? v.toFixed(2) : v.toFixed(3);
+  const cmOf = c360 => { const d = aimOpts().dpi; return d > 0 && c360 > 0 ? c360 / d * 2.54 : 0; };
+  /** The sensitivity everything starts from: a game TEMPO read, or one typed in. */
+  function aimBase() {
+    const o = aimOpts(), list = (AIM.st && AIM.st.sens) || [];
+    let b = null;
+    if (o.base === 'manual' || (!list.length && o.manualSens > 0)) {
+      const e = engines().find(x => x.id === (o.manualEngine || 'deadlock')) || engines()[0];
+      if (o.manualSens > 0) b = { gameId: 'manual:' + e.id, name: e.name, sens: o.manualSens, yaw: e.yaw, manual: true, engine: e.id };
+    } else {
+      const g = list.find(x => x.gameId === o.base) || list.find(x => x.gameId === S.settings.selectedGame) || list[0];
+      if (g) b = Object.assign({}, g, { engine: (engines().find(e => e.name === g.name) || {}).id || '' });
+    }
+    if (b) { b.c360 = 360 / (b.sens * b.yaw); b.cm = cmOf(b.c360); }
+    return b;
+  }
+  const lastFind = b => (aimOpts().finds || []).find(f => b && f.baseGame === b.gameId) || null;
+
+  // ---- what gets in the way of smooth aim
+  function saFactors() {
+    const out = [], g = sel(), b = aimBase();
+    const ss = (g ? sessionsOf(g.id) : S.sessions).slice(0, 3), gname = g ? esc(g.name) : 'your';
+    // the mouse
+    const la = S.settings.lastAim;
+    if (la && la.verdict && la.verdict !== 'none' && la.verdict !== 'error') {
+      const on = Math.round(la.onTime * 100);
+      out.push(la.verdict === 'ok'
+        ? { id: 'mouse', name: 'Your mouse', st: 'good', short: `${la.nominal} Hz · ${on}% on time`, text: `It sends ${la.nominal} reports a second and ${on}% arrive right on time, so the mouse itself isn't what makes aim feel rough.`, act: [['Check again', 'mouse']] }
+        : { id: 'mouse', name: 'Your mouse', st: 'fix', short: la.verdict === 'slow' ? `only ${la.nominal} Hz` : `${100 - on}% off beat`, text: AIM_SAY[la.verdict](la).replace(/<[^>]+>/g, ''), act: [['Check again', 'mouse']] });
+    } else out.push({ id: 'mouse', name: 'Your mouse', st: 'unknown', short: 'not checked yet', text: 'Eight seconds of moving your mouse in circles shows whether its reports arrive evenly: the same reports games read.', act: [['Check my mouse', 'mouse']] });
+    // even frames
+    const sm = ss.map(smoothOf).filter(v => v != null), withFps = ss.filter(s => s.avgFps > 0 && s.low1 > 0);
+    if (!withFps.length) out.push({ id: 'frames', name: 'Even frames', st: 'unknown', short: 'play a match first', text: `Play one match with TEMPO on${g ? ` (${gname})` : ''}, and this shows how evenly your frames came.` });
+    else {
+      const avg = withFps.reduce((a, s) => a + s.avgFps, 0) / withFps.length, low = withFps.reduce((a, s) => a + s.low1, 0) / withFps.length;
+      const smooth = sm.length ? Math.round(sm.reduce((a, v) => a + v, 0) / sm.length) : null, ratio = low / avg;
+      const good = ratio >= 0.68 && (smooth == null || smooth >= 92);
+      const T = S.tune && g && S.tune.game === g.id ? S.tune : null, cap = T && T.cap && T.cap.cap > 0 ? Math.round(T.cap.cap) : 0;
+      const capKey = T && (T.config && T.config.capKey || ((T.settings || []).some(x => x.key === 'nv.frl') ? 'nv.frl' : null));
+      const act = cap && capKey && !T.running ? [[`Set a limit of ${cap}`, 'cap', `${capKey}|${cap}`]] : [['Open Tune', 'tune']];
+      out.push(good
+        ? { id: 'frames', name: 'Even frames', st: 'good', short: smooth != null ? `${smooth}% on pace` : 'steady', text: `In your last ${withFps.length === 1 ? 'match' : withFps.length + ' matches'} the slowest moments stayed at ${Math.round(ratio * 100)}% of your ${Math.round(avg)} fps average. Steady frames, so every hand movement turns the view the same way.` }
+        : { id: 'frames', name: 'Even frames', st: 'fix', short: `${Math.round(avg)} fps, dips to ${Math.round(low)}`, act,
+            text: `Your fps averaged ${Math.round(avg)} but dropped to ${Math.round(low)} in the busiest moments${smooth != null ? `, and ${100 - smooth}% of frames came off pace` : ''}. When the fps jumps, the same hand movement turns the view a different amount from frame to frame, which feels like rough aim. A limit just under what your PC holds makes every frame take the same time${cap ? `: TEMPO suggests ${cap}` : ''}.` });
+    }
+    // the screen following the frames
+    const sy = AIM.st && AIM.st.sync;
+    if (!AIM.st) out.push({ id: 'sync', name: 'Screen sync', st: 'unknown', short: 'reading your screen…', text: '' });
+    else if (!sy) out.push({ id: 'sync', name: 'Screen sync', st: 'unknown', short: 'no screen found', text: 'TEMPO couldn\'t read your screen.' });
+    else out.push({ id: 'sync', name: 'Screen sync', st: { cable: 'fix', turnon: 'check', maybe: 'check', none: 'info' }[sy.kind] || 'info',
+      short: { cable: 'FreeSync unused (HDMI)', turnon: 'make sure it\'s on', maybe: 'check your screen', none: 'fixed refresh' }[sy.kind] || '', text: `<b>${esc(sy.title)}.</b> ${esc(sy.text)}` });
+    // freezes from other apps
+    if (!ss.length) out.push({ id: 'freezes', name: 'No freezes', st: 'unknown', short: 'play a match first', text: 'After a match, TEMPO names any app that froze the game.' });
+    else {
+      const c = ss.map(s => s.culprit).find(c => c && c.freezes >= 2);
+      out.push(c ? { id: 'freezes', name: 'No freezes', st: 'fix', short: `${c.label} froze it ${c.freezes}×`, text: `Each freeze stops your view for a moment, often mid-aim. ${esc(c.fix)}` }
+        : { id: 'freezes', name: 'No freezes', st: 'good', short: 'none from other apps', text: 'No other app froze the game in your last matches.' });
+    }
+    // the sensitivity itself
+    const f = lastFind(b);
+    if (!b) out.push({ id: 'sens', name: 'Sensitivity that fits', st: 'unknown', short: 'add your sensitivity', text: 'Pick your game\'s sensitivity on the right, then the finder can measure what suits your hand.' });
+    else if (!f) out.push({ id: 'sens', name: 'Sensitivity that fits', st: 'unknown', short: 'not measured yet', text: 'The finder measures, in about two and a half minutes, which sensitivity your hand tracks and flicks best with.', act: [['Find mine', 'finder']] });
+    else if (Math.abs(f.baseSens - b.sens) / b.sens > 0.01) out.push({ id: 'sens', name: 'Sensitivity that fits', st: 'check', short: 'changed since the test', text: `You changed ${esc(b.name)} to ${sensFmt(b.sens)} since the last test, which suggested ${sensFmt(f.baseSens * f.best)}. Run it again to see how the new one suits you.`, act: [['Run it again', 'finder']] });
+    else if (f.curve) {
+      const on = AIM.st && AIM.st.rawAccel && AIM.st.rawAccel.ours;
+      out.push(on ? { id: 'sens', name: 'Sensitivity that fits', st: 'good', short: `curve on · ×${fmt(on.max, 2)}`, text: `${esc(f.say)} The curve is set in Raw Accel.` }
+        : { id: 'sens', name: 'Sensitivity that fits', st: 'fix', short: 'a curve would help', text: esc(f.say), act: [['See the curve', 'curve']] });
+    }
+    else if (f.close || Math.abs(Math.log(f.best)) < Math.log(1.06)) out.push({ id: 'sens', name: 'Sensitivity that fits', st: 'good', short: 'fits your hand', text: esc(f.say || 'Your sensitivity is close to where your hand did best.') });
+    else out.push({ id: 'sens', name: 'Sensitivity that fits', st: 'fix', short: `try ${sensFmt(b.sens * f.best)}`, text: esc(f.say || ''), act: [['See the result', 'result']] });
+    return out;
+  }
+  const SA_ICON = { mouse: 'M12 3.5a5 5 0 0 1 5 5v7a5 5 0 0 1-10 0v-7a5 5 0 0 1 5-5ZM12 7v3', frames: 'M3 17l4-5 4 3 4-7 6 9', sync: 'M4 7.5h16v10H4zM9 21h6M12 17.5V21', freezes: 'M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9', sens: 'M12 3v3M12 18v3M3 12h3M18 12h3M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z' };
+  function renderSA() {
+    const box = $('sa');
+    if (!box || S.page !== 'aim') return;
+    const f = saFactors(), good = f.filter(x => x.st === 'good').length, fix = f.filter(x => x.st === 'fix').length, check = f.filter(x => x.st === 'check').length;
+    const known = f.filter(x => x.st !== 'unknown' && x.st !== 'info').length;
+    if (AIM.open == null || !f.some(x => x.id === AIM.open)) AIM.open = (f.find(x => x.st === 'fix') || f.find(x => x.st === 'check') || f.find(x => x.st === 'unknown') || {}).id || null;
+    const words = ['Nothing', 'One thing', 'Two things', 'Three things', 'Four things', 'Five things'];
+    const title = fix ? `${words[fix]} in the way` : check ? `Almost there` : known ? 'Nothing in the way' : 'Let\'s see what\'s in the way';
+    const sub = fix ? 'Fix these first; they make aim feel rough whatever your sensitivity.' : check ? `${check === 1 ? 'One thing' : words[check] + 's'} to check yourself.` : known ? 'Your PC isn\'t what\'s holding your aim back.' : 'A match with TEMPO on and an 8-second mouse check fill this in.';
+    const R = 26, C = 2 * Math.PI * R, frac = known ? good / f.length : 0;
+    box.innerHTML = `<div class="sa-top">
+        <div class="sa-ring"><svg viewBox="0 0 64 64" width="64" height="64"><circle cx="32" cy="32" r="${R}" class="sa-tr"/><circle cx="32" cy="32" r="${R}" class="sa-pr" style="stroke-dasharray:${(C * frac).toFixed(1)} ${C.toFixed(1)}"/></svg><b>${good}</b><small>OF ${f.length}</small></div>
+        <div><div class="sa-k">SMOOTH AIM</div><div class="sa-t">${title}</div><p class="sa-p">${sub}</p></div></div>
+      <div class="sa-list">${f.map(x => `<div class="sa-item st-${x.st}${AIM.open === x.id ? ' open' : ''}">
+        <button type="button" class="sa-row" data-sa="${x.id}"><i class="sa-ic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${SA_ICON[x.id]}"/></svg></i><span class="sa-n">${x.name}</span><span class="sa-s">${esc(x.short)}</span><i class="sa-dot"></i><i class="sa-chev"></i></button>
+        <div class="sa-more"><div><p>${x.text}</p>${x.act ? `<div class="sa-act">${x.act.map(([label, what, arg], i) => `<button type="button" class="btn${i ? '' : ' acc'}" data-sa-do="${what}"${arg ? ` data-arg="${esc(arg)}"` : ''}>${esc(label)}</button>`).join('')}</div>` : ''}</div></div></div>`).join('')}</div>`;
+  }
+  document.addEventListener('click', e => {
+    const r = e.target.closest('[data-sa]');
+    if (r) { AIM.open = AIM.open === r.dataset.sa ? '' : r.dataset.sa; renderSA(); return; }
+    const d = e.target.closest('[data-sa-do]');
+    if (!d) return;
+    const what = d.dataset.saDo, g = sel();
+    if (what === 'mouse') { $('aim').scrollIntoView({ behavior: still() ? 'auto' : 'smooth', block: 'center' }); if (!aim.on) aimStart(); }
+    if (what === 'tune') go('tune');
+    if (what === 'finder') trainerOpen();
+    if (what === 'curve') $('cv-card').scrollIntoView({ behavior: still() ? 'auto' : 'smooth', block: 'start' });
+    if (what === 'result') { const f = lastFind(aimBase()); if (f) trainerResult(f, false); }
+    if (what === 'cap' && g) { const [key, v] = d.dataset.arg.split('|'); send({ t: 'setNow', game: g.id, key, value: v, label: `Fps limit at ${v}` }); d.disabled = true; d.textContent = `Limit ${v} set`; }
+  });
+
+  // ---- the sensitivity in real numbers
+  const BANDS = [[0, 15, 'very fast'], [15, 25, 'fast · wrist'], [25, 40, 'medium'], [40, 60, 'slow · arm'], [60, 999, 'very slow']];
+  function renderSens() {
+    const box = $('as-card');
+    if (!box || S.page !== 'aim') return;
+    const o = aimOpts(), b = aimBase(), list = (AIM.st && AIM.st.sens) || [];
+    const manual = o.base === 'manual' || !list.length;
+    const opts = list.map(x => `<option value="${esc(x.gameId)}"${!manual && b && b.gameId === x.gameId ? ' selected' : ''}>${esc(x.name)} · ${sensFmt(x.sens)}</option>`).join('') + `<option value="manual"${manual ? ' selected' : ''}>Another game…</option>`;
+    const eopts = engines().map(e => `<option value="${e.id}"${(o.manualEngine || 'deadlock') === e.id ? ' selected' : ''}>${esc(e.name)}</option>`).join('');
+    let big = '', sub = '', scale = '';
+    if (b) {
+      const cm = b.cm;
+      big = cm ? `<b class="as-big">${cm.toFixed(1)}</b><span class="as-u">cm per 360°</span>` : `<b class="as-big">${Math.round(b.c360).toLocaleString()}</b><span class="as-u">mouse counts per 360°</span>`;
+      sub = `${esc(b.name)} ${sensFmt(b.sens)}${o.dpi > 0 ? ` · ${o.dpi} DPI · eDPI ${Math.round(b.sens * o.dpi * (b.yaw / 0.022))}` : ''}${b.place ? ` · <span class="mono" title="${esc(b.place)}">from its settings</span>` : ''}`;
+      if (cm) {
+        const lo = Math.log(8), hi = Math.log(90), x = v => Math.max(0, Math.min(100, (Math.log(v) - lo) / (hi - lo) * 100));
+        const band = BANDS.find(([a, z]) => cm >= a && cm < z);
+        scale = `<div class="as-scale">${BANDS.map(([a, z, n]) => `<i class="${band && band[2] === n ? 'on' : ''}" style="left:${x(Math.max(a, 8))}%;width:${x(Math.min(z, 90)) - x(Math.max(a, 8))}%"><span>${n}</span></i>`).join('')}<b class="as-mark" style="left:${x(cm)}%"></b></div>
+          <p class="as-note">${band && cm < 25 ? 'On the fast side: big turns are easy, steady tracking takes a light touch. Most wrist aimers sit between 20 and 35 cm.' : band && cm < 40 ? 'In the middle: room for both wrist and arm.' : 'On the slow side: precise tracking, big turns use the whole arm.'}</p>`;
+      }
+    }
+    const conv = b ? engines().filter(e => e.name !== b.name).map(e => { const v = b.sens * b.yaw / e.yaw; return `<button type="button" class="as-chip" data-copy="${sensFmt(v)}" title="Copy">${esc(e.name)} <b>${sensFmt(v)}</b></button>`; }).join('') : '';
+    box.innerHTML = `<div class="ac-h"><span class="ac-k">YOUR SENSITIVITY</span><label class="as-pick"><select id="as-base">${opts}</select></label></div>
+      ${manual ? `<div class="as-manual"><label><span>Game</span><select id="as-engine">${eopts}</select></label><label><span>Its sensitivity</span><input id="as-sens" type="number" min="0.01" max="200" step="0.01" value="${o.manualSens > 0 ? o.manualSens : ''}" placeholder="1.15"></label></div>` : ''}
+      ${b ? `<div class="as-main">${big}</div><div class="as-sub">${sub}</div>${scale}` : `<p class="note">Pick a game and type its sensitivity: it's in the game's mouse settings.</p>`}
+      <div class="as-dpi"><label><span>Mouse DPI</span><input id="as-dpi" type="number" min="100" max="64000" step="50" value="${o.dpi > 0 ? o.dpi : ''}" placeholder="800"></label><small>${o.dpi > 0 ? 'From your mouse\'s own app (Razer Synapse, G HUB…). TEMPO can\'t read it from the mouse.' : 'Add it to see centimetres. It\'s in your mouse\'s own app (Razer Synapse, G HUB…), often 800 or 1600.'}</small></div>
+      ${conv ? `<div class="as-conv"><div class="lab" style="margin:0 0 8px">The same feel in</div><div class="as-chips">${conv}</div></div>` : ''}`;
+  }
+  document.addEventListener('change', e => {
+    const id = e.target.id;
+    if (id === 'as-base') { const v = e.target.value; putSet('aim.base', v); send({ t: 'aimSet', base: v }); renderAimPage(); }
+    if (id === 'as-engine') { putSet('aim.manualEngine', e.target.value); putSet('aim.base', 'manual'); send({ t: 'aimSet', engine: e.target.value, base: 'manual' }); renderAimPage(); }
+    if (id === 'as-sens') { const v = +e.target.value || 0; putSet('aim.manualSens', v); putSet('aim.base', 'manual'); send({ t: 'aimSet', sens: v, base: 'manual' }); renderAimPage(); }
+    if (id === 'as-dpi') { const v = Math.round(+e.target.value || 0); putSet('aim.dpi', v); send({ t: 'aimSet', dpi: v }); renderAimPage(); }
+  });
+  document.addEventListener('click', e => {
+    const c = e.target.closest('[data-copy]');
+    if (!c) return;
+    try { navigator.clipboard.writeText(c.dataset.copy).catch(() => { }); } catch { }
+    toast(`Copied ${c.dataset.copy}`);
+  });
+
+  // ---- the finder card on the page
+  function renderFinderCard() {
+    const box = $('fd-card');
+    if (!box || S.page !== 'aim') return;
+    const b = aimBase(), f = lastFind(b);
+    box.innerHTML = `<div class="ac-h"><span class="ac-k">SENSITIVITY FINDER</span><span class="ac-meta">about 3 minutes</span></div>
+      <div class="fd-hero">
+        <svg class="fd-art" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" class="fd-a1"/><circle cx="60" cy="60" r="33" class="fd-a2"/><path d="M60 38v10M60 72v10M38 60h10M72 60h10" class="fd-x"/><circle cx="60" cy="60" r="2.4" class="fd-c"/><circle cx="88" cy="40" r="6" class="fd-o"/><circle cx="34" cy="82" r="4" class="fd-o2"/></svg>
+        <div><b>Find the sensitivity your hand is best at</b>
+        <p>Track a moving target, then flick to targets, at a few sensitivities around yours without knowing which is which. TEMPO measures how steadily you track and how quickly you land, and finds where each is best: if they're far apart, a curve can give you both.</p>
+        <div class="fd-act"><button type="button" class="btn acc" data-fd="start"${b ? '' : ' disabled'}>${f ? 'Run it again' : 'Find mine'}</button>${f ? `<button type="button" class="btn" data-fd="result">See the last result</button>` : ''}${b ? '' : '<span class="note" style="margin:0">Pick your sensitivity first.</span>'}</div></div>
+      </div>
+      ${f ? `<div class="fd-last"><div class="fd-l-k">${when(f.when)} · ${esc(f.baseName)} ${sensFmt(f.baseSens)}</div><p>${esc(f.say)}</p></div>` : ''}`;
+  }
+  document.addEventListener('click', e => {
+    const d = e.target.closest('[data-fd]');
+    if (!d) return;
+    if (d.dataset.fd === 'start') trainerOpen();
+    if (d.dataset.fd === 'result') { const f = lastFind(aimBase()); if (f) trainerResult(f, false); }
+  });
+
+  // ---- the curve: slow for tracking, quick for big turns (through Raw Accel)
+  const CG = { w: 520, h: 230, l: 40, r: 12, t: 14, b: 30 };
+  // counts per ms for a hand speed in cm/s (Raw Accel measures in counts per ms); 800 DPI when the DPI isn't known
+  const cps = cm => cm / 2.54 * (aimOpts().dpi > 0 ? aimOpts().dpi : 800) / 1000;
+  const gentle = max => ({ start: +cps(8).toFixed(2), top: +cps(45).toFixed(2), max, src: max > 1.4 ? 'draft' : 'gentle' });
+  function curveNow() {
+    const o = aimOpts(), f = lastFind(aimBase());
+    if (AIM.draft) return AIM.draft;
+    if (o.curve) return { start: o.curve.start, top: o.curve.top, max: o.curve.max, src: 'set' };
+    if (f && f.curve) return { start: f.curve.start, top: f.curve.top, max: f.curve.max, src: 'finder' };
+    return gentle(1.3);
+  }
+  const niceStep = v => { const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p; return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p; };
+  function renderCurve() {
+    const box = $('cv-card');
+    if (!box || S.page !== 'aim') return;
+    const ra = AIM.st && AIM.st.rawAccel, o = aimOpts(), f = lastFind(aimBase()), c = curveNow(), dpi = o.dpi;
+    // the graph: hand speed across, sensitivity up (room for the fastest flicks of the last finder run)
+    const peaks = f && f.speeds && f.speeds.flick || [];
+    const xMax = Math.max(c.top * 1.45, peaks.length ? trPct(peaks, 0.92) * 1.1 : 0, cps(40)), yMax = Math.max(1.5, c.max + 0.2);
+    const k = dpi > 0 ? 2540 / dpi : 0; // cm/s per count/ms
+    const X = v => CG.l + v / xMax * (CG.w - CG.l - CG.r), Y = m => CG.t + (1 - (m - 0.8) / (yMax - 0.8)) * (CG.h - CG.t - CG.b);
+    const rgb = getComputedStyle(document.documentElement).getPropertyValue('--acc-rgb').trim();
+    let g = `<defs><linearGradient id="cv-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgb(${rgb})" stop-opacity=".22"/><stop offset="1" stop-color="rgb(${rgb})" stop-opacity="0"/></linearGradient></defs>`;
+    for (let m = 1; m <= yMax + 1e-9; m += 0.25) g += `<line x1="${CG.l}" x2="${CG.w - CG.r}" y1="${Y(m)}" y2="${Y(m)}" class="fg-grid"/><text x="${CG.l - 6}" y="${Y(m) + 3.5}" class="fg-ax" text-anchor="end">×${m.toFixed(2).replace(/0$/, '')}</text>`;
+    // ticks at round hand speeds: cm/s when the DPI is known, counts per ms otherwise
+    const unitMax = k ? xMax * k : xMax, step = niceStep(unitMax / 4);
+    for (let u = 0; u <= unitMax + 1e-9; u += step) { const v = k ? u / k : u; g += `<line x1="${X(v)}" x2="${X(v)}" y1="${CG.t}" y2="${CG.h - CG.b}" class="fg-grid v"/><text x="${X(v)}" y="${CG.h - 10}" class="fg-ax" text-anchor="middle">${u === 0 ? '0' : `${+u.toFixed(1)} ${k ? 'cm/s' : 'c/ms'}`}</text>`; }
+    // where the hand moved in the last finder run: tracking speeds and flick peaks
+    if (f && f.speeds) {
+      const bar = (vals, cls) => { const n = 24, bins = new Array(n).fill(0); vals.forEach(v => { const i = Math.min(n - 1, Math.floor(v / xMax * n)); if (i >= 0) bins[i]++; }); const top = Math.max(1, ...bins); return bins.map((k, i) => k ? `<rect x="${X(i * xMax / n) + 1}" y="${CG.h - CG.b - k / top * 34}" width="${(CG.w - CG.l - CG.r) / n - 2}" height="${k / top * 34}" rx="2" class="${cls}"/>` : '').join(''); };
+      g += bar(f.speeds.track || [], 'cv-ht') + bar(f.speeds.flick || [], 'cv-hf');
+    }
+    const at = v => v <= c.start ? 1 : v >= c.top ? c.max : 1 + (c.max - 1) * (v - c.start) / (c.top - c.start);
+    const pts = [[0, 1], [c.start, 1], [c.top, c.max], [xMax, c.max]];
+    const d = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join(' ');
+    g += `<path d="${d} L${X(xMax)} ${CG.h - CG.b} L${X(0)} ${CG.h - CG.b} Z" fill="url(#cv-fill)"/><path d="${d}" class="fg-line"/>`;
+    g += `<line x1="${CG.l}" x2="${CG.w - CG.r}" y1="${Y(1)}" y2="${Y(1)}" class="cv-one"/>`;
+    g += `<g class="fg-pt" data-cv="start"><circle cx="${X(c.start)}" cy="${Y(1)}" r="14" class="fg-hit"/><circle cx="${X(c.start)}" cy="${Y(1)}" r="6" class="fg-dot"/></g>`;
+    g += `<g class="fg-pt" data-cv="top"><circle cx="${X(c.top)}" cy="${Y(c.max)}" r="14" class="fg-hit"/><circle cx="${X(c.top)}" cy="${Y(c.max)}" r="6" class="fg-dot"/></g>`;
+    AIM.cg = { X, Y, xMax, yMax };
+    // Raw Accel: what's there, and what TEMPO can do with it
+    let raHtml = '';
+    if (!ra) raHtml = `<p class="note">Looking for Raw Accel…</p>`;
+    else if (!ra.driver) raHtml = `<div class="ra-row"><i class="ra-dot off"></i><div><b>Games read the mouse directly, so a curve needs Raw Accel</b><p>A free, open-source driver many players use for exactly this; it works in every game. Most games allow it, but check your game's rules. TEMPO never installs drivers itself: install Raw Accel, open it once and press Apply, then come back.</p>
+        <div class="sa-act"><button type="button" class="btn acc" data-ra="open">Get Raw Accel</button><button type="button" class="btn" data-ra="locate">I have it: find its folder</button></div></div></div>`;
+    else if (!ra.dir) raHtml = `<div class="ra-row"><i class="ra-dot"></i><div><b>Raw Accel is installed</b><p>TEMPO couldn't find its folder (the one with writer.exe).</p><div class="sa-act"><button type="button" class="btn acc" data-ra="locate">Find its folder</button></div></div></div>`;
+    else if (!ra.hasSettings) raHtml = `<div class="ra-row"><i class="ra-dot"></i><div><b>Open Raw Accel once and press Apply</b><p>That makes its settings file, which TEMPO then sets the curve in.</p></div></div>`;
+    else {
+      const manual = `Mode Classic · Gain off · Acceleration ${(c.top > c.start ? (c.max - 1) / (c.top - c.start) : 0).toFixed(4)} · Exponent 2 · Input offset ${c.start.toFixed(2)} · Cap (output) ${c.max.toFixed(2)}`;
+      const other = !ra.ours && ra.mode && ra.mode !== 'noaccel' ? `<p class="ra-warn">Raw Accel already shapes your mouse (${esc(ra.mode)}${ra.mode === 'classic' && !ra.gain ? `, up to ×${fmt(ra.cap, 2)}` : ''}). The finder measures you as you play now, with it.</p>` : '';
+      raHtml = ra.ours
+        ? `<div class="ra-row on"><i class="ra-dot"></i><div><b>On: TEMPO's curve, up to ×${fmt(ra.ours.max, 2)}</b><p>Set ${when(ra.ours.applied).replace(/^\w/, ch => ch.toLowerCase())}. Slow aiming is exactly as before; fast moves speed up. Put it back any time.</p>
+            <div class="sa-act">${AIM.draft ? `<button type="button" class="btn acc" data-ra="apply">Use this curve</button>` : ''}<button type="button" class="btn" data-ra="putback">Put back</button></div></div></div>`
+        : ra.editable
+          ? `<div class="ra-row"><i class="ra-dot"></i><div><b>Raw Accel is ready</b><p>TEMPO sets this curve in it (keeping a copy of its settings first) and can put them back any time. Then set ${aimBase() ? `${esc(aimBase().name)} to ${sensFmt(aimBase().sens * (f ? f.trackBest : 1))}` : 'your game'} for tracking.</p>${other}
+              <div class="sa-act"><button type="button" class="btn acc" data-ra="apply">Use this curve</button>${o.rawAccelBackup ? '<button type="button" class="btn" data-ra="putback">Put back</button>' : ''}</div></div></div>`
+          : `<div class="ra-row"><i class="ra-dot"></i><div><b>Type these into Raw Accel</b><p>Its settings file isn't the shape TEMPO knows, so TEMPO leaves it alone.</p><p class="mono ra-vals">${manual}</p>${other}</div></div>`;
+    }
+    const srcText = { set: 'The curve TEMPO set', finder: 'From your finder result', gentle: 'A gentle start', draft: 'Your own' }[c.src] || '';
+    box.innerHTML = `<div class="ac-h"><span class="ac-k">CURVE</span><span class="ac-meta">slow for tracking, quick for big turns</span></div>
+      <p class="cv-say">Below the first point your sensitivity stays exactly as it is, for steady tracking. Faster than that it rises, up to ×${fmt(c.max, 2)} for big, fast turns. Drag the points to shape it. <span class="cv-src">${srcText}${dpi > 0 ? '' : ' · speeds in mouse counts per ms (add your DPI for cm/s)'}${!f ? ' · run the finder first: it measures your own hand speeds and tests a curve against none' : ''}</span></p>
+      <div class="cv-presets"><button type="button" class="seg-b${c.src === 'gentle' && !AIM.draft ? ' on' : ''}" data-cvp="gentle">Gentle ×1.3</button>${f && f.curve ? `<button type="button" class="seg-b${c.src === 'finder' ? ' on' : ''}" data-cvp="finder">Yours ×${fmt(f.curve.max, 2)}</button>` : ''}<button type="button" class="seg-b" data-cvp="strong">Strong ×1.6</button></div>
+      <div class="fg-wrap cv-wrap"><svg id="cv-svg" viewBox="0 0 ${CG.w} ${CG.h}">${g}</svg></div>
+      ${f && f.speeds ? `<div class="cv-leg"><span><i class="t"></i>your tracking speeds</span><span><i class="f"></i>your flicks</span></div>` : ''}
+      ${raHtml}`;
+  }
+  document.addEventListener('click', e => {
+    const p = e.target.closest('[data-cvp]');
+    if (p) {
+      const f = lastFind(aimBase()), base = AIM.draft || curveNow();
+      if (p.dataset.cvp === 'finder' && f && f.curve) AIM.draft = Object.assign({}, f.curve, { src: 'finder' });
+      else if (p.dataset.cvp === 'gentle') AIM.draft = f && f.curve ? { start: f.curve.start, top: f.curve.top, max: 1.3, src: 'gentle' } : gentle(1.3);
+      else AIM.draft = f && f.curve ? { start: f.curve.start, top: f.curve.top, max: 1.6, src: 'draft' } : gentle(1.6);
+      renderCurve();
+      return;
+    }
+    const r = e.target.closest('[data-ra]');
+    if (!r) return;
+    const c = curveNow();
+    if (r.dataset.ra === 'apply') { r.disabled = true; send({ t: 'rawAccel', do: 'apply', start: c.start, top: c.top, max: c.max }); AIM.draft = null; }
+    else send({ t: 'rawAccel', do: r.dataset.ra });
+  });
+  (() => {
+    // dragging the curve's two points: where it starts rising, and how far up it goes
+    const host = $('cv-card');
+    if (!host) return;
+    const at = e => { const svg = $('cv-svg'), r = svg.getBoundingClientRect(), g = AIM.cg; const x = (e.clientX - r.left) / r.width * CG.w, y = (e.clientY - r.top) / r.height * CG.h; return [(x - CG.l) / (CG.w - CG.l - CG.r) * g.xMax, 0.8 + (1 - (y - CG.t) / (CG.h - CG.t - CG.b)) * (g.yMax - 0.8)]; };
+    host.addEventListener('pointerdown', e => { const p = e.target.closest('[data-cv]'); if (!p) return; e.preventDefault(); AIM.drag = p.dataset.cv; AIM.draft = Object.assign({}, curveNow(), { src: 'draft' }); host.setPointerCapture(e.pointerId); });
+    host.addEventListener('pointermove', e => {
+      if (!AIM.drag) return;
+      const [v, m] = at(e), c = AIM.draft;
+      if (AIM.drag === 'start') c.start = Math.round(Math.max(0, Math.min(c.top - 1, v)) * 10) / 10;
+      else { c.top = Math.round(Math.max(c.start + 1, Math.min(AIM.cg.xMax, v)) * 10) / 10; c.max = Math.round(Math.max(1.05, Math.min(2.5, m)) * 100) / 100; }
+      renderCurve();
+    });
+    const end = () => { AIM.drag = null; };
+    host.addEventListener('pointerup', end);
+    host.addEventListener('pointercancel', end);
+  })();
+
+  function renderAimPage() { if (S.page !== 'aim') return; renderSA(); renderSens(); renderFinderCard(); renderCurve(); }
+
+  // ------------------------------------------------------------------ the sensitivity finder
+  // A small first-person range inside TEMPO. The mouse turns the view exactly as in the game the sensitivity comes from
+  // (degrees per count from its sensitivity), read raw through pointer lock. Sets at blind sensitivities around yours:
+  // tracking a strafing target, then flicking to targets near and far (some behind you). Tracking error and flick speed
+  // (Fitts throughput) are fitted against the sensitivity; where each peaks is the answer, and if flicks want a lot more
+  // than tracking, a curve is tried against a flat sensitivity.
+  const TR = { on: false };
+  const MULTS = [0.75, 0.87, 1.0, 1.15, 1.33, 1.0];
+  const TRACK_S = 9, FLICKS = [9, 14, 20, 30, 42, 58, 80, 105, 140], R_TRACK = 1.5, R_FLICK = 2.0, FOV = 100;
+  const trSim = new URLSearchParams(location.search).get('trsim'); // design checks only: a made-up player
+  if (trSim) window.__tr = TR;
+  function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+  const shuffle = (a, r) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const rad = d => d * Math.PI / 180;
+  // great-circle distance between two view directions (degrees)
+  function angDist(y1, p1, y2, p2) {
+    const c = Math.sin(rad(p1)) * Math.sin(rad(p2)) + Math.cos(rad(p1)) * Math.cos(rad(p2)) * Math.cos(rad(y1 - y2));
+    return Math.acos(Math.max(-1, Math.min(1, c))) * 180 / Math.PI;
+  }
+  // the strafing path the tracking target follows (the same every set, mirrored on every other one)
+  function trackPath(seed) {
+    const r = rng(seed), segs = [];
+    let t = 0, v = 0;
+    while (t < TRACK_S + 1) { const d = 0.35 + r() * 0.8; const sp = (12 + r() * 48) * (r() < 0.5 ? -1 : 1); segs.push([t, d, sp]); t += d; }
+    // velocity eased between segments (a strafing player doesn't change direction instantly)
+    const vel = tt => { let cur = 0, prev = 0; for (const [t0, d, sp] of segs) { if (tt < t0) break; prev = cur; cur = sp; if (tt < t0 + d) { const k = Math.min(1, (tt - t0) / 0.16); return prev + (cur - prev) * (k * k * (3 - 2 * k)); } } return cur; };
+    const tab = [], dt = 1 / 240;
+    let yaw = 0;
+    for (let k = 0; k <= (TRACK_S + 1) / dt; k++) { tab.push(yaw); yaw += vel(k * dt) * dt; }
+    return tt => { const i = Math.max(0, Math.min(tab.length - 1, Math.floor(tt / dt))); return [tab[i], 2.6 * Math.sin(tt * 1.3) + 1.2 * Math.sin(tt * 3.1 + 1)]; };
+  }
+
+  function trainerOpen() {
+    const b = aimBase();
+    if (!b) { toast('Pick your game\'s sensitivity first.'); return; }
+    const sets = shuffle(MULTS, rng(Date.now() & 0xffff));
+    Object.assign(TR, {
+      on: true, base: b, degPerCount: 360 / b.c360, sets, plan: [], i: -1, phase: 'intro', results: [], yaw: 0, pitch: 0, curve: null, analysis: null, result: null, part: null, cur: null,
+      locked: false, raw: true, events: 0, lastT: 0, simT: 0, paused: false, path: trackPath(7),
+    });
+    // the plan: a warm-up, the six sets, and (decided later) the curve trial
+    TR.plan = [{ kind: 'warm', mult: 1 }].concat(sets.map((m, k) => ({ kind: 'set', mult: m, mirror: k % 2 ? -1 : 1, seed: 100 + k })));
+    $('trainer').hidden = false;
+    body.classList.add('tr-on');
+    trCard('intro');
+    trResize();
+    if (!TR.raf) TR.raf = requestAnimationFrame(trFrame);
+  }
+  function trainerClose() {
+    TR.on = false;
+    if (document.pointerLockElement) document.exitPointerLock();
+    $('trainer').hidden = true;
+    body.classList.remove('tr-on');
+    if (TR.raf) { cancelAnimationFrame(TR.raf); TR.raf = 0; }
+    renderAimPage();
+  }
+  const trCanvas = () => $('tr-canvas');
+  function trResize() {
+    const c = trCanvas(), dpr = window.devicePixelRatio || 1;
+    c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr;
+  }
+  addEventListener('resize', () => { if (TR.on) trResize(); });
+
+  // ---- the cards over the range: intro, between sets, paused, results
+  function trCard(kind, extra) {
+    const box = $('tr-card'), b = TR.base;
+    box.hidden = !kind;
+    if (!kind) return;
+    box.className = 'tr-card k-' + kind;
+    if (kind === 'intro') box.innerHTML = `<div class="tr-k">SENSITIVITY FINDER</div><h3>Find the sensitivity your hand is best at</h3>
+      <ul class="tr-steps"><li><b>Track</b> the orb as it strafes: keep the crosshair on it.</li><li><b>Flick</b> to each new orb and click it, as fast as you can land it. Some appear behind you: follow the arrow.</li><li>A warm-up, then six short rounds, each at a different sensitivity (four more if a curve looks promising). TEMPO doesn't say which: just aim as well as you can.</li></ul>
+      <p class="tr-base">Starting from <b>${esc(b.name)} ${sensFmt(b.sens)}</b>${b.cm ? ` (${b.cm.toFixed(1)} cm per 360°)` : ''}. Use the grip and the arm you play with. Esc pauses.</p>
+      <div class="tr-act"><button type="button" class="btn acc tr-go" data-tr="go">Start</button><button type="button" class="btn" data-tr="close">Not now</button></div>`;
+    if (kind === 'pause') box.innerHTML = `<div class="tr-k">PAUSED</div><h3>Take a breath</h3><p>The round you were in starts again when you continue.</p>
+      <div class="tr-act"><button type="button" class="btn acc" data-tr="resume">Continue</button><button type="button" class="btn" data-tr="close">Stop</button></div>`;
+    if (kind === 'gap') box.innerHTML = `<div class="tr-gap"><div class="tr-k">${esc(extra.k)}</div><div class="tr-gap-t">${esc(extra.t)}</div><div class="tr-gap-s">${esc(extra.s)}</div></div>`;
+  }
+  document.addEventListener('click', e => {
+    const d = e.target.closest('[data-tr]');
+    if (!d) return;
+    const w = d.dataset.tr;
+    if (w === 'close') trainerClose();
+    if (w === 'go' || w === 'resume') trLock(() => { if (w === 'go') trNext(); else trRestartPart(); });
+    if (w === 'again') { trainerClose(); trainerOpen(); }
+    if (w === 'use') trUse(d);
+  });
+  // raw mouse counts: pointer lock without Windows' pointer speed or acceleration (unadjusted movement)
+  function trLock(then) {
+    const c = trCanvas();
+    if (trSim) { TR.locked = true; trCard(null); then(); return; }
+    const done = () => { TR.locked = true; TR.paused = false; trCard(null); then(); };
+    let p;
+    try { p = c.requestPointerLock({ unadjustedMovement: true }); } catch { p = null; }
+    if (p && p.then) p.then(done, () => { TR.raw = false; const q = c.requestPointerLock(); if (q && q.then) q.then(done, () => toast('Windows didn\'t let TEMPO hold the mouse. Click the range and try again.')); else setTimeout(done, 50); });
+    else setTimeout(() => { if (document.pointerLockElement === c) done(); }, 80);
+  }
+  document.addEventListener('pointerlockchange', () => {
+    if (!TR.on || trSim) return;
+    if (document.pointerLockElement !== trCanvas() && TR.locked && TR.phase !== 'done') { TR.locked = false; TR.paused = true; trCard('pause'); }
+  });
+
+  // ---- input: every report moves the view (curve applied per report, as Raw Accel does)
+  function trMove(dx, dy, t) {
+    if (!TR.on || TR.paused || !TR.locked) return;
+    const dt = Math.max(0.5, Math.min(40, t - (TR.lastT || t - 1)));
+    TR.lastT = t;
+    const speed = Math.hypot(dx, dy) / dt; // counts per ms
+    const part = TR.part;
+    let m = part ? part.mult : 1;
+    if (part && part.curve) { const c = part.curve; m *= speed <= c.start ? 1 : speed >= c.top ? c.max : 1 + (c.max - 1) * (speed - c.start) / (c.top - c.start); }
+    const k = TR.degPerCount * m;
+    TR.yaw += dx * k;
+    TR.pitch = Math.max(-80, Math.min(80, TR.pitch - dy * k));
+    if (part && part.rec) {
+      if (part.type === 'track' && speed > 0.04) part.rec.speeds.push(speed);
+      if (part.type === 'flick' && part.target) part.target.peak = Math.max(part.target.peak || 0, speed);
+    }
+  }
+  const onRaw = e => { if (TR.on && TR.locked) { trMove(e.movementX, e.movementY, e.timeStamp); TR.events++; } };
+  if ('onpointerrawupdate' in window) document.addEventListener('pointerrawupdate', onRaw);
+  else document.addEventListener('mousemove', onRaw);
+  document.addEventListener('mousedown', e => { if (TR.on && TR.locked && !TR.paused && e.button === 0) trShoot(); });
+  // Esc: pause while playing (the lock lets go), close on the cards
+  document.addEventListener('keydown', e => {
+    if (!TR.on || e.key !== 'Escape') return;
+    if (document.pointerLockElement) document.exitPointerLock();
+    else if (TR.phase === 'intro' || TR.phase === 'done') trainerClose();
+  });
+
+  // ---- the plan, part by part
+  const trNow = () => trSim ? TR.simT : performance.now() / 1000;
+  function trNext() {
+    TR.i++;
+    if (TR.i >= TR.plan.length) { trFinish(); return; }
+    const p = TR.plan[TR.i], n = TR.plan.filter(x => x.kind !== 'warm').indexOf(p) + 1, total = TR.plan.filter(x => x.kind !== 'warm').length;
+    TR.cur = p;
+    p.rec = { err: [], on: 0, n: 0, speeds: [], flicks: [] };
+    const label = p.kind === 'warm' ? 'WARM-UP' : p.kind === 'trial' ? `ROUND ${n} OF ${total}` : `ROUND ${n} OF ${total}`;
+    const first = p.kind === 'trial' && TR.plan.indexOf(p) === TR.plan.findIndex(x => x.kind === 'trial');
+    trCard('gap', { k: label, t: p.kind === 'warm' ? 'Get the feel' : first ? 'One more test' : 'Track',
+      s: p.kind === 'warm' ? 'Not scored. Track the orb, then flick.' : first ? 'Your flicks wanted more speed than your tracking: four short rounds try a curve against none' : 'Keep the crosshair on the orb' });
+    TR.gapUntil = trNow() + (p.kind === 'warm' ? 1.8 : first ? 3.2 : 1.3);
+    TR.part = null;
+    TR.phase = 'gap';
+  }
+  function trStartTrack() {
+    const p = TR.cur;
+    trCard(null);
+    p.mirror = p.mirror || 1;
+    TR.part = { type: 'track', mult: p.mult, curve: p.curve || null, rec: p.rec, t0: trNow(), mirror: p.mirror };
+    const [ty, tp] = TR.path(0);
+    TR.yaw = ty * p.mirror; TR.pitch = tp; // the crosshair starts on the orb
+    TR.phase = 'track';
+  }
+  function trStartFlicks() {
+    const p = TR.cur, r = rng(p.seed || 3);
+    p.queue = p.kind === 'warm' ? shuffle(FLICKS, r).slice(0, 4) : shuffle(FLICKS, r);
+    TR.part = { type: 'flick', mult: p.mult, curve: p.curve || null, rec: p.rec, n: 0, r, target: null, next: trNow() + 0.35 };
+    TR.phase = 'flick';
+  }
+  function trSpawn() {
+    const part = TR.part, p = TR.cur, d = p.queue[part.n];
+    // a direction mostly sideways (as in games), never far up or down
+    const side = part.r() < 0.5 ? -1 : 1, up = (part.r() - 0.5) * 0.7;
+    const dy = side * d * Math.cos(up), dp = Math.max(-28 - TR.pitch, Math.min(28 - TR.pitch, d * Math.sin(up) * 0.6));
+    part.target = { yaw: TR.yaw + dy, pitch: TR.pitch + dp, t0: trNow(), misses: 0, peak: 0 };
+    part.target.d = angDist(TR.yaw, TR.pitch, part.target.yaw, part.target.pitch);
+  }
+  function trShoot() {
+    const part = TR.part;
+    if (!part || part.type !== 'flick' || !part.target) return;
+    const t = part.target;
+    if (angDist(TR.yaw, TR.pitch, t.yaw, t.pitch) <= R_FLICK) trHit(false);
+    else { t.misses++; TR.flash = { t: trNow(), miss: true }; }
+  }
+  function trHit(timeout) {
+    const part = TR.part, t = part.target, now = trNow();
+    const T = timeout ? 3.6 : now - t.t0 + 0.12 * t.misses;
+    const id = Math.log2(t.d / (2 * R_FLICK) + 1);
+    part.rec.flicks.push({ d: t.d, t: T, tp: id / T, misses: t.misses, peak: t.peak, timeout });
+    TR.burst = { yaw: t.yaw, pitch: t.pitch, t: now, ok: !timeout };
+    if (!timeout) trTick();
+    part.target = null;
+    part.n++;
+    part.next = now + 0.25;
+  }
+  // a soft click on each hit (quiet, synthesized; nothing to load)
+  function trTick() {
+    if (trSim || still()) return;
+    try {
+      const a = TR.audio || (TR.audio = new (window.AudioContext || window.webkitAudioContext)());
+      const o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
+      o.type = 'sine'; o.frequency.setValueAtTime(1320, t); o.frequency.exponentialRampToValueAtTime(880, t + 0.06);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+      o.connect(g).connect(a.destination); o.start(t); o.stop(t + 0.1);
+    } catch { }
+  }
+  function trRestartPart() {
+    // after a pause the round starts over (a pause mid-round would skew it)
+    const p = TR.cur;
+    if (!p) { trNext(); return; }
+    p.rec = { err: [], on: 0, n: 0, speeds: [], flicks: [] };
+    TR.i--;
+    trNext();
+  }
+
+  // ---- every frame: move the target, measure, draw
+  function trFrame() {
+    TR.raf = TR.on ? requestAnimationFrame(trFrame) : 0;
+    if (!TR.on) return;
+    if (trSim) { TR.simT += (1 / 60) * (+trSim || 1); trBot(); }
+    const now = trNow();
+    if (TR.phase === 'gap' && now >= TR.gapUntil && TR.locked && !TR.paused) trStartTrack();
+    const part = TR.part;
+    if (part && !TR.paused && TR.locked) {
+      if (part.type === 'track') {
+        const t = now - part.t0;
+        const [ty, tp] = TR.path(t);
+        part.ty = ty * part.mirror; part.tp = tp;
+        if (t > 0.7) { const err = angDist(TR.yaw, TR.pitch, part.ty, part.tp); part.rec.err.push(err); part.rec.n++; if (err <= R_TRACK) part.rec.on++; }
+        if (t >= (TR.cur.kind === 'warm' ? 6 : TRACK_S)) trStartFlicks();
+      } else if (part.type === 'flick') {
+        if (!part.target && now >= part.next) { if (part.n >= TR.cur.queue.length) { trNext(); } else trSpawn(); }
+        else if (part.target && now - part.target.t0 > 3) trHit(true);
+      }
+    }
+    trDraw(now);
+  }
+
+  // ---- the range itself: a floor grid to the horizon, pillars all round, the orbs, a crosshair
+  function trDraw(now) {
+    const c = trCanvas(), g = c.getContext('2d'), W = c.width, H = c.height, dpr = window.devicePixelRatio || 1;
+    const f = (W / 2) / Math.tan(rad(FOV / 2)), cx = W / 2, cy = H / 2;
+    const cyw = Math.cos(rad(TR.yaw)), syw = Math.sin(rad(TR.yaw)), cp = Math.cos(rad(TR.pitch)), sp = Math.sin(rad(TR.pitch));
+    // world → camera (yaw around up, then pitch), and onto the screen
+    const cam = (x, y, z) => { const x1 = x * cyw - z * syw, z1 = x * syw + z * cyw; return [x1, y * cp - z1 * sp, y * sp + z1 * cp]; };
+    const proj = ([x, y, z]) => [cx + x / z * f, cy - y / z * f];
+    const dir = (yaw, pitch) => [Math.sin(rad(yaw)) * Math.cos(rad(pitch)), Math.sin(rad(pitch)), Math.cos(rad(yaw)) * Math.cos(rad(pitch))];
+    const rgb = getComputedStyle(document.documentElement).getPropertyValue('--acc-rgb').trim() || '212,255,63';
+    // sky and horizon glow
+    const hy = cy - Math.tan(rad(-TR.pitch)) * f * 1;
+    const sky = g.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#050608'); sky.addColorStop(Math.max(0.01, Math.min(0.99, hy / H)), '#0E1116'); sky.addColorStop(1, '#07080A');
+    g.fillStyle = sky; g.fillRect(0, 0, W, H);
+    const glow = g.createRadialGradient(cx, hy, 0, cx, hy, W * 0.6);
+    glow.addColorStop(0, `rgba(${rgb}, .07)`); glow.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = glow; g.fillRect(0, 0, W, H);
+    // the floor grid (lines clipped at the camera's near plane)
+    g.lineWidth = 1 * dpr;
+    const seg = (a, b, style) => {
+      let A = cam(...a), B = cam(...b);
+      const near = 0.1;
+      if (A[2] < near && B[2] < near) return;
+      if (A[2] < near) { const k = (near - A[2]) / (B[2] - A[2]); A = [A[0] + (B[0] - A[0]) * k, A[1] + (B[1] - A[1]) * k, near]; }
+      if (B[2] < near) { const k = (near - B[2]) / (A[2] - B[2]); B = [B[0] + (A[0] - B[0]) * k, B[1] + (A[1] - B[1]) * k, near]; }
+      const [x1, y1] = proj(A), [x2, y2] = proj(B);
+      g.strokeStyle = style; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+    };
+    for (let k = -40; k <= 40; k += 4) { seg([k, -1.7, -40], [k, -1.7, 40], 'rgba(255,255,255,.045)'); seg([-40, -1.7, k], [40, -1.7, k], 'rgba(255,255,255,.045)'); }
+    // pillars all round, so a big turn has something to turn past
+    for (let a = 0; a < 360; a += 15) {
+      const x = Math.sin(rad(a)) * 34, z = Math.cos(rad(a)) * 34;
+      seg([x, -1.7, z], [x, a % 45 === 0 ? 9 : 5, z], a % 90 === 0 ? `rgba(${rgb}, .22)` : 'rgba(255,255,255,.08)');
+    }
+    const part = TR.part;
+    // the orb: a glowing sphere, brighter while the crosshair is on it
+    const orb = (yaw, pitch, r, on, pop) => {
+      const v = cam(...dir(yaw, pitch));
+      if (v[2] <= 0.05) return null;
+      const [x, y] = proj(v), rr = Math.tan(rad(r)) / v[2] * f * (pop || 1);
+      const halo = g.createRadialGradient(x, y, rr * 0.2, x, y, rr * 3.2);
+      halo.addColorStop(0, `rgba(${rgb}, ${on ? .38 : .2})`); halo.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = halo; g.beginPath(); g.arc(x, y, rr * 3.2, 0, Math.PI * 2); g.fill();
+      const body = g.createRadialGradient(x - rr * .35, y - rr * .35, rr * .1, x, y, rr);
+      body.addColorStop(0, on ? '#FFFFFF' : `rgba(${rgb}, 1)`); body.addColorStop(1, `rgba(${rgb}, ${on ? .95 : .7})`);
+      g.fillStyle = body; g.beginPath(); g.arc(x, y, rr, 0, Math.PI * 2); g.fill();
+      return [x, y];
+    };
+    let off = null;
+    if (part && part.type === 'track' && part.ty != null) {
+      const on = angDist(TR.yaw, TR.pitch, part.ty, part.tp) <= R_TRACK;
+      if (!orb(part.ty, part.tp, R_TRACK, on)) off = [part.ty, part.tp];
+    }
+    if (part && part.type === 'flick' && part.target) {
+      const t = part.target, age = now - t.t0, pop = age < 0.12 ? 0.6 + age / 0.12 * 0.4 : 1;
+      if (!orb(t.yaw, t.pitch, R_FLICK, false, pop)) off = [t.yaw, t.pitch];
+      else { const v = proj(cam(...dir(t.yaw, t.pitch))); if (v[0] < 0 || v[0] > W || v[1] < 0 || v[1] > H) off = [t.yaw, t.pitch]; }
+    }
+    // a hit: a ring that opens out
+    if (TR.burst && now - TR.burst.t < 0.35) {
+      const v = cam(...dir(TR.burst.yaw, TR.burst.pitch));
+      if (v[2] > 0.05) { const [x, y] = proj(v), k = (now - TR.burst.t) / 0.35, rr = Math.tan(rad(R_FLICK)) / v[2] * f * (1 + k * 2.2); g.strokeStyle = TR.burst.ok ? `rgba(${rgb}, ${1 - k})` : `rgba(255,107,87,${1 - k})`; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(x, y, rr, 0, Math.PI * 2); g.stroke(); }
+    }
+    // an orb off screen: an arrow at the edge pointing to it
+    if (off) {
+      let dyaw = ((off[0] - TR.yaw) % 360 + 540) % 360 - 180, dp = off[1] - TR.pitch;
+      const a = Math.atan2(-dp, dyaw), R = Math.min(W, H) * 0.36;
+      const x = cx + Math.cos(a) * R, y = cy + Math.sin(a) * R;
+      g.save(); g.translate(x, y); g.rotate(a);
+      g.fillStyle = `rgba(${rgb}, .9)`; g.beginPath(); g.moveTo(14 * dpr, 0); g.lineTo(-8 * dpr, -9 * dpr); g.lineTo(-3 * dpr, 0); g.lineTo(-8 * dpr, 9 * dpr); g.closePath(); g.fill();
+      g.restore();
+    }
+    // the crosshair
+    const miss = TR.flash && TR.flash.miss && now - TR.flash.t < 0.15;
+    g.strokeStyle = miss ? '#FF6B57' : 'rgba(255,255,255,.95)'; g.lineWidth = 2 * dpr;
+    const s = 7 * dpr, gap = 4 * dpr;
+    g.beginPath(); g.moveTo(cx - s - gap, cy); g.lineTo(cx - gap, cy); g.moveTo(cx + gap, cy); g.lineTo(cx + s + gap, cy); g.moveTo(cx, cy - s - gap); g.lineTo(cx, cy - gap); g.moveTo(cx, cy + gap); g.lineTo(cx, cy + s + gap); g.stroke();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(cx, cy, 1.4 * dpr, 0, Math.PI * 2); g.fill();
+    trHud(now);
+  }
+  function trHud(now) {
+    const h = $('tr-hud'), part = TR.part, p = TR.cur;
+    if (!part || !p || TR.phase === 'done') { h.innerHTML = ''; return; }
+    const total = TR.plan.filter(x => x.kind !== 'warm').length, n = TR.plan.filter(x => x.kind !== 'warm').indexOf(p) + 1;
+    const label = p.kind === 'warm' ? 'WARM-UP' : `ROUND ${n} OF ${total}`;
+    let what = '', prog = 0;
+    if (part.type === 'track') { const len = p.kind === 'warm' ? 6 : TRACK_S; prog = Math.min(1, (now - part.t0) / len); what = `TRACK · ${part.rec.n ? Math.round(part.rec.on / part.rec.n * 100) : 0}% ON`; }
+    else { prog = part.n / p.queue.length; what = `FLICK · ${part.n} / ${p.queue.length}`; }
+    h.innerHTML = `<div class="tr-h"><span>${label}</span><b>${what}</b></div><i class="tr-bar"><i style="width:${(prog * 100).toFixed(1)}%"></i></i><div class="tr-dots">${TR.plan.filter(x => x.kind !== 'warm').map((x, k) => `<i class="${k + 1 < n ? 'done' : k + 1 === n ? 'now' : ''}"></i>`).join('')}</div>`;
+  }
+
+  // ---- the answer
+  // Each round gives two scores on a log scale: tracking = -ln(average error), flicks = ln(median Fitts throughput).
+  // Against x = ln(multiplier) they're fitted with y = a x² + b x + c + d·(round order), a ridge regression with gentle
+  // priors: a typical curvature, no lean either way, and little learning per round. With few, noisy rounds the answer
+  // stays near the current sensitivity unless the rounds clearly say otherwise; the order term takes out warming up.
+  const LO = Math.log(0.7), HI = Math.log(1.45), TESTED = [Math.log(0.75), Math.log(1.33)];
+  const trMedian = a => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : 0; };
+  const trPct = (a, q) => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(s.length * q))] : 0; };
+  function solve(A, v) {
+    const n = v.length, M = A.map((r, i) => r.concat([v[i]]));
+    for (let i = 0; i < n; i++) {
+      let p = i; for (let k = i + 1; k < n; k++) if (Math.abs(M[k][i]) > Math.abs(M[p][i])) p = k;
+      [M[i], M[p]] = [M[p], M[i]];
+      for (let k = i + 1; k < n; k++) { const q = M[k][i] / (M[i][i] || 1e-12); for (let j = i; j <= n; j++) M[k][j] -= q * M[i][j]; }
+    }
+    const r = new Array(n).fill(0);
+    for (let i = n - 1; i >= 0; i--) { let s = M[i][n]; for (let j = i + 1; j < n; j++) s -= M[i][j] * r[j]; r[i] = s / (M[i][i] || 1e-12); }
+    return r;
+  }
+  // rows: [x², x, 1, order]; noise: the scatter of one round's score (log units)
+  function fitRidge(xs, os, ys, noise) {
+    const prior = [-2.2, 0, 0, 0], sd = [2.0, 1.5, Infinity, 0.04];
+    const A = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], v = [0, 0, 0, 0];
+    xs.forEach((x, i) => { const r = [x * x, x, 1, os[i]]; for (let p = 0; p < 4; p++) { v[p] += r[p] * ys[i]; for (let q = 0; q < 4; q++) A[p][q] += r[p] * r[q]; } });
+    for (let p = 0; p < 4; p++) if (isFinite(sd[p])) { const w = (noise * noise) / (sd[p] * sd[p]); A[p][p] += w; v[p] += w * prior[p]; }
+    const [a, b, c, d] = solve(A, v);
+    return { a, b, c, d, f: x => a * x * x + b * x + c };
+  }
+  const peakX = fit => fit.a < -1e-6 ? Math.max(LO, Math.min(HI, -fit.b / (2 * fit.a))) : (fit.b > 0 ? HI : LO);
+  const beyond = x => x < TESTED[0] - 0.03 || x > TESTED[1] + 0.03;
+  function scoreOf(rec) {
+    const errs = (rec && rec.err) || [], tps = ((rec && rec.flicks) || []).map(f => f.tp);
+    // losing the orb entirely counts, but not without limit (one bad reversal shouldn't decide a round)
+    const err = errs.length ? errs.reduce((x, y) => x + Math.min(6, y), 0) / errs.length : 6;
+    return { err: Math.max(0.05, err), on: rec && rec.n ? rec.on / rec.n : 0, tp: Math.max(0.05, tps.length ? trMedian(tps) : 0.05) };
+  }
+  const yT = s => -Math.log(s.err), yF = s => Math.log(s.tp);
+  function trFinish() {
+    if (!TR.analysis) {
+      const sets = TR.plan.filter(p => p.kind === 'set' && p.rec);
+      const xs = sets.map(p => Math.log(p.mult)), order = sets.map((p, i) => i - (sets.length - 1) / 2);
+      const sc = sets.map(p => scoreOf(p.rec)), ty = sc.map(yT), fy = sc.map(yF);
+      // the round repeated at today's sensitivity says how much a round wobbles on its own
+      const ones = sets.map((p, i) => p.mult === 1 ? i : -1).filter(i => i >= 0);
+      const wob = (ys, dflt) => ones.length >= 2 ? Math.sqrt((dflt * dflt + Math.pow((ys[ones[0]] - ys[ones[1]]) / Math.SQRT2, 2)) / 2) : dflt;
+      const nT = Math.max(0.05, Math.min(0.3, wob(ty, 0.12))), nF = Math.max(0.05, Math.min(0.3, wob(fy, 0.12)));
+      const ft = fitRidge(xs, order, ty, nT), ff = fitRidge(xs, order, fy, nF);
+      const pt = peakX(ft), pf = peakX(ff);
+      // one sensitivity for both skills: the peak of the two fits added together
+      const a = ft.a + ff.a, b = ft.b + ff.b, best = a < -1e-6 ? Math.max(LO, Math.min(HI, -b / (2 * a))) : 0;
+      const speedsT = sets.flatMap(p => p.rec.speeds), peaks = sets.flatMap(p => p.rec.flicks.filter(f => f.peak > 0 && f.d >= 30).map(f => f.peak));
+      TR.analysis = { xs, order, ty, fy, ft, ff, pt, pf, best, nT, nF, speedsT, peaks, mults: sets.map(p => p.mult) };
+      const ratio = Math.exp(pf - pt);
+      const ra = AIM.st && AIM.st.rawAccel;
+      // flicks want clearly more than tracking: a curve (tracking's sensitivity, rising for fast moves) is tried
+      // against flat, two rounds each in a mirrored order (A B B A) so warming up doesn't favour either
+      if (ratio >= 1.15 && !beyond(pt) && peaks.length >= 6 && !(ra && ra.mode && ra.mode !== 'noaccel' && !ra.ours)) {
+        const tb = Math.exp(pt), start = Math.max(0.4, trPct(speedsT, 0.85)), top = Math.max(start * 1.6, trMedian(peaks) * 0.7);
+        const curve = { start: +start.toFixed(2), top: +top.toFixed(2), max: +Math.min(2.2, ratio).toFixed(2) };
+        TR.analysis.curve = curve;
+        const seq = rng(Date.now() & 0xff)() < 0.5 ? [0, 1, 1, 0] : [1, 0, 0, 1];
+        seq.forEach((k, j) => TR.plan.push({ kind: 'trial', mult: tb, curve: k ? curve : null, flat: !k, mirror: j % 2 ? -1 : 1, seed: 300 + j }));
+        trNext();
+        return;
+      }
+    }
+    TR.phase = 'done';
+    TR.part = null;
+    if (document.pointerLockElement) document.exitPointerLock();
+    const r = trResultOf();
+    TR.result = r;
+    trainerResult(r, true);
+  }
+  // what to tell the player, and what's kept
+  function trResultOf() {
+    const A = TR.analysis, b = TR.base, bm = Math.exp(A.best), tb = Math.exp(A.pt), fb = Math.exp(A.pf);
+    const gain = Math.exp((A.ft.f(A.best) - A.ft.f(0)) + (A.ff.f(A.best) - A.ff.f(0))) - 1;
+    const trials = TR.plan.filter(p => p.kind === 'trial' && p.rec);
+    let curveRes = null;
+    if (trials.length >= 2 && trials.some(p => p.flat) && trials.some(p => !p.flat)) {
+      const mean = (list, f) => list.reduce((s, p) => s + f(scoreOf(p.rec)), 0) / list.length;
+      const flat = trials.filter(p => p.flat), cur = trials.filter(p => !p.flat);
+      curveRes = { track: Math.exp(mean(cur, yT) - mean(flat, yT)) - 1, flick: Math.exp(mean(cur, yF) - mean(flat, yF)) - 1 };
+    }
+    const useCurve = !!(curveRes && curveRes.flick >= 0.05 && curveRes.track >= -0.05);
+    const close = !useCurve && (Math.abs(A.best) < Math.log(1.06) || gain < 0.04);
+    const edge = !useCurve && !close && beyond(A.best);
+    const sTrack = sensFmt(b.sens * tb), sBest = sensFmt(b.sens * bm), cmBest = b.cm ? (b.cm / bm).toFixed(1) : '';
+    let say;
+    if (useCurve) say = `Slow for tracking, quick for big turns: set ${b.name} to ${sTrack} for tracking, and let a curve speed up fast moves to ×${A.curve.max.toFixed(2)}. In the test, the curve made your flicks ${pctTxt(curveRes.flick)} and kept your tracking (${pctTxt(curveRes.track)}).`;
+    else if (close) say = `Your ${b.name} sensitivity already suits your hand: nothing around it did clearly better. Keep ${sensFmt(b.sens)}${curveRes ? '; the curve didn\'t beat it either' : ''}.`;
+    else say = `Try ${sBest} in ${b.name}${cmBest ? ` (${cmBest} cm per 360°)` : ''}, ${bm < 1 ? 'a little slower' : 'a little faster'} than now. You tracked best around ${sTrack} and flicked best around ${sensFmt(b.sens * fb)}; ${sBest} suits both, about ${Math.max(1, Math.round(gain * 100))}% better overall in the test.${curveRes ? ' A curve didn\'t clearly help.' : ''}`;
+    if (edge) say += ' Your best was at the edge of what was tested: run it again from the new sensitivity to look a little further.';
+    // the points as they'd be without warming up (for the chart)
+    const det = (ys, fit) => ys.map((y, i) => y - fit.d * A.order[i]);
+    const pts = {}; A.mults.forEach((m, i) => { (pts[m] = pts[m] || { m, t: [], f: [] }); pts[m].t.push(det(A.ty, A.ft)[i]); pts[m].f.push(det(A.fy, A.ff)[i]); });
+    return {
+      when: new Date().toISOString(), baseGame: b.gameId, baseName: b.name, baseSens: b.sens, baseYaw: b.yaw, raw: TR.raw,
+      best: +bm.toFixed(3), trackBest: +tb.toFixed(3), flickBest: +fb.toFixed(3), gain: +gain.toFixed(3), close, edge,
+      say,
+      points: Object.values(pts).sort((p, q) => p.m - q.m).map(p => ({ m: p.m, track: +(p.t.reduce((s, v) => s + v, 0) / p.t.length).toFixed(4), flick: +(p.f.reduce((s, v) => s + v, 0) / p.f.length).toFixed(4) })),
+      fit: { t: [A.ft.a, A.ft.b, A.ft.c], f: [A.ff.a, A.ff.b, A.ff.c] },
+      curve: useCurve ? A.curve : null, curveTest: curveRes, noise: { t: +A.nT.toFixed(3), f: +A.nF.toFixed(3) },
+      speeds: { track: thin(A.speedsT, 240), flick: thin(A.peaks, 120) },
+    };
+  }
+  const pctTxt = v => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%`;
+  const thin = (a, n) => { if (a.length <= n) return a.map(v => +v.toFixed(2)); const out = []; for (let i = 0; i < n; i++) out.push(+a[Math.floor(i * a.length / n)].toFixed(2)); return out; };
+
+  // the result: a chart of both skills against the sensitivity, the advice, and what to set
+  function trainerResult(r, fresh) {
+    if (!TR.on) { Object.assign(TR, { on: true, phase: 'done', part: null, plan: [], base: aimBase() || { name: r.baseName, sens: r.baseSens } }); $('trainer').hidden = false; body.classList.add('tr-on'); trResize(); if (!TR.raf) TR.raf = requestAnimationFrame(trFrame); }
+    const box = $('tr-card');
+    box.hidden = false;
+    box.className = 'tr-card k-result';
+    const W = 460, H = 190, L = 34, R = 14, T = 16, B = 30;
+    const ms = r.points.map(p => p.m), lo = Math.log(Math.min(0.7, ...ms)), hi = Math.log(Math.max(1.45, ...ms));
+    const X = x => L + (x - lo) / (hi - lo) * (W - L - R);
+    const norm = (key, fitk) => { const f = r.fit[fitk], at = x => f[0] * x * x + f[1] * x + f[2]; const base = at(0); return { at: x => Math.exp(at(x) - base), pts: r.points.map(p => [Math.log(p.m), Math.exp(p[key] - base)]) }; };
+    const tN = norm('track', 't'), fN = norm('flick', 'f');
+    const all = tN.pts.concat(fN.pts).map(p => p[1]).concat([tN.at(Math.log(r.trackBest)), fN.at(Math.log(r.flickBest)), 1]);
+    const yLo = Math.min(0.7, ...all) - 0.03, yHi = Math.max(1.3, ...all) + 0.03;
+    const Y = v => T + (1 - (v - yLo) / (yHi - yLo)) * (H - T - B);
+    const line = n => { let d = ''; for (let x = lo; x <= hi + 1e-9; x += (hi - lo) / 60) d += `${d ? 'L' : 'M'}${X(x).toFixed(1)} ${Y(n.at(x)).toFixed(1)}`; return d; };
+    let svg = `<line x1="${L}" x2="${W - R}" y1="${Y(1)}" y2="${Y(1)}" class="fg-grid"/><text x="${L - 6}" y="${Y(1) + 3.5}" class="fg-ax" text-anchor="end">now</text>`;
+    for (const m of [0.75, 1, 1.33]) svg += `<text x="${X(Math.log(m))}" y="${H - 10}" class="fg-ax" text-anchor="middle">${sensFmt(r.baseSens * m)}</text>`;
+    svg += `<line x1="${X(0)}" x2="${X(0)}" y1="${T}" y2="${H - B}" class="tr-now"/>`;
+    svg += `<path d="${line(tN)}" class="tr-lt"/><path d="${line(fN)}" class="tr-lf"/>`;
+    svg += tN.pts.map(([x, y]) => `<circle cx="${X(x)}" cy="${Y(y)}" r="3.2" class="tr-pt"/>`).join('') + fN.pts.map(([x, y]) => `<circle cx="${X(x)}" cy="${Y(y)}" r="3.2" class="tr-pf"/>`).join('');
+    // the sensitivity to set: the best of both, or with a curve, the one for tracking (the curve does the rest)
+    const mark = r.curve ? r.trackBest : r.best, bx = X(Math.log(mark));
+    svg += `<line x1="${bx}" x2="${bx}" y1="${T}" y2="${H - B}" class="tr-best"/><text x="${bx}" y="${T + 2}" class="tr-bt" text-anchor="middle">${r.curve ? 'SET' : 'BEST'} ${sensFmt(r.baseSens * mark)}</text>`;
+    const b = aimBase(), sameBase = b && b.gameId === r.baseGame;
+    const setTo = r.curve ? r.trackBest : r.best;
+    box.innerHTML = `<div class="tr-k">YOUR SENSITIVITY${fresh ? '' : ` · ${when(r.when).toUpperCase()}`}</div>
+      <h3>${r.close && !r.curve ? `${esc(r.baseName)} ${sensFmt(r.baseSens)} suits you` : `${esc(r.baseName)} ${sensFmt(r.baseSens * setTo)}${r.curve ? ' + a curve' : ''}`}</h3>
+      <p class="tr-say">${esc(r.say)}</p>
+      <div class="tr-chart"><svg viewBox="0 0 ${W} ${H}" width="100%">${svg}</svg>
+        <div class="tr-leg"><span><i class="t"></i>tracking (steadier is higher)</span><span><i class="f"></i>flicks (faster landing is higher)</span></div></div>
+      <div class="tr-nums"><div><small>TRACKING BEST</small><b>${sensFmt(r.baseSens * r.trackBest)}</b></div><div><small>FLICKS BEST</small><b>${sensFmt(r.baseSens * r.flickBest)}</b></div>${r.curveTest ? `<div><small>WITH THE CURVE</small><b class="${r.curveTest.flick >= 0 ? 'up' : ''}">${pctTxt(r.curveTest.flick)}</b><em>flicks · ${pctTxt(r.curveTest.track)} tracking</em></div>` : ''}</div>
+      ${r.raw === false ? '<p class="note">Windows\' own pointer speed may have shaped this test (the raw mouse wasn\'t available).</p>' : ''}
+      <div class="tr-act">${fresh ? `<button type="button" class="btn acc" data-tr="use">${r.close && !r.curve ? 'Keep it' : `Use ${sensFmt(r.baseSens * setTo)}`}</button>` : ''}<button type="button" class="btn" data-tr="again">Run again</button><button type="button" class="btn" data-tr="close">${fresh ? 'Not now' : 'Close'}</button></div>`;
+    if (fresh) TR.result = r;
+    if (!sameBase && !fresh) box.querySelector('.tr-say').insertAdjacentHTML('afterend', `<p class="note">This was measured from ${esc(r.baseName)} ${sensFmt(r.baseSens)}.</p>`);
+  }
+  // keeping it: saved for the page (and the curve), and the number to type in the game
+  function trUse(btn) {
+    const r = TR.result;
+    if (!r) return;
+    send({ t: 'aimFind', result: r });
+    const finds = (aimOpts().finds || []).slice();
+    finds.unshift(r);
+    putSet('aim.finds', finds.slice(0, 12));
+    const v = sensFmt(r.baseSens * (r.curve ? r.trackBest : r.best));
+    if (!r.close || r.curve) { try { navigator.clipboard.writeText(v).catch(() => { }); } catch { } }
+    btn.closest('.tr-act').innerHTML = r.close && !r.curve
+      ? `<p class="tr-done"><b>Kept.</b> Your aim page shows it now.</p><button type="button" class="btn acc" data-tr="close">Done</button>`
+      : `<p class="tr-done"><b>${v} is copied.</b> In ${esc(r.baseName)}: Settings, Mouse, Sensitivity, paste it.${r.curve ? ' Then set the curve on the Aim page.' : ''} Give it a few matches: a new sensitivity feels odd for a day.</p><button type="button" class="btn acc" data-tr="close">Done</button>`;
+    if (r.curve) AIM.draft = null;
+  }
+
+  // ---- design checks only: a made-up player with a sweet spot, so the whole flow can be checked headless
+  function trBot() {
+    const part = TR.part;
+    if (!part || !TR.locked || TR.paused) return;
+    const flick = part.type === 'flick';
+    if (flick ? !part.target : part.ty == null) return;
+    const ty = flick ? part.target.yaw : part.ty, tp = flick ? part.target.pitch : part.tp;
+    const m = part.mult * (part.curve && flick ? part.curve.max : 1), dpc = TR.degPerCount * m, dt = 1 / 60 * (+trSim || 1);
+    const dy = ((ty - TR.yaw) % 360 + 540) % 360 - 180, dp = tp - TR.pitch, dist = Math.hypot(dy, dp);
+    // a hand: so many counts a second at most (slow sensitivity lags behind fast strafes), and a shake that grows with sensitivity
+    const L = flick ? 14000 : 3000, maxStep = L * dpc * dt;
+    const k = Math.min(1, maxStep / Math.max(1e-6, dist)) * (flick ? 0.9 : 0.92), wob = flick ? 0.5 * m * m * m : 0.7 * m * m;
+    const n = () => (Math.random() - 0.5) * wob;
+    const sy = dy * k + n(), sp = dp * k + n();
+    TR.yaw += sy; TR.pitch += sp;
+    const speed = Math.hypot(sy, sp) / dpc / (dt * 1000);
+    if (!flick && part.rec && speed > 0.04) part.rec.speeds.push(speed);
+    if (flick) { part.target.peak = Math.max(part.target.peak || 0, speed); if (dist < R_FLICK * 0.7 && Math.random() < 0.6) trShoot(); }
+  }
+
+
   // ------------------------------------------------------------------ the phone view
   function renderPhone() {
     const p = S.phone || { on: !!S.settings.phone, urls: [] };
@@ -2023,11 +2805,12 @@
       }
       case 'sessions': S.sessions = m.sessions; S.sessSel = null; renderSessions(); renderPlay(); break;
       case 'games': S.games = m.games; if (m.select) S.settings.selectedGame = m.select; renderPlay(); break;
-      case 'settings': S.settings = m.settings; applyTheme(); syncControls(); renderPlay(); if (S.page === 'overlay') renderOverlaySample(); break;
+      case 'settings': S.settings = m.settings; applyTheme(); syncControls(); renderPlay(); if (S.page === 'overlay') renderOverlaySample(); renderAimPage(); break;
       case 'toast': toast(m.text); break;
       case 'checkup': S.checkup = (m.findings || []).map(f => ({ level: f.level, title: esc(f.title), text: esc(f.text) })); S.boostStatus = m.boostStatus || S.boostStatus; renderCheckup(); break;
       case 'update': { const u = $('update'); u.hidden = false; u.dataset.url = m.url; u.textContent = `Update ${m.version}`; break; }
-      case 'tune': S.tune = m; renderTune(); break;
+      case 'tune': S.tune = m; renderTune(); renderSA(); break;
+      case 'aimState': AIM.st = m; renderAimPage(); break;
       case 'whatsnew': whatsNew(m.version); break;
       case 'phone': S.phone = m; renderPhone(); break;
       case 'apps': S.appsData = m; S.apps = m.apps; S.boostStatus = m.boostStatus || S.boostStatus; renderBoost(); break;
@@ -2046,7 +2829,7 @@
       case 'fans': S.fans = m; applyFanTab(); renderFans(); break;
       case 'shortcuts': S.shortcuts = m.shortcuts; syncShortcuts(); break;
       case 'listening': listenCountdown(m.seconds || 8); break;
-      case 'aim': if (m.cancelled) aimResult(null); else { S.settings.lastAim = m.result; aimResult(m.result); } break;
+      case 'aim': if (m.cancelled) aimResult(null); else { S.settings.lastAim = m.result; aimResult(m.result); renderSA(); } break;
     }
   }
   window.__deliver = onMsg;
