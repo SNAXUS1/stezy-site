@@ -192,6 +192,7 @@
     sens: site ? [] : [{ gameId: 'steam:1422450', name: 'Deadlock', sens: 1.15, yaw: 0.022, place: 'Steam\\userdata\\…\\user_convars_0_slot0.vcfg' }],
     engines: [['deadlock', 'Deadlock', 0.022], ['cs2', 'Counter-Strike 2', 0.022], ['apex', 'Apex Legends', 0.022], ['valorant', 'Valorant', 0.07], ['overwatch', 'Overwatch 2', 0.0066], ['tf2', 'Team Fortress 2', 0.022]].map(([id, name, yaw]) => ({ id, name, yaw })),
     rawAccel: raState(), vendor: 4318,
+    refresh: site ? [{ gameId: 'steam:1422450', name: 'Deadlock', hz: 144, fullscreen: true, desktopHz: 144 }] : [{ gameId: 'steam:1422450', name: 'Deadlock', hz: 50, fullscreen: true, desktopHz: 144 }],
     screen: { name: 'EI242QR', hz: 144, link: site ? 'displayport' : 'hdmi', vrr: true, vrrKind: 'freesync', vrrMin: 48, vrrMax: 144 },
     sync: site ? { kind: 'turnon', level: 'info', title: 'Your screen has FreeSync (48–144 Hz)', text: 'With it on, the screen waits for each frame instead of showing frames for uneven times, so aim stays smooth when your fps moves around. TEMPO can\'t see whether it\'s switched on: NVIDIA Control Panel, Display, Set up G-SYNC.' }
       : { kind: 'cable', level: 'tip', title: 'EI242QR has FreeSync (48–144 Hz), but not over HDMI with NVIDIA', text: 'NVIDIA cards can only follow the game\'s frames on this screen through DisplayPort. If the screen has a DisplayPort input, a DisplayPort cable lets you switch on G-SYNC Compatible (NVIDIA Control Panel, Display, Set up G-SYNC): no more tearing or judder when your fps moves around. A steady fps limit at 72 (half of 144 Hz) shows every frame for the same time instead.' } });
@@ -201,6 +202,53 @@
     : Object.assign({ able: true, kind: 'ok' }, { t: 'fans', ready: true, count: 1, min: 20, max: 100, speed: state === 'live' && settings.cooling.on ? 64 : 30, policy: state === 'live' && settings.cooling.on ? 1 : 0, target: 30, temp: state === 'live' ? 72 : 46,
       tool: q.get('fantool') ? 'MSI Afterburner' : null, hardMax: 90, warnAbove: 80, minMax: 40, hot: 87,
       presets: { quiet: [[50, 30], [65, 45], [75, 58], [83, 70]], balanced: [[45, 35], [60, 50], [70, 62], [78, 72]], cool: [[40, 40], [55, 55], [65, 68], [72, 80]] } });
+  // ---------- Calibrate: ?lab=setup|nofit|fetch|running|done|stopped (made-up numbers in the shape TEMPO sends)
+  const labMode = q.get('lab') || 'done';
+  const labTests = [
+    { id: 'vulkan', label: 'Vulkan instead of DirectX 11', kind: 'args', warmup: true, config: {}, was: {}, why: 'Deadlock can also draw with Vulkan, which spreads the processor\'s drawing work differently. On some PCs it\'s clearly faster, on others slower. The first start builds its shaders, so that run doesn\'t count.' },
+    { id: 'gpu', label: '3 graphics settings lower', kind: 'config', config: { 'setting.r_citadel_ssao_quality': '0', 'setting.shaderquality': '0', 'setting.r_particle_depth_feathering': 'false' }, was: { 'setting.r_citadel_ssao_quality': '2', 'setting.shaderquality': '1', 'setting.r_particle_depth_feathering': 'true' }, why: 'Ambient occlusion, Shader detail, Soft particles are above the lowest. They cost the graphics card; if it\'s what holds your PC back in fights, lowering them helps.' },
+    { id: 'cpu', label: 'Processor detail lower', kind: 'config', config: { 'setting.cpu_level': '0' }, was: { 'setting.cpu_level': '1' }, why: 'Deadlock\'s processor detail level decides how much it works out for effects and physics. On a PC the processor holds back, lower can mean more fps in fights.' },
+    { id: 'noopts', label: 'Without your launch options', kind: 'noopts', config: {}, was: {}, why: 'Your Steam launch options (-dev -preload -noassert -console …) come from old guides. Does the game run better without them?' },
+    { id: 'nvpower', label: 'NVIDIA: prefer maximum performance', kind: 'config', config: { 'nv.pstate': '1' }, was: { 'nv.pstate': '5' }, why: 'Keeps the graphics card\'s clocks up for Deadlock instead of letting the driver lower them between frames. Only for this game.' },
+    { id: 'boost', label: 'TEMPO\'s boost', kind: 'boost', config: {}, was: {}, why: 'The boost as you\'ve set it on the Boost page: background apps step back, the game goes first, Game Mode and the rest. Does it help on your PC?' },
+  ];
+  const labResults = {
+    vulkan: ['better', 9.6, 7.8, 3.1, 'launch', 'Add -vulkan to Deadlock\'s launch options in Steam.', '+9.6% fps on average, the slowest frames faster by 8%. Measured 2 times; well beyond the wobble between runs (±3.1%).'],
+    gpu: ['better', 4.4, 6.1, 3.1, 'config', '', '+4.4% fps on average, the slowest frames faster by 6%. Measured 2 times; well beyond the wobble between runs (±3.1%).'],
+    cpu: ['same', 0.6, -0.4, 3.1, 'config', '', 'No difference worth having (+0.6%, within the ±3.1% your PC wobbles between runs).'],
+    noopts: ['same', 1.1, 0.8, 3.1, 'launch', 'Clear Deadlock\'s launch options in Steam (right-click Deadlock, Properties, Launch options).', 'No difference worth having (+1.1%, within the ±3.1% your PC wobbles between runs).'],
+    nvpower: ['unclear', 2.4, 1.0, 3.1, 'config', '', '+2.4% so far, but your PC wobbles ±3.1% between runs, so it\'s too close to call.'],
+    boost: ['worse', -3.9, -2.2, 3.1, 'boost', '', '−3.9% fps on average: it costs you. Measured 2 times.'],
+  };
+  const labRun = (i, test, fps, warm) => ({ index: i, test, warmup: !!warm, ok: true, fps, p95: +(1000 / fps * 1.32).toFixed(1), p50: +(1000 / fps * .97).toFixed(1), secs: 104, away: 0, error: null, render: test === 'vulkan' ? 'Vulkan' : 'DirectX 11' });
+  const labSeq = [['base', 55.1, 1], ['base', 57.0], ['vulkan', 52.3, 1], ['vulkan', 62.4], ['gpu', 59.4], ['base', 56.8], ['cpu', 57.3], ['noopts', 57.6], ['base', 56.1], ['nvpower', 58.0], ['boost', 54.6], ['base', 57.3], ['boost', 55.0], ['nvpower', 58.6], ['base', 56.5], ['noopts', 57.1], ['cpu', 56.9], ['base', 57.2], ['gpu', 59.8], ['vulkan', 62.0], ['base', 56.9]];
+  const labSession = (done, status) => ({
+    id: '20261015-214512', gameId: 'steam:1422450', demo: '117460073', demoMinutes: 36.5, plan: 'thorough', started: new Date(Date.now() - 40 * 60e3).toISOString(), finished: status === 'running' ? null : new Date().toISOString(),
+    status, note: status === 'stopped' ? 'You stopped it.' : null, baseFps: 56.8, baseP50: 17.1, baseP95: 23.4, noise: 1.9, render: 'DirectX 11', gameHz: 50, desktopHz: 144, disturbed: 0,
+    parts: { FrameTotal: 18.35, 'Client Rendering': 10.95, 'Frame Boundary': 6.22, 'Client Simulation': 3.56, PanoramaUI: 1.96, Networking: 1.94, 'Client Physics': 1.14, Client_Animation: 0.39 },
+    done, total: labSeq.length, queue: labSeq.slice(done).map(([t, , w]) => (w ? 'warm:' : '') + t),
+    runs: labSeq.slice(0, done).map(([t, f, w], i) => labRun(i, t, f, w)),
+    tests: labTests.map(t => {
+      const r = labResults[t.id], measured = status !== 'running' || done > 12;
+      return Object.assign({}, t, measured ? { verdict: r[0], gain: r[1], worstGain: r[2], margin: r[3], runs: 2, summary: r[6], keep: r[4], keepText: r[5], kept: false, error: null }
+        : { verdict: done > 4 && t.id === 'vulkan' ? 'unclear' : '', gain: done > 4 && t.id === 'vulkan' ? 9.4 : 0, worstGain: 0, margin: 0, runs: 0, summary: '', keep: r[4], keepText: r[5], kept: false, error: null });
+    }),
+  });
+  const labPayload = () => {
+    const fits = labMode !== 'nofit';
+    const running = labMode === 'running';
+    const session = labMode === 'done' ? labSession(labSeq.length, 'done') : labMode === 'stopped' ? labSession(9, 'stopped') : running ? labSession(7, 'running') : null;
+    return {
+      t: 'lab', game: 'steam:1422450', gameName: 'Deadlock', supported: true, why: '', steam: true, gameOpen: false, tempoOn: false, running, stopping: false,
+      step: running ? 'Processor detail lower · Playing the fight' : '', client: 6785,
+      replays: [fits && { name: '117460073', minutes: 36.5, saved: new Date(Date.now() - 50 * 60e3).toISOString(), fits: true, version: 6785, mb: 368, owned: true },
+        { name: '91521097', minutes: 48, saved: '2025-07-02T11:34:00', fits: false, version: 6201, mb: 620, owned: false }].filter(Boolean),
+      tests: labTests, runs: { quick: 11, thorough: 19, quickMin: 20, thoroughMin: 34 },
+      session, history: session ? [{ id: session.id, started: session.started, status: session.status, baseFps: 56.8, plan: 'thorough', runs: session.done, best: { label: 'Vulkan instead of DirectX 11', gain: 9.6 } },
+        { id: '20261012-201000', started: '2026-10-12T20:10:00', status: 'done', baseFps: 54.9, plan: 'quick', runs: 11, best: null }] : [],
+      fetch: labMode === 'fetch' ? { stage: 'Downloading the replay', pct: 0.42 } : null,
+    };
+  };
   window.__mockSend = m => {
     if (m.t === 'ready') {
       deliver({ t: 'init', version: window.TEMPO_DEMO ? window.TEMPO_DEMO.version : '1.0.0', settings, games, sessions, boostStatus,
@@ -227,6 +275,8 @@
     if (m.t === 'aimState') setTimeout(() => deliver(aimState()), 150);
     if (m.t === 'aimSet') { if (m.dpi != null) settings.aim.dpi = m.dpi; if (m.base != null) settings.aim.base = m.base; if (m.engine) settings.aim.manualEngine = m.engine; if (m.sens != null) settings.aim.manualSens = m.sens; deliver({ t: 'settings', settings }); }
     if (m.t === 'aimFind') { settings.aim.finds.unshift(m.result); deliver({ t: 'settings', settings }); }
+    if (m.t === 'aimCheck') { settings.aim.checks = [m.result].concat(settings.aim.checks || []); deliver({ t: 'settings', settings }); }
+    if (m.t === 'aimHz') deliver({ t: 'toast', text: site ? 'In the real TEMPO this sets Deadlock to your screen\'s full refresh rate.' : 'Mock: aimHz ' + m.game });
     if (m.t === 'rawAccel') deliver({ t: 'toast', text: site ? 'In the real TEMPO this sets the curve in Raw Accel (if it\'s installed).' : 'Mock: Raw Accel ' + m.do });
     if (m.t === 'shortcut') { if (site) deliver({ t: 'toast', text: 'In the real TEMPO this puts a shortcut on your desktop or in Start.' }); }
     if (m.t === 'fanListen') deliver(site ? { t: 'toast', text: 'In the real TEMPO the fans run at this speed for a few seconds, so you can hear it.' } : { t: 'listening', percent: m.percent, seconds: 8 });
@@ -256,6 +306,8 @@
     if (m.t === 'set' && m.key === 'boost.group') { groups.find(g => g.id === m.value.id).on = m.value.on; deliver(appsPayload()); }
     if (m.t === 'set' && m.key === 'boost.app') { if (m.value.choice === 'default') delete choices[m.value.name]; else choices[m.value.name] = m.value.choice; deliver(appsPayload()); }
     if (m.t === 'tune') setTimeout(() => deliver(tunePayload()), 250);
+    if (m.t === 'lab') setTimeout(() => deliver(labPayload()), 200);
+    if (m.t === 'labFetch' || m.t === 'labStart' || m.t === 'labKeep' || m.t === 'labHz') deliver({ t: 'toast', text: site ? 'In the real TEMPO this runs Deadlock\'s own benchmark on your PC. This demo only shows how it looks.' : 'Mock: ' + m.t });
     if (m.t === 'phone' || m.t === 'phoneState') { if (m.t === 'phone') settings.phone = m.on; deliver({ t: 'phone', on: !!settings.phone, urls: settings.phone ? ['http://192.168.1.20:8735/?k=3f9a1c07be5d2a8e41', 'http://172.20.10.2:8735/?k=3f9a1c07be5d2a8e41'] : [], clients: settings.phone ? 1 : 0 }); }
     if ((m.t === 'test' || m.t === 'setNow' || m.t === 'keep' || m.t === 'putBack' || m.t === 'stopTest') && site) deliver({ t: 'toast', text: 'In the real TEMPO this sets up the test or changes the game\'s setting. This demo only shows how it looks.' });
     if (m.t === 'checkup') setTimeout(() => deliver({ t: 'checkup', boostStatus, findings: [

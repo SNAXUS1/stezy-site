@@ -285,11 +285,10 @@
     if (!S.fans && !whatsNew.waited) { whatsNew.waited = true; setTimeout(() => whatsNew(version), 1200); return; } // knows first whether this PC has fan control
     const fansOk = !(S.fans && S.fans.able === false);
     box.innerHTML = `<div class="rc-top"><span class="rc-k">NEW IN ${esc(String(version).split('.').slice(0, 2).join('.'))}</span><span class="rc-g">TEMPO updated</span><button type="button" class="rc-x" aria-label="Close">&#10005;</button></div>
-      <ul class="rc-new"><li><b>Aim:</b> what makes your aim feel rough on this PC, your sensitivity in real numbers, and a finder for the sensitivity your hand is best at.</li>
-      ${fansOk ? `<li><b>Fans:</b> your graphics card's fans follow a curve you choose while you play, never past your highest speed.</li>` : ''}
-      <li><b>Play checks first,</b> and after each match a card with how it went, minute by minute.</li>
-      <li><b>Game settings that reach the game</b> on any PC, and an NVIDIA driver fps limit for any game.</li></ul>
-      <button type="button" class="rc-go" data-go-page="aim">Try the new Aim page &rarr;</button>`;
+      <ul class="rc-new"><li><b>Calibrate, built for Deadlock:</b> TEMPO plays a fight from a real Deadlock match again and again, one change at a time, and keeps only what's proven faster on your PC.</li>
+      <li><b>Your screen's real speed in each game:</b> TEMPO notices when a game runs your screen slower than it can go (Deadlock at 50 Hz on a 144 Hz screen, say), and fixes it in one click.</li>
+      <li>Everything from 2.0 stays: Aim, Fans, the check before you play, the match card.</li></ul>
+      <button type="button" class="rc-go" data-go-page="calibrate">Calibrate TEMPO to your PC &rarr;</button>`;
     box.hidden = false;
     if (!still()) box.animate([{ opacity: 0, transform: 'translateY(14px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: EASE });
   }
@@ -413,7 +412,8 @@
     S.page = page;
     body.dataset.page = page;
     document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('on', b.dataset.go === page));
-    for (const p of ['play', 'boost', 'fans', 'tune', 'aim', 'sessions', 'checkup', 'overlay', 'look']) $('page-' + p).hidden = p !== page;
+    for (const p of ['play', 'calibrate', 'boost', 'fans', 'tune', 'aim', 'sessions', 'checkup', 'overlay', 'look']) $('page-' + p).hidden = p !== page;
+    if (page === 'calibrate') { renderLab(); requestLab(); }
     if (page === 'aim') { renderAimPage(); renderAim(); send({ t: 'aimState' }); const g = sel(); if (g) send({ t: 'tune', game: g.id }); }
     if (page === 'fans') { renderFans(); send({ t: 'fans' }); }
     if (page === 'checkup') { renderCheckup(); send({ t: 'checkup' }); }
@@ -1102,7 +1102,7 @@
       : !sugs.length ? `<div class="empty"><b>Nothing obvious to change</b>${T.config ? `${esc(g.name)}'s settings already suit what holds your PC back.` : `TEMPO doesn't know where ${esc(g.name)} keeps its settings, so it can't suggest exact changes. ${genericAdvice(cpu, gpu)}`}</div>`
       : busy + sugs.map(s => `<div class="sug ${s.tag}"><div class="sug-top"><span class="pill ${s.tag}">${TAG[s.tag] || ''}</span><b>${esc(s.title)}</b></div>
           <p>${esc(s.why)}</p>
-          <div class="sug-act">${s.kind === 'launch' ? `<span class="note" style="margin:0">TEMPO can't change these for you: Steam rewrites them while it runs.</span>` : testBtn(s) + (closed ? `<button type="button" class="btn" data-setnow='${esc(JSON.stringify({ key: s.key, value: s.to, label: s.title }))}'>Change now</button>` : '')}</div></div>`).join('');
+          <div class="sug-act">${s.id === 'refresh' ? (s.kind === 'setting' && closed ? `<button type="button" class="btn acc" data-setnow='${esc(JSON.stringify({ key: s.key, value: s.to, label: s.title }))}'>Set it to ${esc(s.toLabel)}</button>` : '') : s.kind === 'launch' ? `<span class="note" style="margin:0">TEMPO can't change these for you: Steam rewrites them while it runs.</span>` : testBtn(s) + (closed ? `<button type="button" class="btn" data-setnow='${esc(JSON.stringify({ key: s.key, value: s.to, label: s.title }))}'>Change now</button>` : '')}</div></div>`).join('');
 
     // fps limit
     const c = T.cap, capKey = T.config && T.config.capKey;
@@ -1485,6 +1485,14 @@
     else if (!sy) out.push({ id: 'sync', name: 'Screen sync', st: 'unknown', short: 'no screen found', text: 'TEMPO couldn\'t read your screen.' });
     else out.push({ id: 'sync', name: 'Screen sync', st: { cable: 'fix', turnon: 'check', maybe: 'check', none: 'info' }[sy.kind] || 'info',
       short: { cable: 'FreeSync unused (HDMI)', turnon: 'make sure it\'s on', maybe: 'check your screen', none: 'fixed refresh' }[sy.kind] || '', text: `<b>${esc(sy.title)}.</b> ${esc(sy.text)}` });
+    // the screen's own speed in the game (Deadlock's setting can run a 144 Hz screen at 50 Hz)
+    const rf = AIM.st && AIM.st.refresh && b ? AIM.st.refresh.find(x => x.gameId === b.gameId) || AIM.st.refresh[0] : null;
+    if (rf && rf.hz > 0 && rf.desktopHz > 0) {
+      const slow = rf.fullscreen && rf.hz < rf.desktopHz - 1;
+      out.push(slow ? { id: 'refresh', name: 'Screen speed in the game', st: 'fix', short: `only ${rf.hz} Hz`, act: [[`Set ${esc(rf.name)} to ${rf.desktopHz} Hz`, 'hz', rf.gameId]],
+          text: `${esc(rf.name)} is set to run your screen at ${rf.hz} Hz, but it can do ${rf.desktopHz}. So you see only ${rf.hz} pictures a second: every mouse movement looks steppy and reaches your eyes later. This is the biggest smoothing you can get for your mouse, for free.` }
+        : { id: 'refresh', name: 'Screen speed in the game', st: 'good', short: `${rf.fullscreen ? rf.hz : rf.desktopHz} Hz`, text: `${esc(rf.name)} uses your screen at its full ${rf.fullscreen ? rf.hz : rf.desktopHz} Hz.` });
+    }
     // freezes from other apps
     if (!ss.length) out.push({ id: 'freezes', name: 'No freezes', st: 'unknown', short: 'play a match first', text: 'After a match, TEMPO names any app that froze the game.' });
     else {
@@ -1506,7 +1514,7 @@
     else out.push({ id: 'sens', name: 'Sensitivity that fits', st: 'fix', short: `try ${sensFmt(b.sens * f.best)}`, text: esc(f.say || ''), act: [['See the result', 'result']] });
     return out;
   }
-  const SA_ICON = { mouse: 'M12 3.5a5 5 0 0 1 5 5v7a5 5 0 0 1-10 0v-7a5 5 0 0 1 5-5ZM12 7v3', frames: 'M3 17l4-5 4 3 4-7 6 9', sync: 'M4 7.5h16v10H4zM9 21h6M12 17.5V21', freezes: 'M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9', sens: 'M12 3v3M12 18v3M3 12h3M18 12h3M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z' };
+  const SA_ICON = { refresh: 'M4 6.5h16v11H4zM8 12h2l1.5-3 2 6 1.5-3h1', mouse: 'M12 3.5a5 5 0 0 1 5 5v7a5 5 0 0 1-10 0v-7a5 5 0 0 1 5-5ZM12 7v3', frames: 'M3 17l4-5 4 3 4-7 6 9', sync: 'M4 7.5h16v10H4zM9 21h6M12 17.5V21', freezes: 'M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9', sens: 'M12 3v3M12 18v3M3 12h3M18 12h3M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z' };
   function renderSA() {
     const box = $('sa');
     if (!box || S.page !== 'aim') return;
@@ -1533,6 +1541,7 @@
     if (what === 'mouse') { $('aim').scrollIntoView({ behavior: still() ? 'auto' : 'smooth', block: 'center' }); if (!aim.on) aimStart(); }
     if (what === 'tune') go('tune');
     if (what === 'finder') trainerOpen();
+    if (what === 'hz') { send({ t: 'aimHz', game: d.dataset.arg }); d.disabled = true; d.textContent = 'Set'; }
     if (what === 'curve') $('cv-card').scrollIntoView({ behavior: still() ? 'auto' : 'smooth', block: 'start' });
     if (what === 'result') { const f = lastFind(aimBase()); if (f) trainerResult(f, false); }
     if (what === 'cap' && g) { const [key, v] = d.dataset.arg.split('|'); send({ t: 'setNow', game: g.id, key, value: v, label: `Fps limit at ${v}` }); d.disabled = true; d.textContent = `Limit ${v} set`; }
@@ -1590,15 +1599,16 @@
         <svg class="fd-art" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" class="fd-a1"/><circle cx="60" cy="60" r="33" class="fd-a2"/><path d="M60 38v10M60 72v10M38 60h10M72 60h10" class="fd-x"/><circle cx="60" cy="60" r="2.4" class="fd-c"/><circle cx="88" cy="40" r="6" class="fd-o"/><circle cx="34" cy="82" r="4" class="fd-o2"/></svg>
         <div><b>Find the sensitivity your hand is best at</b>
         <p>Track a moving target, then flick to targets, at a few sensitivities around yours without knowing which is which. TEMPO measures how steadily you track and how quickly you land, and finds where each is best: if they're far apart, a curve can give you both.</p>
-        <div class="fd-act"><button type="button" class="btn acc" data-fd="start"${b ? '' : ' disabled'}>${f ? 'Run it again' : 'Find mine'}</button>${f ? `<button type="button" class="btn" data-fd="result">See the last result</button>` : ''}${b ? '' : '<span class="note" style="margin:0">Pick your sensitivity first.</span>'}</div></div>
+        <div class="fd-act"><button type="button" class="btn acc" data-fd="start"${b ? '' : ' disabled'}>${f ? 'Run it again' : 'Find mine'}</button>${f ? `<button type="button" class="btn" data-fd="result">See the last result</button>` : ''}${f && testPair(f) ? `<button type="button" class="btn" data-fd="check">Check it blind</button><button type="button" class="btn" data-fd="practice">Practise</button>` : ''}${b ? '' : '<span class="note" style="margin:0">Pick your sensitivity first.</span>'}</div></div>
       </div>
-      ${f ? `<div class="fd-last"><div class="fd-l-k">${when(f.when)} · ${esc(f.baseName)} ${sensFmt(f.baseSens)}</div><p>${esc(f.say)}</p></div>` : ''}`;
+      ${f ? `<div class="fd-last"><div class="fd-l-k">${when(f.when)} · ${esc(f.baseName)} ${sensFmt(f.baseSens)}</div><p>${esc(f.say)}</p>${lastCheck(f) ? `<p class="fd-check">${esc(lastCheck(f).say)}</p>` : ''}</div>` : ''}`;
   }
   document.addEventListener('click', e => {
     const d = e.target.closest('[data-fd]');
     if (!d) return;
     if (d.dataset.fd === 'start') trainerOpen();
     if (d.dataset.fd === 'result') { const f = lastFind(aimBase()); if (f) trainerResult(f, false); }
+    if (d.dataset.fd === 'check' || d.dataset.fd === 'practice') trTest(d.dataset.fd, lastFind(aimBase()));
   });
 
   // ---- the curve: slow for tracking, quick for big turns (through Raw Accel)
@@ -1707,12 +1717,13 @@
   // ------------------------------------------------------------------ the sensitivity finder
   // A small first-person range inside TEMPO. The mouse turns the view exactly as in the game the sensitivity comes from
   // (degrees per count from its sensitivity), read raw through pointer lock. Sets at blind sensitivities around yours:
-  // tracking a strafing target, then flicking to targets near and far (some behind you). Tracking error and flick speed
+  // tracking a strafing target, then flicking to targets on screen, near and far. Tracking error and flick speed
   // (Fitts throughput) are fitted against the sensitivity; where each peaks is the answer, and if flicks want a lot more
   // than tracking, a curve is tried against a flat sensitivity.
   const TR = { on: false };
   const MULTS = [0.75, 0.87, 1.0, 1.15, 1.33, 1.0];
-  const TRACK_S = 9, FLICKS = [9, 14, 20, 30, 42, 58, 80, 105, 140], R_TRACK = 1.5, R_FLICK = 2.0, FOV = 100;
+  // flicks stay on screen, like an aim trainer's: 5° to 40° from where you aim (the view is 100° wide)
+  const TRACK_S = 9, FLICKS = [5, 7, 9, 12, 15, 18, 22, 26, 31, 36, 40], R_TRACK = 1.5, R_FLICK = 2.0, FOV = 100;
   const trSim = new URLSearchParams(location.search).get('trsim'); // design checks only: a made-up player
   if (trSim) window.__tr = TR;
   function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
@@ -1724,28 +1735,37 @@
     return Math.acos(Math.max(-1, Math.min(1, c))) * 180 / Math.PI;
   }
   // the strafing path the tracking target follows (the same every set, mirrored on every other one)
-  function trackPath(seed) {
+  function trackPath(seed, len = TRACK_S + 1) {
     const r = rng(seed), segs = [];
     let t = 0, v = 0;
-    while (t < TRACK_S + 1) { const d = 0.35 + r() * 0.8; const sp = (12 + r() * 48) * (r() < 0.5 ? -1 : 1); segs.push([t, d, sp]); t += d; }
+    while (t < len) { const d = 0.35 + r() * 0.8; const sp = (12 + r() * 48) * (r() < 0.5 ? -1 : 1); segs.push([t, d, sp]); t += d; }
     // velocity eased between segments (a strafing player doesn't change direction instantly)
     const vel = tt => { let cur = 0, prev = 0; for (const [t0, d, sp] of segs) { if (tt < t0) break; prev = cur; cur = sp; if (tt < t0 + d) { const k = Math.min(1, (tt - t0) / 0.16); return prev + (cur - prev) * (k * k * (3 - 2 * k)); } } return cur; };
     const tab = [], dt = 1 / 240;
     let yaw = 0;
-    for (let k = 0; k <= (TRACK_S + 1) / dt; k++) { tab.push(yaw); yaw += vel(k * dt) * dt; }
+    // long practice paths drift back towards the middle, so the orb never wanders off for good
+    for (let k = 0; k <= len / dt; k++) { tab.push(yaw); yaw += vel(k * dt) * dt - (len > 60 ? yaw * 0.25 * dt : 0); }
     return tt => { const i = Math.max(0, Math.min(tab.length - 1, Math.floor(tt / dt))); return [tab[i], 2.6 * Math.sin(tt * 1.3) + 1.2 * Math.sin(tt * 3.1 + 1)]; };
   }
 
-  function trainerOpen() {
+  // mode: 'find' (the finder), 'check' (the suggestion against yours, blind), 'practice' (free play at either)
+  function trainerOpen(opts) {
     const b = aimBase();
     if (!b) { toast('Pick your game\'s sensitivity first.'); return; }
+    const mode = (opts && opts.mode) || 'find', pair = opts && opts.pair;
     const sets = shuffle(MULTS, rng(Date.now() & 0xffff));
     Object.assign(TR, {
-      on: true, base: b, degPerCount: 360 / b.c360, sets, plan: [], i: -1, phase: 'intro', results: [], yaw: 0, pitch: 0, curve: null, analysis: null, result: null, part: null, cur: null, native: false,
-      locked: false, raw: true, events: 0, lastT: 0, simT: 0, paused: false, path: trackPath(7),
+      on: true, mode, pair: pair || null, base: b, degPerCount: 360 / b.c360, sets, plan: [], i: -1, phase: 'intro', results: [], yaw: 0, pitch: 0, curve: null, analysis: null, result: null, part: null, cur: null, native: false,
+      locked: false, raw: true, events: 0, lastT: 0, simT: 0, paused: false, path: trackPath(7), check: null, prac: null, drill: 'wall', burst: null, flash: null,
     });
-    // the plan: a warm-up, the six sets, and (decided later) the curve trial
-    TR.plan = [{ kind: 'warm', mult: 1 }].concat(sets.map((m, k) => ({ kind: 'set', mult: m, mirror: k % 2 ? -1 : 1, seed: 100 + k })));
+    if (mode === 'check') {
+      // a warm-up at the suggestion, then two rounds each, blind, in a mirrored order (A B B A) so warming up favours neither
+      const seq = rng(Date.now() & 0xff)() < 0.5 ? ['mine', 'sug', 'sug', 'mine'] : ['sug', 'mine', 'mine', 'sug'];
+      const side = s => ({ mult: (s === 'sug' ? pair.sug : pair.mine) / b.sens, curve: s === 'sug' ? pair.curve : null });
+      TR.plan = [Object.assign({ kind: 'warm' }, side('sug'))].concat(seq.map((s, j) => Object.assign({ kind: 'check', side: s, mirror: j % 2 ? -1 : 1, seed: 500 + j }, side(s))));
+    } else if (mode === 'practice') TR.plan = [];
+    // the finder's plan: a warm-up, the six sets, and (decided later) the curve trial
+    else TR.plan = [{ kind: 'warm', mult: 1 }].concat(sets.map((m, k) => ({ kind: 'set', mult: m, mirror: k % 2 ? -1 : 1, seed: 100 + k })));
     $('trainer').hidden = false;
     body.classList.add('tr-on');
     trCard('intro');
@@ -1757,6 +1777,7 @@
     TR.locked = false;
     body.classList.remove('tr-capture');
     TR.on = false;
+    TR.mode = 'find';
     if (document.pointerLockElement) document.exitPointerLock();
     $('trainer').hidden = true;
     body.classList.remove('tr-on');
@@ -1776,10 +1797,12 @@
     box.hidden = !kind;
     if (!kind) return;
     box.className = 'tr-card k-' + kind;
+    if (kind === 'intro' && TR.mode !== 'find') { box.innerHTML = trTestIntro(); return; }
     if (kind === 'intro') box.innerHTML = `<div class="tr-k">SENSITIVITY FINDER</div><h3>Find the sensitivity your hand is best at</h3>
-      <ul class="tr-steps"><li><b>Track</b> the orb as it strafes: keep the crosshair on it.</li><li><b>Flick</b> to each new orb and click it, as fast as you can land it. Some appear behind you: follow the arrow.</li><li>A warm-up, then six short rounds, each at a different sensitivity (four more if a curve looks promising). TEMPO doesn't say which: just aim as well as you can.</li></ul>
+      <ul class="tr-steps"><li><b>Track</b> the orb as it strafes: keep the crosshair on it.</li><li><b>Flick</b> to each new orb and click it, as fast as you can land it. They pop up on screen around your crosshair, near and far, like in an aim trainer.</li><li>A warm-up, then six short rounds, each at a different sensitivity (four more if a curve looks promising). TEMPO doesn't say which: just aim as well as you can.</li></ul>
       <p class="tr-base">Starting from <b>${esc(b.name)} ${sensFmt(b.sens)}</b>${b.cm ? ` (${b.cm.toFixed(1)} cm per 360°)` : ''}. Use the grip and the arm you play with. Esc pauses.</p>
       <div class="tr-act"><button type="button" class="btn acc tr-go" data-tr="go">Start</button><button type="button" class="btn" data-tr="close">Not now</button></div>`;
+    if (kind === 'pause' && TR.mode === 'practice') { box.innerHTML = trPracticePause(); return; }
     if (kind === 'pause') box.innerHTML = `<div class="tr-k">PAUSED</div><h3>Take a breath</h3><p>Your mouse is free again. The round you were in starts over when you continue.</p>
       <div class="tr-act"><button type="button" class="btn acc" data-tr="resume">Continue</button><button type="button" class="btn" data-tr="close">Stop</button></div>`;
     if (kind === 'gap') box.innerHTML = `<div class="tr-gap"><div class="tr-k">${esc(extra.k)}</div><div class="tr-gap-t">${esc(extra.t)}</div><div class="tr-gap-s">${esc(extra.s)}</div></div>`;
@@ -1792,11 +1815,14 @@
     if (w === 'go' || w === 'resume') trLock(() => { if (w === 'go') trNext(); else trRestartPart(); });
     if (w === 'again') { trainerClose(); trainerOpen(); }
     if (w === 'use') trUse(d);
+    if (w === 'check' || w === 'practice') { const r = TR.result || lastFind(aimBase()); trainerClose(); trTest(w, r); }
+    if (w === 'drill') { TR.drill = d.dataset.drill; trLock(() => trStartPractice()); }
+    if (w === 'switchdrill') { TR.drill = TR.drill === 'wall' ? 'track' : 'wall'; trLock(() => trStartPractice()); }
   });
   // raw mouse counts: pointer lock without Windows' pointer speed or acceleration (unadjusted movement)
   function trLock(then) {
     const c = trCanvas();
-    if (trSim) { TR.locked = true; trCard(null); then(); return; }
+    if (trSim) { TR.locked = true; TR.paused = false; trCard(null); then(); return; }
     if (host) {
       // TEMPO pins the cursor to the middle of its window and streams the mouse's own reports (see 'raw')
       Object.assign(TR, { native: true, locked: true, paused: false, lastT: 0, rawT: performance.now() });
@@ -1853,8 +1879,9 @@
   document.addEventListener('mousedown', e => { if (TR.on && TR.locked && !TR.paused && e.button === 0) trShoot(); });
   // Esc: pause while playing (the lock lets go), close on the cards
   document.addEventListener('keydown', e => {
+    if (TR.on && TR.mode === 'practice' && e.key === 'Tab') { e.preventDefault(); trPracticeSwitch(); return; }
     if (!TR.on || e.key !== 'Escape') return;
-    if (TR.native && TR.locked) trLetGo();
+    if ((TR.native || trSim) && TR.locked) trLetGo();
     else if (document.pointerLockElement) document.exitPointerLock();
     else if (TR.phase === 'intro' || TR.phase === 'done') trainerClose();
   });
@@ -1867,7 +1894,7 @@
     const p = TR.plan[TR.i], n = TR.plan.filter(x => x.kind !== 'warm').indexOf(p) + 1, total = TR.plan.filter(x => x.kind !== 'warm').length;
     TR.cur = p;
     p.rec = { err: [], on: 0, n: 0, speeds: [], flicks: [] };
-    const label = p.kind === 'warm' ? 'WARM-UP' : p.kind === 'trial' ? `ROUND ${n} OF ${total}` : `ROUND ${n} OF ${total}`;
+    const label = p.kind === 'warm' ? 'WARM-UP' : `ROUND ${n} OF ${total}`;
     const first = p.kind === 'trial' && TR.plan.indexOf(p) === TR.plan.findIndex(x => x.kind === 'trial');
     trCard('gap', { k: label, t: p.kind === 'warm' ? 'Get the feel' : first ? 'One more test' : 'Track',
       s: p.kind === 'warm' ? 'Not scored. Track the orb, then flick.' : first ? 'Your flicks wanted more speed than your tracking: four short rounds try a curve against none' : 'Keep the crosshair on the orb' });
@@ -1892,14 +1919,21 @@
   }
   function trSpawn() {
     const part = TR.part, p = TR.cur, d = p.queue[part.n];
-    // a direction mostly sideways (as in games), never far up or down
-    const side = part.r() < 0.5 ? -1 : 1, up = (part.r() - 0.5) * 0.7;
-    const dy = side * d * Math.cos(up), dp = Math.max(-28 - TR.pitch, Math.min(28 - TR.pitch, d * Math.sin(up) * 0.6));
+    // anywhere around the crosshair, flatter than tall (as on a screen, and as in games); always in view, and as far
+    // as planned (a direction that would leave the screen's height is tried again)
+    let dy = d, dp = 0;
+    for (let k = 0; k < 8; k++) {
+      const a = part.r() * Math.PI * 2, y = d * Math.cos(a), q = Math.max(-22 - TR.pitch, Math.min(22 - TR.pitch, d * Math.sin(a) * 0.62));
+      [dy, dp] = [y, q];
+      if (angDist(TR.yaw, TR.pitch, TR.yaw + y, TR.pitch + q) >= d * 0.8) break;
+      [dy, dp] = [(y >= 0 ? 1 : -1) * d, 0];
+    }
     part.target = { yaw: TR.yaw + dy, pitch: TR.pitch + dp, t0: trNow(), misses: 0, peak: 0 };
     part.target.d = angDist(TR.yaw, TR.pitch, part.target.yaw, part.target.pitch);
   }
   function trShoot() {
     const part = TR.part;
+    if (part && part.type === 'wall') { trWallShoot(); return; }
     if (!part || part.type !== 'flick' || !part.target) return;
     const t = part.target;
     if (angDist(TR.yaw, TR.pitch, t.yaw, t.pitch) <= R_FLICK) trHit(false);
@@ -1928,6 +1962,7 @@
     } catch { }
   }
   function trRestartPart() {
+    if (TR.mode === 'practice') { trStartPractice(true); return; }
     // after a pause the round starts over (a pause mid-round would skew it)
     const p = TR.cur;
     if (!p) { trNext(); return; }
@@ -1954,7 +1989,7 @@
       } else if (part.type === 'flick') {
         if (!part.target && now >= part.next) { if (part.n >= TR.cur.queue.length) { trNext(); } else trSpawn(); }
         else if (part.target && now - part.target.t0 > 3) trHit(true);
-      }
+      } else if (part.type === 'ptrack') trPracticeTrack(now);
     }
     trDraw(now);
   }
@@ -2013,6 +2048,11 @@
       const on = angDist(TR.yaw, TR.pitch, part.ty, part.tp) <= R_TRACK;
       if (!orb(part.ty, part.tp, R_TRACK, on)) off = [part.ty, part.tp];
     }
+    if (part && part.type === 'ptrack' && part.ty != null) {
+      const on = angDist(TR.yaw, TR.pitch, part.ty, part.tp) <= R_TRACK;
+      if (!orb(part.ty, part.tp, R_TRACK, on)) off = [part.ty, part.tp];
+    }
+    if (part && part.type === 'wall') for (const t of part.targets) { const age = now - t.t0; orb(t.yaw, t.pitch, R_WALL, false, age < 0.12 ? 0.6 + age / 0.12 * 0.4 : 1); }
     if (part && part.type === 'flick' && part.target) {
       const t = part.target, age = now - t.t0, pop = age < 0.12 ? 0.6 + age / 0.12 * 0.4 : 1;
       if (!orb(t.yaw, t.pitch, R_FLICK, false, pop)) off = [t.yaw, t.pitch];
@@ -2042,6 +2082,7 @@
   }
   function trHud(now) {
     const h = $('tr-hud'), part = TR.part, p = TR.cur;
+    if (TR.mode === 'practice') { h.innerHTML = part && TR.phase !== 'done' ? trPracticeHud(now) : ''; return; }
     if (!part || !p || TR.phase === 'done') { h.innerHTML = ''; return; }
     const total = TR.plan.filter(x => x.kind !== 'warm').length, n = TR.plan.filter(x => x.kind !== 'warm').indexOf(p) + 1;
     const label = p.kind === 'warm' ? 'WARM-UP' : `ROUND ${n} OF ${total}`;
@@ -2089,6 +2130,7 @@
   }
   const yT = s => -Math.log(s.err), yF = s => Math.log(s.tp);
   function trFinish() {
+    if (TR.mode === 'check') { trCheckFinish(); return; }
     if (!TR.analysis) {
       const sets = TR.plan.filter(p => p.kind === 'set' && p.rec);
       const xs = sets.map(p => Math.log(p.mult)), order = sets.map((p, i) => i - (sets.length - 1) / 2);
@@ -2101,7 +2143,7 @@
       const pt = peakX(ft), pf = peakX(ff);
       // one sensitivity for both skills: the peak of the two fits added together
       const a = ft.a + ff.a, b = ft.b + ff.b, best = a < -1e-6 ? Math.max(LO, Math.min(HI, -b / (2 * a))) : 0;
-      const speedsT = sets.flatMap(p => p.rec.speeds), peaks = sets.flatMap(p => p.rec.flicks.filter(f => f.peak > 0 && f.d >= 30).map(f => f.peak));
+      const speedsT = sets.flatMap(p => p.rec.speeds), peaks = sets.flatMap(p => p.rec.flicks.filter(f => f.peak > 0 && f.d >= 18).map(f => f.peak));
       TR.analysis = { xs, order, ty, fy, ft, ff, pt, pf, best, nT, nF, speedsT, peaks, mults: sets.map(p => p.mult) };
       const ratio = Math.exp(pf - pt);
       const ra = AIM.st && AIM.st.rawAccel;
@@ -2193,6 +2235,7 @@
         <div class="tr-leg"><span><i class="t"></i>tracking (steadier is higher)</span><span><i class="f"></i>flicks (faster landing is higher)</span></div></div>
       <div class="tr-nums"><div><small>TRACKING BEST</small><b>${sensFmt(r.baseSens * r.trackBest)}</b></div><div><small>FLICKS BEST</small><b>${sensFmt(r.baseSens * r.flickBest)}</b></div>${r.curveTest ? `<div><small>WITH THE CURVE</small><b class="${r.curveTest.flick >= 0 ? 'up' : ''}">${pctTxt(r.curveTest.flick)}</b><em>flicks · ${pctTxt(r.curveTest.track)} tracking</em></div>` : ''}</div>
       ${r.raw === false ? '<p class="note">Windows\' own pointer speed may have shaped this test (the raw mouse wasn\'t available).</p>' : ''}
+      ${testPair(r) ? `<div class="tr-test"><div><b>Not sure yet?</b><span>Try ${sensFmt(r.baseSens * setTo)} before you change anything in ${esc(r.baseName)}.</span></div><button type="button" class="btn" data-tr="check">Check it blind</button><button type="button" class="btn" data-tr="practice">Practise with it</button></div>` : ''}
       <div class="tr-act">${fresh ? `<button type="button" class="btn acc" data-tr="use">${r.close && !r.curve ? 'Keep it' : `Use ${sensFmt(r.baseSens * setTo)}`}</button>` : ''}<button type="button" class="btn" data-tr="again">Run again</button><button type="button" class="btn" data-tr="close">${fresh ? 'Not now' : 'Close'}</button></div>`;
     if (fresh) TR.result = r;
     if (!sameBase && !fresh) box.querySelector('.tr-say').insertAdjacentHTML('afterend', `<p class="note">This was measured from ${esc(r.baseName)} ${sensFmt(r.baseSens)}.</p>`);
@@ -2217,7 +2260,8 @@
   function trBot() {
     const part = TR.part;
     if (!part || !TR.locked || TR.paused) return;
-    const flick = part.type === 'flick';
+    if (part.type === 'wall' && part.targets.length) part.target = part.targets[0];
+    const flick = part.type === 'flick' || part.type === 'wall';
     if (flick ? !part.target : part.ty == null) return;
     const ty = flick ? part.target.yaw : part.ty, tp = flick ? part.target.pitch : part.tp;
     const m = part.mult * (part.curve && flick ? part.curve.max : 1), dpc = TR.degPerCount * m, dt = 1 / 60 * (+trSim || 1);
@@ -2231,7 +2275,179 @@
     const speed = Math.hypot(sy, sp) / dpc / (dt * 1000);
     if (!flick && part.rec && speed > 0.04) part.rec.speeds.push(speed);
     if (flick) { part.target.peak = Math.max(part.target.peak || 0, speed); if (dist < R_FLICK * 0.7 && Math.random() < 0.6) trShoot(); }
+    if (part.type === 'wall') part.target = null;
   }
+
+  // ---- testing the finder's answer: blind against yours, or free practice with either
+  const R_WALL = 2.0, WALL_N = 3;
+  // the two sensitivities to compare: the suggestion, and yours now (or, if you already switched to it, the one before)
+  function testPair(r) {
+    const b = aimBase();
+    if (!b || !r || !r.baseSens || b.gameId !== r.baseGame) return null;
+    const setTo = r.curve ? r.trackBest : r.best, sug = r.baseSens * setTo;
+    let mine = b.sens, mineLabel = 'Yours';
+    if (Math.abs(sug / mine - 1) < 0.02) { mine = r.baseSens; mineLabel = 'Your old one'; }
+    if (Math.abs(sug / mine - 1) < 0.02) return null;
+    const ra = AIM.st && AIM.st.rawAccel;
+    // a curve already set in Raw Accel is in the mouse's own reports; otherwise TEMPO applies it here
+    return { sug, mine, mineLabel, curve: r.curve && !(ra && ra.ours) ? r.curve : null, hasCurve: !!r.curve, find: r.when };
+  }
+  const lastCheck = f => (aimOpts().checks || []).find(c => f && c.find === f.when) || null;
+  function trTest(kind, r) {
+    const pair = testPair(r);
+    if (!pair) { toast('Nothing to compare: the suggestion is the sensitivity you have now.'); return; }
+    trainerOpen({ mode: kind === 'check' ? 'check' : 'practice', pair });
+  }
+  function trTestIntro() {
+    const p = TR.pair;
+    const sens = `<div class="tr-sens"><div><small>${esc(p.mineLabel.toUpperCase())}</small><b>${sensFmt(p.mine)}</b></div><div class="sug"><small>SUGGESTED${p.hasCurve ? ' + CURVE' : ''}</small><b>${sensFmt(p.sug)}</b></div></div>`;
+    if (TR.mode === 'check') return `<div class="tr-k">BLIND CHECK</div><h3>Does the suggestion hold up?</h3>${sens}
+      <ul class="tr-steps"><li>A short warm-up, then <b>four rounds</b>: two at each sensitivity, in an order TEMPO keeps to itself.</li><li>Each round: track the orb, then flick to the orbs that pop up around your crosshair.</li><li>About two minutes. Then you see which one you aimed better with.</li></ul>
+      <div class="tr-act"><button type="button" class="btn acc tr-go" data-tr="go">Start</button><button type="button" class="btn" data-tr="close">Not now</button></div>`;
+    return `<div class="tr-k">PRACTICE</div><h3>Get the feel of it</h3>${sens}
+      <div class="tr-modes"><button type="button" class="tr-mode" data-tr="drill" data-drill="wall"><b>Flick wall</b><span>Three orbs on a wall: hit one and another appears, like Gridshot.</span></button><button type="button" class="tr-mode" data-tr="drill" data-drill="track"><b>Tracking</b><span>The orb strafes left and right without stopping. Stay on it.</span></button></div>
+      <p class="tr-base">It starts at the suggested ${sensFmt(p.sug)}. <b>Tab</b> switches between the two any time. Esc pauses and shows how you did with each.</p>
+      <div class="tr-act"><button type="button" class="btn" data-tr="close">Not now</button></div>`;
+  }
+
+  // the blind check's answer: the same scores as the finder, the suggestion against yours
+  function trCheckFinish() {
+    TR.phase = 'done';
+    TR.part = null;
+    if (TR.native && TR.locked) { send({ t: 'trCapture', on: false }); TR.locked = false; body.classList.remove('tr-capture'); }
+    if (document.pointerLockElement) document.exitPointerLock();
+    const p = TR.pair, rounds = TR.plan.filter(x => x.kind === 'check' && x.rec);
+    const side = s => rounds.filter(x => x.side === s);
+    const A = side('mine').map(x => scoreOf(x.rec)), B = side('sug').map(x => scoreOf(x.rec));
+    const mean = (l, f) => l.reduce((a, x) => a + f(x), 0) / Math.max(1, l.length);
+    const land = s => trMedian(side(s).flatMap(x => x.rec.flicks.filter(f => !f.timeout).map(f => f.t)));
+    const track = Math.exp(mean(B, yT) - mean(A, yT)) - 1, flick = Math.exp(mean(B, yF) - mean(A, yF)) - 1, both = (track + flick) / 2;
+    const verdict = both >= 0.04 && track >= -0.04 && flick >= -0.04 ? 'better' : both <= -0.04 ? 'worse' : 'same';
+    const say = verdict === 'better' ? `The suggestion held up: blind, ${sensFmt(p.sug)} beat ${sensFmt(p.mine)} (tracking ${pctTxt(track)}, flicks ${pctTxt(flick)}).`
+      : verdict === 'worse' ? `Blind, you aimed better with ${sensFmt(p.mine)} (the suggestion: tracking ${pctTxt(track)}, flicks ${pctTxt(flick)}). Keep it, or run the finder again another day.`
+      : `About the same blind (tracking ${pctTxt(track)}, flicks ${pctTxt(flick)}): four rounds can't split them. Go by feel: practise with both.`;
+    const res = { when: new Date().toISOString(), find: p.find, mine: p.mine, sug: p.sug, track: +track.toFixed(3), flick: +flick.toFixed(3), verdict, say,
+      onMine: +mean(A, s => s.on).toFixed(3), onSug: +mean(B, s => s.on).toFixed(3), landMine: +land('mine').toFixed(3), landSug: +land('sug').toFixed(3) };
+    send({ t: 'aimCheck', result: res });
+    const checks = (aimOpts().checks || []).slice();
+    checks.unshift(res);
+    putSet('aim.checks', checks.slice(0, 12));
+    const box = $('tr-card');
+    box.hidden = false;
+    box.className = 'tr-card k-result';
+    const hi = (x, y) => x > y + 0.01 ? 'cw' : '', lo = (x, y) => x > 0 && x < y - 0.02 ? 'cw' : '';
+    box.innerHTML = `<div class="tr-k">BLIND CHECK</div><h3>${verdict === 'better' ? `${sensFmt(p.sug)} it is` : verdict === 'worse' ? `${sensFmt(p.mine)} suits you better` : 'Too close to call'}</h3>
+      <p class="tr-say">${esc(say)}</p>
+      <div class="tr-cmp"><div><small>${esc(p.mineLabel.toUpperCase())} · ${sensFmt(p.mine)}</small></div><div><small>SUGGESTED · ${sensFmt(p.sug)}</small></div>
+        <div class="${hi(res.onMine, res.onSug)}"><b>${Math.round(res.onMine * 100)}%</b><em>on the orb while tracking</em></div><div class="${hi(res.onSug, res.onMine)}"><b>${Math.round(res.onSug * 100)}%</b><em>on the orb while tracking</em></div>
+        <div class="${lo(res.landMine, res.landSug)}"><b>${res.landMine ? res.landMine.toFixed(2) + ' s' : '–'}</b><em>to land a flick</em></div><div class="${lo(res.landSug, res.landMine)}"><b>${res.landSug ? res.landSug.toFixed(2) + ' s' : '–'}</b><em>to land a flick</em></div></div>
+      <div class="tr-act">${verdict !== 'worse' ? `<button type="button" class="btn acc" data-tr="usecheck">Use ${sensFmt(p.sug)}</button>` : ''}<button type="button" class="btn" data-tr="practice">Practise with both</button><button type="button" class="btn" data-tr="close">Close</button></div>`;
+  }
+  document.addEventListener('click', e => {
+    const d = e.target.closest('[data-tr="usecheck"]');
+    if (!d || !TR.pair) return;
+    const v = sensFmt(TR.pair.sug);
+    try { navigator.clipboard.writeText(v).catch(() => { }); } catch { }
+    d.closest('.tr-act').innerHTML = `<p class="tr-done"><b>${v} is copied.</b> In ${esc(TR.base.name)}: Settings, Mouse, Sensitivity, paste it.${TR.pair.hasCurve ? ' Then set the curve on the Aim page.' : ''} Give it a few matches: a new sensitivity feels odd for a day.</p><button type="button" class="btn acc" data-tr="close">Done</button>`;
+  });
+
+  // free practice: a flick wall (three orbs, hit one and another appears) or endless tracking; Tab switches the sensitivity
+  function trStartPractice(resume) {
+    trCard(null);
+    const p = TR.pair;
+    if (!TR.prac) {
+      const blank = () => ({ hits: 0, shots: 0, times: [], on: 0, n: 0 });
+      TR.prac = { side: 'sug', stats: { mine: blank(), sug: blank() } };
+    }
+    const s = TR.prac.side, mult = (s === 'sug' ? p.sug : p.mine) / TR.base.sens, curve = s === 'sug' ? p.curve : null;
+    TR.cur = { kind: 'practice' };
+    if (TR.drill === 'wall') {
+      TR.yaw = 0; TR.pitch = 0;
+      TR.part = { type: 'wall', mult, curve, rec: null, targets: [], r: rng(Date.now() & 0xffff), last: trNow() };
+      for (let i = 0; i < WALL_N; i++) trWallSpawn();
+    } else {
+      TR.ppath = TR.ppath || trackPath(11, 600);
+      TR.part = { type: 'ptrack', mult, curve, rec: null, t0: trNow(), recent: [] };
+      const [ty, tp] = TR.ppath(0);
+      TR.yaw = ty; TR.pitch = tp;
+    }
+    TR.phase = 'practice';
+  }
+  function trWallSpawn() {
+    const part = TR.part, pick = () => ({ yaw: (part.r() * 2 - 1) * 26, pitch: (part.r() * 2 - 1) * 14, t0: trNow() });
+    for (let k = 0; k < 40; k++) {
+      const t = pick();
+      if (part.targets.every(o => angDist(o.yaw, o.pitch, t.yaw, t.pitch) > 8) && angDist(TR.yaw, TR.pitch, t.yaw, t.pitch) > 5) { part.targets.push(t); return; }
+    }
+    part.targets.push(pick());
+  }
+  function trWallShoot() {
+    const part = TR.part, st = TR.prac.stats[TR.prac.side], now = trNow();
+    st.shots++;
+    const i = part.targets.findIndex(t => angDist(TR.yaw, TR.pitch, t.yaw, t.pitch) <= R_WALL);
+    if (i < 0) { TR.flash = { t: now, miss: true }; return; }
+    const t = part.targets[i];
+    st.hits++;
+    st.times.push(now - part.last);
+    if (st.times.length > 40) st.times.shift();
+    part.last = now;
+    TR.burst = { yaw: t.yaw, pitch: t.pitch, t: now, ok: true };
+    trTick();
+    part.targets.splice(i, 1);
+    trWallSpawn();
+  }
+  function trPracticeTrack(now) {
+    const part = TR.part, t = (now - part.t0) % 590;
+    const [ty, tp] = TR.ppath(t);
+    part.ty = ty; part.tp = tp;
+    if (now - part.t0 < 0.7) return;
+    const st = TR.prac.stats[TR.prac.side], on = angDist(TR.yaw, TR.pitch, ty, tp) <= R_TRACK;
+    st.n++; if (on) st.on++;
+    part.recent.push(on ? 1 : 0);
+    if (part.recent.length > 300) part.recent.shift();
+  }
+  function trPracticeSwitch() {
+    if (!TR.prac || !TR.part || TR.paused || TR.phase !== 'practice') return;
+    const p = TR.pair, s = TR.prac.side = TR.prac.side === 'sug' ? 'mine' : 'sug';
+    TR.part.mult = (s === 'sug' ? p.sug : p.mine) / TR.base.sens;
+    TR.part.curve = s === 'sug' ? p.curve : null;
+    if (TR.part.type === 'wall') TR.part.last = trNow();
+    if (TR.part.recent) TR.part.recent = [];
+    const old = document.querySelector('.tr-swap');
+    if (old) old.remove();
+    const el = document.createElement('div');
+    el.className = 'tr-swap';
+    el.textContent = `${s === 'sug' ? 'SUGGESTED' : p.mineLabel.toUpperCase()} ${sensFmt(s === 'sug' ? p.sug : p.mine)}`;
+    $('trainer').appendChild(el);
+    setTimeout(() => el.remove(), 1200);
+  }
+  function trPracticeHud() {
+    const p = TR.pair, s = TR.prac.side, st = TR.prac.stats[s], part = TR.part;
+    const lab = `${s === 'sug' ? 'SUGGESTED' : esc(p.mineLabel.toUpperCase())} ${sensFmt(s === 'sug' ? p.sug : p.mine)}`;
+    let stats;
+    if (part.type === 'wall') {
+      const avg = st.times.length ? st.times.reduce((a, b) => a + b, 0) / st.times.length : 0;
+      stats = `<span>HITS <b>${st.hits}</b></span><span>ACCURACY <b>${st.shots ? Math.round(st.hits / st.shots * 100) : 0}%</b></span><span>PER HIT <b>${avg ? avg.toFixed(2) + ' s' : '–'}</b></span>`;
+    } else {
+      const r = part.recent || [];
+      stats = `<span>ON THE ORB <b>${r.length ? Math.round(r.reduce((a, b) => a + b, 0) / r.length * 100) : 0}%</b></span>`;
+    }
+    return `<div class="tr-h"><span>PRACTICE · ${part.type === 'wall' ? 'FLICK WALL' : 'TRACKING'}</span><b>${lab}</b></div><div class="tr-pstats">${stats}<span>TAB <b>SWITCH</b></span></div>`;
+  }
+  function trPracticePause() {
+    const p = TR.pair, st = TR.prac ? TR.prac.stats : null;
+    const cell = (k, v) => {
+      const x = st && st[k];
+      if (!x || (!x.hits && !x.n)) return `<div><b>–</b><em>not tried yet</em></div>`;
+      const avg = x.times.length ? x.times.reduce((a, b) => a + b, 0) / x.times.length : 0;
+      return `<div>${x.hits ? `<b>${avg.toFixed(2)} s</b><em>a hit · ${x.hits} hits · ${Math.round(x.hits / Math.max(1, x.shots) * 100)}% accuracy</em>` : ''}${x.n ? `<b>${Math.round(x.on / x.n * 100)}%</b><em>on the orb while tracking</em>` : ''}</div>`;
+    };
+    return `<div class="tr-k">PRACTICE · PAUSED</div><h3>How each one went</h3>
+      <div class="tr-cmp"><div><small>${esc(p.mineLabel.toUpperCase())} · ${sensFmt(p.mine)}</small></div><div><small>SUGGESTED · ${sensFmt(p.sug)}</small></div>${cell('mine')}${cell('sug')}</div>
+      <p class="tr-base" style="margin-top:12px">From this practice only. For a fair answer, the blind check doesn't tell you which is which.</p>
+      <div class="tr-act"><button type="button" class="btn acc" data-tr="resume">Continue</button><button type="button" class="btn" data-tr="switchdrill">${TR.drill === 'wall' ? 'Tracking instead' : 'Flick wall instead'}</button><button type="button" class="btn" data-tr="close">Done</button></div>`;
+  }
+
 
 
   // ------------------------------------------------------------------ the phone view
@@ -2784,6 +3000,225 @@
     if (r && r.verdict && r.verdict !== 'none') aimResult(r);
   }
 
+  // ------------------------------------------------------------------ calibrate
+  const LAB_VERDICT = { better: ['Faster', 'good'], worse: ['Slower', 'bad'], same: ['No difference', 'flat'], unclear: ['Too close to call', 'flat'], failed: ['Didn\'t run', 'flat'], '': ['Not measured', 'flat'] };
+  const LAB_ORDER = { better: 0, worse: 1, unclear: 2, same: 3, failed: 4, '': 5 };
+  // the game's own profiler groups, in plain words
+  const LAB_PARTS = [
+    ['Client Rendering', 'Preparing each frame to draw', 'The processor works out what the graphics card should draw.'],
+    ['Frame Boundary', 'Waiting at the end of the frame', 'For the graphics card to finish and the frame to go to the screen.'],
+    ['Client Simulation', 'Game logic', 'Heroes, abilities and everything moving.'],
+    ['PanoramaUI', 'The game\'s interface', 'HUD, health bars, the minimap.'],
+    ['Networking', 'Match data', 'In a replay, the recorded match; online, the server\'s updates.'],
+    ['SoundOperators', 'Game sound', 'Mixing every sound in the fight.'],
+    ['Client Physics', 'Physics', ''],
+    ['Client_Animation', 'Animation', ''],
+  ];
+  const labGame = () => (S.lab && S.lab.game) || 'steam:1422450';
+  const labPct = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0) + '%';
+  function requestLab() { send({ t: 'lab', game: labGame() }); }
+
+  function renderLab() {
+    if (S.page !== 'calibrate') return;
+    const L = S.lab;
+    const dl = S.games.find(g => g.id === 'steam:1422450');
+    $('cal-for-art').setAttribute('style', dl ? artStyle(dl, 'header') : '');
+    $('cal-for-art').hidden = !(dl && dl.art && (dl.art.header || dl.art.capsule));
+    if (!L) { $('cal-stage').innerHTML = skel(2); $('cal-side').innerHTML = ''; return; }
+    if (!L.supported) {
+      $('cal-stage').innerHTML = `<div class="empty"><b>Deadlock isn't installed</b>Calibrate is built specially for Deadlock: it uses Deadlock's own benchmark mode. Install Deadlock through Steam and this page comes to life.</div>`;
+      $('cal-side').innerHTML = labWhy();
+      return;
+    }
+    const s = L.session;
+    if (L.running && s) $('cal-stage').innerHTML = labRunning(L, s);
+    else if (s && !S.labSetup) $('cal-stage').innerHTML = labResults(L, s);
+    else $('cal-stage').innerHTML = labSetup(L);
+    $('cal-side').innerHTML = labWhy() + labSide(L);
+    labBars();
+  }
+  // why it's Deadlock only (for now)
+  function labWhy() {
+    return `<div class="cal-why"><b>Why only Deadlock</b><p>Calibrating needs a game that can replay a real match exactly the same way every time, as fast as your PC can draw it. Deadlock has that built in. Most games don't, so for now this page is Deadlock's alone; the rest of TEMPO works with every game.</p></div>`;
+  }
+
+  // ---------- before: the fight, how thorough, what it tries
+  function labSetup(L) {
+    const fits = L.replays.filter(r => r.fits);
+    if (!S.labDemo || !fits.find(r => r.name === S.labDemo)) S.labDemo = fits[0] && fits[0].name;
+    const plan = S.labPlan || 'thorough';
+    const f = L.fetch;
+    const blockers = [
+      !L.steam && 'Open Steam and sign in: Deadlock needs it.',
+      L.gameOpen && 'Close Deadlock first: the calibration opens it by itself.',
+      L.tempoOn && 'Turn TEMPO off first: the calibration needs the PC as it is.',
+    ].filter(Boolean);
+    const replayRows = fits.slice(0, 3).map(r => `<button type="button" class="cal-rep${r.name === S.labDemo ? ' on' : ''}" data-lab-demo="${esc(r.name)}">
+        <span class="cr-dot"></span><span class="cr-t"><b>Match ${esc(r.name)}</b><small>${r.minutes.toFixed(0)} minutes · ${when(r.saved)}${r.owned ? ' · fetched by TEMPO' : ''}</small></span><span class="cr-ok">Plays in this version</span></button>`).join('');
+    const old = L.replays.filter(r => !r.fits).length;
+    const fetchUi = f ? `<div class="cal-fetch"><div class="cf-top"><span>${esc(f.stage)}</span><b>${Math.round((f.pct || 0) * 100)}%</b></div><div class="cf-bar"><i style="width:${Math.round((f.pct || 0) * 100)}%"></i></div></div>`
+      : `<button type="button" class="btn${fits.length ? '' : ' acc'}" data-lab="fetch">${fits.length ? 'Get a newer one' : 'Get a fresh replay'}</button><span class="note cal-fetch-note">About 250 MB, from Valve's replay servers. The match is picked by deadlock-api.com (free and fan-made); nothing about you is sent.</span>`;
+    const tests = L.tests.map((t, i) => `<li><span class="ct-n">${i + 1}</span><div><b>${esc(t.label)}</b><small>${esc(t.why)}</small></div></li>`).join('');
+    const runs = plan === 'quick' ? L.runs.quick : L.runs.thorough, mins = plan === 'quick' ? L.runs.quickMin : L.runs.thoroughMin;
+    return `<div class="cal-card setup">
+      <div class="cal-step"><span class="n">1</span><div><b>The fight</b><small>One busy minute of a real match, late in the game, played exactly the same way every time.</small></div></div>
+      <div class="cal-reps">${replayRows || `<div class="cal-none"><b>No replay for this version of Deadlock yet</b><small>Replays only play in the version of the game that recorded them${old ? `; the ${old} you have ${old === 1 ? 'is' : 'are'} from before an update` : ''}. TEMPO can fetch one from a match that just finished.</small></div>`}</div>
+      <div class="cal-fetch-row">${fetchUi}</div>
+      <div class="cal-step"><span class="n">2</span><div><b>How thorough</b><small>Your PC wobbles a little from run to run; more runs see smaller differences.</small></div></div>
+      <div class="cal-plans">
+        <button type="button" class="cal-plan${plan === 'quick' ? ' on' : ''}" data-lab-plan="quick"><b>Quick</b><span class="cp-t">about ${L.runs.quickMin} min</span><small>Each change once. Finds the big ones.</small></button>
+        <button type="button" class="cal-plan${plan === 'thorough' ? ' on' : ''}" data-lab-plan="thorough"><b>Thorough</b><span class="cp-t">about ${L.runs.thoroughMin} min</span><small>Each change twice, and again if it's close. Catches smaller gains.</small></button>
+      </div>
+      <div class="cal-step"><span class="n">3</span><div><b>What it tries</b><small>One at a time, with your setup as it is in between. Nothing stays changed unless you keep it.</small></div></div>
+      <ol class="cal-tests">${tests}</ol>
+      ${blockers.length ? `<p class="note warn cal-block">${blockers.map(esc).join(' ')}</p>` : ''}
+      <div class="cal-go">
+        <button type="button" class="btn acc big" data-lab="start"${!fits.length || blockers.length || f ? ' disabled' : ''}>Start calibration</button>
+        <p class="note">Deadlock opens and closes by itself ${runs} times. Leave the PC alone meanwhile: anything else you do changes the results. A good moment is while you eat. Stop any time; everything goes back as it was.</p>
+      </div>
+      ${S.labSetup && L.session ? `<button type="button" class="link cal-back" data-lab="results">Back to the last results</button>` : ''}
+    </div>`;
+  }
+
+  // ---------- during: which run, what's happening, every run as a bar
+  function labRunning(L, s) {
+    const n = Math.min(s.total, s.done + 1);
+    const left = Math.max(1, Math.round((s.total - s.done) * 1.75 - 0.5));
+    return `<div class="cal-card run">
+      <div class="run-top">
+        <div class="run-n"><b>${n}</b><span>of ${s.total}</span></div>
+        <div class="run-what"><div class="k">${L.stopping ? 'STOPPING AFTER THIS RUN' : 'NOW'}</div><b>${esc(L.step || 'Getting ready')}</b><small>About ${left} minute${left === 1 ? '' : 's'} left · ${s.plan === 'quick' ? 'Quick' : 'Thorough'} · match ${esc(s.demo)}</small></div>
+        ${L.stopping ? '' : '<button type="button" class="btn" data-lab="stop">Stop after this run</button>'}
+      </div>
+      <div class="run-chart"><canvas id="lab-bars"></canvas></div>
+      <div class="run-legend"><span><i class="lg base"></i>Your setup as it is</span><span><i class="lg test"></i>A change being tried</span><span><i class="lg warm"></i>Warm-up, not counted</span></div>
+      ${s.tests.some(t => t.verdict) ? `<div class="run-early">${s.tests.filter(t => t.verdict && t.verdict !== 'failed').map(t => `<span class="re ${t.verdict}">${esc(t.label)} <b>${labPct(t.gain)}</b></span>`).join('')}<small>So far; the verdict waits until the end.</small></div>` : ''}
+      <p class="note">TEMPO's window sleeps while Deadlock plays, so it costs the measurement nothing. If you need the PC, stop after this run; you can carry on another time.</p>
+    </div>`;
+  }
+
+  // ---------- after: your PC's number, then each change, best first
+  function labResults(L, s) {
+    const tests = s.tests.slice().sort((a, b) => (LAB_ORDER[a.verdict] ?? 9) - (LAB_ORDER[b.verdict] ?? 9) || b.gain - a.gain);
+    const head = s.baseFps ? `<div class="res-head">
+        <div><div class="k">YOUR PC ON THIS FIGHT</div><div class="res-big">${fmt(s.baseFps, 0)}<small>FPS</small></div></div>
+        <div class="res-facts"><div><b>${fmt(s.baseP95, 1)} ms</b><span>the slowest 5% of frames</span></div><div><b>±${fmt(s.noise, 1)}%</b><span>from run to run</span></div><div><b>${esc(s.render || 'DirectX 11')}</b><span>${s.done} runs · ${when(s.started)}</span></div></div>
+      </div>` : '';
+    const status = s.status === 'done' ? '' : `<div class="res-status ${s.status}"><b>${s.status === 'stopped' ? 'Stopped before the end' : 'Stopped'}</b><p>${esc(s.note || '')}${s.status === 'failed' && /replay/i.test(s.note || '') ? ' Get a fresh replay and start again.' : ''} ${s.done ? 'What was measured so far is below.' : ''}</p></div>`;
+    const hz = s.gameHz && s.desktopHz && s.gameHz < s.desktopHz - 1 ? `<div class="fd fix">
+        <div class="fd-top"><span class="pill fix">FOUND</span><b>Deadlock runs your screen at ${s.gameHz} Hz</b><span class="sp"></span><span class="gain hz">${s.gameHz}<i>→</i>${s.desktopHz}</span></div>
+        <p>Your screen does ${s.desktopHz} Hz, but Deadlock's own setting switches it to ${s.gameHz} Hz while you play. Even at the same fps, everything moves less smoothly and reaches your eyes later. This one doesn't change fps; it's how fast the screen can show them.</p>
+        <div class="fd-act"><button type="button" class="btn acc" data-lab-hz="${esc(s.id)}">Set Deadlock to ${s.desktopHz} Hz</button><span class="note" style="margin:0">Or in Deadlock: Settings, Video, Refresh rate.</span></div></div>` : '';
+    const cards = tests.map(t => labFinding(s, t)).join('');
+    const disturbed = s.disturbed ? `<p class="note warn" style="margin-top:12px">The PC was used during ${s.disturbed} run${s.disturbed === 1 ? '' : 's'}, which makes those numbers less steady.</p>` : '';
+    return `<div class="cal-card res">${head}${status}${hz}<div class="fd-list">${cards}</div>${disturbed}
+      <div class="res-foot"><button type="button" class="btn" data-lab="again">Calibrate again</button><span class="note" style="margin:0">After a Deadlock update, a new driver or new parts, or to measure more closely.</span></div></div>`;
+  }
+
+  function labFinding(s, t) {
+    const [vt, vc] = LAB_VERDICT[t.verdict] || LAB_VERDICT[''];
+    const gainCls = t.verdict === 'better' ? 'up' : t.verdict === 'worse' ? 'down' : '';
+    const rng = t.runs ? rangeBar({ a: 100, b: 100 + t.gain, diff: t.gain, lo: t.gain - t.margin, hi: t.gain + t.margin, call: t.verdict }, '%') : '';
+    let act = '';
+    if (t.verdict === 'better') {
+      if (t.keep === 'config') act = t.kept ? '<span class="pill good">KEPT</span><span class="note" style="margin:0">Put it back any time on the Tune page.</span>'
+        : `<button type="button" class="btn acc" data-lab-keep="${esc(t.id)}" data-lab-sess="${esc(s.id)}">Keep it</button><span class="note" style="margin:0">${esc(Object.keys(t.config).map(k => labSetName(k, t)).join(', '))}</span>`;
+      else if (t.keep === 'launch') act = `<div class="fd-how"><b>Keep it in Steam</b><span>${esc(t.keepText)}</span>${t.id === 'vulkan' ? '<button type="button" class="btn" data-copy="-vulkan">Copy -vulkan</button>' : ''}</div>`;
+      else if (t.keep === 'boost') act = '<span class="note" style="margin:0">Turn TEMPO on before you play, and the boost is on.</span>';
+    } else if (t.verdict === 'worse' && t.id === 'boost') act = `<button type="button" class="btn" data-go-page="boost">Open Boost</button><span class="note" style="margin:0">See which parts to switch off.</span>`;
+    else if (t.verdict === 'worse' && t.id === 'noopts') act = `<span class="note" style="margin:0">Your launch options help: keep them.</span>`;
+    return `<div class="fd ${t.verdict || 'none'}">
+      <div class="fd-top"><span class="pill ${vc}">${vt.toUpperCase()}</span><b>${esc(t.label)}</b><span class="sp"></span>${t.runs ? `<span class="gain ${gainCls}">${labPct(t.gain)}</span>` : ''}</div>
+      ${rng ? `<div class="fd-rng">${rng}</div>` : ''}
+      <p>${esc(t.summary || t.why)}</p>
+      ${t.runs && Math.abs(t.worstGain) >= 1 ? `<p class="fd-worst">Slowest frames: ${t.worstGain >= 0 ? `${fmt(t.worstGain, 0)}% faster` : `${fmt(-t.worstGain, 0)}% slower`}</p>` : ''}
+      ${act ? `<div class="fd-act">${act}</div>` : ''}
+    </div>`;
+  }
+  function labSetName(k, t) {
+    const n = { 'setting.r_citadel_ssao_quality': 'Ambient occlusion', 'setting.shaderquality': 'Shader detail', 'setting.r_particle_depth_feathering': 'Soft particles', 'setting.r_citadel_fog_quality': 'Fog', 'setting.r_citadel_shadow_quality': 'Shadows', 'setting.cpu_level': 'Processor detail', 'nv.pstate': 'NVIDIA power' }[k] || k.replace('setting.', '');
+    return `${n} ${t.was && t.was[k] != null ? `${t.was[k]} → ` : ''}${t.config[k]}`;
+  }
+
+  // ---------- the side: where a frame's time goes, earlier calibrations
+  function labSide(L) {
+    const s = L.session;
+    const parts = s && s.parts || {};
+    const total = parts.FrameTotal || 0;
+    let frame = '';
+    if (total > 0) {
+      const rows = LAB_PARTS.filter(([k]) => parts[k] > 0.2).map(([k, name, help]) => ({ k, name, help, ms: parts[k] })).sort((a, b) => b.ms - a.ms).slice(0, 6);
+      const top = rows[0];
+      frame = `<div class="sec-h" style="margin-top:4px"><span>Where a frame's time goes</span><small>${fmt(total, 1)} ms a frame</small></div>
+        <div class="cal-frame">${rows.map(r => `<div class="cfp"><div class="cfp-t"><b>${esc(r.name)}</b><span>${fmt(r.ms, 1)} ms</span></div><div class="cfp-bar"><i style="width:${Math.min(100, r.ms / total * 100)}%"></i></div>${r.help ? `<small>${esc(r.help)}</small>` : ''}</div>`).join('')}
+        <p class="note">From Deadlock's own profiler, during this fight on your PC. Parts run side by side on different cores, so they add up to more than a frame.${top && top.k === 'Client Rendering' ? ' The biggest is the processor preparing what to draw: settings that lighten the graphics card help little here.' : top && top.k === 'Frame Boundary' ? ' The biggest is waiting for the graphics card: lighter graphics settings help most.' : ''}</p></div>`;
+    } else frame = `<div class="sec-h" style="margin-top:4px"><span>Where a frame's time goes</span></div><div class="empty"><b>After the first run</b>Deadlock's own profiler shows where each frame's time goes on your PC: preparing the picture, game logic, the interface, waiting for the graphics card.</div>`;
+    const hist = (L.history || []).filter(h => h.runs > 0);
+    const history = hist.length ? `<div class="sec-h"><span>Earlier calibrations</span></div>` + hist.map(h => `<div class="cal-hist${s && h.id === s.id ? ' on' : ''}" data-lab-open="${esc(h.id)}"><div><b>${when(h.started)}</b><small>${h.plan === 'quick' ? 'Quick' : 'Thorough'} · ${h.runs} runs${h.status !== 'done' ? ' · stopped' : ''}</small></div><div class="ch-r"><b>${h.baseFps ? fmt(h.baseFps, 0) + ' fps' : '–'}</b><small>${h.best ? `${esc(h.best.label)} ${labPct(h.best.gain)}` : 'nothing faster'}</small></div></div>`).join('') : '';
+    return frame + history;
+  }
+
+  // the runs as bars (done, going, to come)
+  function labBars() {
+    const c = $('lab-bars');
+    const s = S.lab && S.lab.session;
+    if (!c || !s) return;
+    const dpr = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+    c.width = w * dpr; c.height = h * dpr;
+    const x = c.getContext('2d');
+    x.scale(dpr, dpr);
+    const runs = s.runs || [], queue = s.queue || [];
+    const all = runs.map(r => ({ ...r, state: 'done' })).concat(queue.map((q, i) => ({ test: q.replace('warm:', ''), warmup: q.startsWith('warm:'), state: i === 0 ? 'now' : 'todo' })));
+    const fpsList = runs.filter(r => r.ok && r.fps > 0).map(r => r.fps);
+    const lo = fpsList.length ? Math.min(...fpsList) * 0.86 : 40, hi = fpsList.length ? Math.max(...fpsList) * 1.04 : 70;
+    const n = Math.max(all.length, 8), gap = 4, bw = Math.max(6, (w - gap * (n - 1)) / n);
+    const acc = getComputedStyle(body).getPropertyValue('--acc').trim() || '#D4FF3F';
+    const t = performance.now();
+    x.font = '500 10px "Geist Mono", monospace';
+    x.textAlign = 'center';
+    all.forEach((r, i) => {
+      const px = i * (bw + gap), base = r.test === 'base';
+      let bh;
+      if (r.state === 'done' && r.ok) bh = Math.max(6, (r.fps - lo) / (hi - lo) * (h - 22));
+      else if (r.state === 'done') bh = 6;
+      else bh = fpsList.length ? Math.max(10, (fpsList.reduce((a, b) => a + b, 0) / fpsList.length - lo) / (hi - lo) * (h - 22)) : (h - 22) * .55;
+      const y = h - 14 - bh;
+      if (r.state === 'todo') { x.strokeStyle = 'rgba(255,255,255,.08)'; x.setLineDash([3, 3]); x.strokeRect(px + .5, y + .5, bw - 1, bh - 1); x.setLineDash([]); }
+      else if (r.state === 'now') {
+        const a = .1 + .08 * Math.sin(t / 320);
+        const rgb = base ? '236,238,241' : getComputedStyle(body).getPropertyValue('--acc-rgb').trim();
+        x.fillStyle = `rgba(${rgb},${a})`;
+        x.fillRect(px, y, bw, bh);
+        x.strokeStyle = `rgba(${rgb},${.35 + .25 * Math.sin(t / 320)})`;
+        x.strokeRect(px + .5, y + .5, bw - 1, bh - 1);
+      } else {
+        x.fillStyle = !r.ok ? 'rgba(255,107,87,.7)' : r.warmup ? 'rgba(255,255,255,.12)' : base ? 'rgba(236,238,241,.38)' : acc;
+        x.fillRect(px, y, bw, bh);
+        if (r.ok && bw >= 18 && !r.warmup) { x.fillStyle = base ? 'rgba(236,238,241,.75)' : acc; x.fillText(Math.round(r.fps), px + bw / 2, y - 4); }
+      }
+    });
+    if (S.lab.running) { cancelAnimationFrame(labBars.raf); labBars.raf = requestAnimationFrame(() => { if (S.page === 'calibrate') labBars(); }); }
+  }
+
+  $('page-calibrate').addEventListener('click', e => {
+    const b = e.target.closest('button, [data-lab-open]');
+    if (!b) return;
+    const L = S.lab;
+    if (b.dataset.labDemo) { S.labDemo = b.dataset.labDemo; renderLab(); return; }
+    if (b.dataset.labPlan) { S.labPlan = b.dataset.labPlan; renderLab(); return; }
+    if (b.dataset.labKeep) { send({ t: 'labKeep', id: b.dataset.labSess, test: b.dataset.labKeep }); return; }
+    if (b.dataset.labHz) { send({ t: 'labHz', id: b.dataset.labHz }); return; }
+    if (b.dataset.labOpen) { const h = (L.history || []).find(x => x.id === b.dataset.labOpen); if (h) { S.labSetup = false; send({ t: 'lab', game: labGame(), open: h.id }); } return; }
+    if (b.dataset.copy) { navigator.clipboard && navigator.clipboard.writeText(b.dataset.copy).catch(() => { }); toast(`Copied ${b.dataset.copy}. Paste it into Deadlock's launch options in Steam.`); return; }
+    switch (b.dataset.lab) {
+      case 'fetch': send({ t: 'labFetch', game: labGame() }); break;
+      case 'start': S.labSetup = false; send({ t: 'labStart', game: labGame(), demo: S.labDemo || '', plan: S.labPlan || 'thorough' }); break;
+      case 'stop': send({ t: 'labStop' }); break;
+      case 'again': S.labSetup = true; renderLab(); break;
+      case 'results': S.labSetup = false; renderLab(); break;
+    }
+  });
+
   // ------------------------------------------------------------------ messages from the app
   function onMsg(m) {
     switch (m.t) {
@@ -2837,6 +3272,14 @@
       case 'checkup': S.checkup = (m.findings || []).map(f => ({ level: f.level, title: esc(f.title), text: esc(f.text) })); S.boostStatus = m.boostStatus || S.boostStatus; renderCheckup(); break;
       case 'update': { const u = $('update'); u.hidden = false; u.dataset.url = m.url; u.textContent = `Update ${m.version}`; break; }
       case 'tune': S.tune = m; renderTune(); renderSA(); break;
+      case 'lab': {
+        const was = S.lab;
+        S.lab = m;
+        if (was && was.running && !m.running) S.labSetup = false; // just finished: the results
+        renderLab();
+        break;
+      }
+      case 'labFetch': if (S.lab) { S.lab.fetch = { stage: m.stage, pct: m.pct }; renderLab(); } break;
       case 'aimState': AIM.st = m; renderAimPage(); break;
       case 'raw': trRaw(m.r); break;
       case 'trCaptureLost': if (m.why) toast(m.why); trLetGo(); break;
