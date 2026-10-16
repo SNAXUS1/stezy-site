@@ -110,5 +110,15 @@
     "summary": [
       "Thirteen small Windows tools in one night, each with its own look: a curtain for your screen, a mic mute with an ON AIR sign, a diary of your screen time and more."
     ]
+  },
+  {
+    "id": "site-mobile",
+    "kind": "site",
+    "date": "2026-10-16T20:30:00Z",
+    "title": "A Mobile tab",
+    "summary": [
+      "Phone apps now have their own tab next to Games, Apps and Remixes, so they never get mixed up with the PC ones.",
+      "On a computer, an Android app's page shows a code to scan with your phone."
+    ]
   }
 ]

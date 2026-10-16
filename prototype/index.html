@@ -9,7 +9,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="STEZY">
 <meta property="og:title" content="STEZY: games, apps and remixes">
-<meta property="og:description" content="Games, apps and game remixes made by STEZY. Download them and play.">
+<meta property="og:description" content="Games, PC apps, phone apps and game remixes made by STEZY. Download them and play.">
 <meta property="og:url" content="https://stezy.lt/">
 <meta property="og:image" content="https://stezy.lt/og.jpg">
 <meta property="og:image:width" content="1200">
@@ -44,6 +44,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Anybody:ital,wdth,wght@1,150,900&text=TEMPOtempo&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&text=REAPERreaper&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@700&text=ECHOecho&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@600&text=Afterhous&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
 <script src="js/shiny.js?v=2" defer></script>
@@ -269,7 +270,7 @@
   .sound-hint.show { opacity: 0.7; transform: translate(0, -50%); }
   @media (max-width: 700px) { .sound-hint { display: none; } }
 
-  /* Category tabs: Games / Apps / Remixes */
+  /* Category tabs: Games / Apps / Remixes / Mobile */
   .tabs {
     position: absolute; left: 50%; top: 20px; transform: translateX(-50%);
     display: flex; gap: 2px; padding: 4px; border-radius: 999px;
@@ -857,6 +858,62 @@
   .cv-reaper .small { color: rgba(236, 231, 221, 0.55); }
   .art-reaper { position: relative; font-family: 'Cinzel', serif; font-weight: 600; text-transform: uppercase; letter-spacing: 0.16em; padding-left: 0.16em; font-size: 13cqi; text-shadow: 0 0 2cqi rgba(143, 179, 232, 0.45); }
   @media (prefers-reduced-motion: reduce) { .scene.is-active .t-reaper::before { animation: none; } }
+  /* Afterhours: the day as an arc over a horizon, the name standing on it like the app's own reading; "hours" in dusk light */
+  body[data-scene="afterhours"] { --page: #0B0B0C; --chrome: #F2F1EE; --chrome-muted: #A2A1A6; --g1: #4A2C10; --g2: #17131C; --g-o: 0.42; --b1x: 0vw; --b1y: 46vh; --b2x: -34vw; --b2y: -42vh; }
+  .scene-afterhours { color: #F2F1EE; align-items: center; text-align: center; --accent: #E4A866; }
+  .t-afterhours {
+    font-family: 'Geist', 'Hanken Grotesk', system-ui, sans-serif; font-weight: 600; font-size: clamp(58px, 9.6vw, 180px);
+    line-height: 1; letter-spacing: -0.045em; color: #F2F1EE; --ah-split: 47%;
+  }
+  .t-afterhours .ch:nth-child(n+6) { color: #E4A866; transition: text-shadow 1.2s ease; }
+  .scene-afterhours.is-after .t-afterhours .ch:nth-child(n+6) { text-shadow: 0 0 0.3em rgba(228, 168, 102, 0.4); }
+  /* letters rise from behind the horizon, so it clips them until they're up */
+  .t-afterhours .word { clip-path: inset(-0.6em -0.4em 0.13em -0.4em); }
+  .t-afterhours::after { content: ""; position: absolute; left: -16%; right: -16%; bottom: 0.13em; height: 1px; pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(242, 241, 238, 0.34) 20%, rgba(242, 241, 238, 0.34) 80%, transparent); }
+  .t-afterhours::before { content: attr(data-text); position: absolute; inset: 0; pointer-events: none; white-space: nowrap;
+    transform-origin: 50% calc(100% - 0.13em); transform: scaleY(-1); opacity: 0.3; filter: blur(1.5px);
+    background: linear-gradient(90deg, #F2F1EE var(--ah-split), #E4A866 var(--ah-split)); -webkit-background-clip: text; background-clip: text; color: transparent;
+    -webkit-mask-image: linear-gradient(to top, #000, transparent 48%); mask-image: linear-gradient(to top, #000, transparent 48%); }
+  .scene.is-active .enter-horizon .ch { animation: ah-rise 1s var(--ease-out) calc(0.15s + var(--i) * 55ms) both; }
+  @keyframes ah-rise { from { transform: translateY(0.95em); } to { transform: none; } }
+  .scene.is-active .t-afterhours::after { animation: ah-line 1.2s var(--ease-out) both; }
+  @keyframes ah-line { from { transform: scaleX(0); opacity: 0; } to { transform: none; opacity: 1; } }
+  .scene.is-active .t-afterhours::before { animation: ah-fade 1.4s ease 0.8s both; }
+  @keyframes ah-fade { from { opacity: 0; } }
+  /* the app's dial behind the name: 06 to midnight, after hours in dusk, a dot at the real time now */
+  .ah-dial { position: absolute; z-index: -1; left: 4%; width: 92%; bottom: 0.13em; height: auto; aspect-ratio: 2 / 1; overflow: visible; pointer-events: none; }
+  .ah-track { fill: none; stroke: rgba(242, 241, 238, 0.2); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .ah-zone { fill: none; stroke: rgba(228, 168, 102, 0.55); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  .ah-ticks line { stroke: rgba(242, 241, 238, 0.22); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .ah-labels text { font: 500 4.2px/1 'Hanken Grotesk', sans-serif; letter-spacing: 0.04em; fill: rgba(242, 241, 238, 0.42); text-anchor: middle; }
+  .ah-labels .dz { fill: #E4A866; }
+  .ah-labels .end { text-anchor: end; }
+  .ah-labels .start { text-anchor: start; }
+  .ah-now { fill: #F2F1EE; opacity: 0; transition: opacity 0.6s ease; }
+  .ah-ring { fill: none; stroke: #F2F1EE; stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0; transform-box: fill-box; transform-origin: center; }
+  .scene-afterhours.is-after .ah-now { fill: #E4A866; }
+  .scene-afterhours.is-after .ah-ring { stroke: #E4A866; }
+  .scene-afterhours.has-now .ah-now { opacity: 1; }
+  .scene.is-active.scene-afterhours.has-now .ah-ring { animation: ah-pulse 2.4s ease-out infinite; }
+  @keyframes ah-pulse { from { opacity: 0.7; transform: scale(1); } to { opacity: 0; transform: scale(3.2); } }
+  .ah-live { position: absolute; left: 50%; top: calc(100% + 0.6em); translate: -50% 0; white-space: nowrap; pointer-events: none;
+    font: 600 max(10.5px, 0.075em)/1 'Hanken Grotesk', sans-serif; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(242, 241, 238, 0.5); }
+  .scene-afterhours.is-after .ah-live { color: #E4A866; }
+  .scene.is-active .ah-dial .ah-zone { animation: ah-draw 1.4s var(--ease-out) 0.5s both; }
+  @keyframes ah-draw { from { stroke-dasharray: 0 200; } to { stroke-dasharray: 200 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .scene.is-active .enter-horizon .ch, .scene.is-active .t-afterhours::after, .scene.is-active .t-afterhours::before, .scene.is-active .ah-dial .ah-zone, .scene.is-active.scene-afterhours.has-now .ah-ring { animation: none; }
+  }
+  .cv-afterhours { background: radial-gradient(70% 55% at 50% 100%, rgba(228, 168, 102, 0.24), transparent 70%), #0B0B0C; color: #F2F1EE; }
+  .cv-afterhours .small { color: rgba(242, 241, 238, 0.55); }
+  .art-afterhours { font-family: 'Geist', system-ui, sans-serif; font-weight: 600; letter-spacing: -0.045em; font-size: 15cqi;
+    background: linear-gradient(90deg, #F2F1EE 47%, #E4A866 47%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  /* Android downloads: a code a computer visitor can scan with their phone */
+  .qr-note { display: flex; align-items: center; gap: 16px; margin-top: 16px; padding: 12px; border-radius: 14px; background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--line); }
+  .qr-note img { width: 104px; height: 104px; border-radius: 8px; flex: none; }
+  .qr-note p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+  .qr-note b { color: var(--ink); font-weight: 600; }
   /* TEMPO: a live gauge behind the name, a metronome keeping time, frames streaming past */
   body[data-scene="tempo"] { --page: #08090B; --chrome: #ECEEF1; --chrome-muted: #8B929C; --g1: #2B3A08; --g2: #0B1A20; --g-o: 0.4; --b1x: -16vw; --b1y: 6vh; --b2x: 26vw; --b2y: 58vh; }
   .scene-tempo { color: #ECEEF1; align-items: flex-end; text-align: right; --accent: #D4FF3F; }
@@ -1516,6 +1573,8 @@
     .t-tide { font-size: 22vw; }
     .t-glitch { font-size: 15vw; }
     .t-halo { font-size: 30vw; }
+    .t-afterhours { font-size: 17vw; }
+    .ah-labels { display: none; }
     .tagline { top: calc(46% + 16.5vw * 0.42 + 24px); }
     .chrome-note { display: none; }
     .credit { display: none; }
@@ -1574,6 +1633,7 @@
       <button type="button" data-tab="games" aria-pressed="true">Games</button>
       <button type="button" data-tab="apps" aria-pressed="false">Apps</button>
       <button type="button" data-tab="remixes" aria-pressed="false">Remixes</button>
+      <button type="button" data-tab="mobile" aria-pressed="false">Mobile</button>
     </nav>
     <div class="top-right">
       <span class="sound-hint" id="sound-hint" aria-hidden="true">Click anywhere for sound</span>
@@ -1596,6 +1656,7 @@
           <button type="button" data-tab="games" aria-pressed="true">Games</button>
           <button type="button" data-tab="apps" aria-pressed="false">Apps</button>
           <button type="button" data-tab="remixes" aria-pressed="false">Remixes</button>
+          <button type="button" data-tab="mobile" aria-pressed="false">Mobile</button>
         </div>
         <div class="cover-dock tag-in" id="cover-dock" hidden></div>
         <span class="scroll-cue tag-in" aria-hidden="true"></span>
@@ -1901,6 +1962,18 @@
       sparks: [[64, 30, 26, '3.8s', '.4s'], [86, 52, 16, '4.6s', '1.8s'], [40, 40, 12, '5.2s', '3s']]
     },
     {
+      slug: 'afterhours', icon: 'img/icons/afterhours.png', enter: 'horizon', fresh: true, download: 'https://github.com/SNAXUS1/stezy-site/releases/download/afterhours-v1.0.0/Afterhours-1.0.0.apk', sha: '27a3d8772284118a3956ca2895671a8d1b7e8236f1b79f0edbdc60768fa91d38', name: 'Afterhours', cat: 'mobile', kind: 'App', platform: 'Android', works: 'Android 7 or newer', style: 'afterhours', ratio: '4 / 5',
+      title: 't-afterhours', layout: 'at-center', page: '#0B0B0C', accent: '#E4A866',
+      font: "'Geist', 'Hanken Grotesk', system-ui, sans-serif", titleCss: 'font-weight:600;letter-spacing:-0.045em;',
+      demo: '/play/afterhours/', inTitle: 'dial',
+      blurb: 'Your work hours on your phone, with every evening, weekend and public holiday counted apart.',
+      lede: "Tap Start work when you begin and End day when you're done. Afterhours keeps every day and counts the time after 18:00, at weekends and on Lithuanian public holidays apart from your normal hours, with times rounded the way you choose: 18:48 becomes 19:00. Forgot to tap Break? It asks when you end the day. Forgot to start or end? A reminder taps you on the shoulder. The month adds it all up, ready to send as a spreadsheet. In English or Lithuanian, and everything stays on your phone: no account, no ads.",
+      how: ['On your Android phone, tap Download for Android and open the file when it has downloaded.', 'If Android asks, allow your browser to install apps, then tap Install.', 'Open Afterhours and tap Start work. Settings has your after-hours time, rounding, reminders and language.'],
+      shots: ['img/afterhours/today.webp', 'img/afterhours/month.webp', 'img/afterhours/lietuviskai.webp'],
+      version: '1.0.0', size: '3.3 MB', updated: '16 Oct 2026', web: false,
+      sparks: []
+    },
+    {
       slug: 'schedule-steve', icon: 'img/icons/schedule-steve.png', enter: 'blocks', name: 'Schedule Steve', cat: 'remixes', kind: 'Mod', platform: 'Schedule I', legacy: true,
       download: 'https://github.com/SNAXUS1/stezy-site/releases/download/minecraft-merge-v0.3/MinecraftMerge_v0.3.zip', sha: '8a9f386dee515cfd861da21aaed136eaeb0fb313625a533de0d0a45368f8e8a6',
       game: 'Schedule I + Minecraft: Java Edition 1.21.10', by: 'STEZY', style: 'vinyl', ratio: '1 / 1',
@@ -1914,7 +1987,7 @@
   ];
   const CATEGORY = {};
   projects.forEach(p => { p.cat = p.cat || CATEGORY[p.slug] || 'games'; });
-  const TAB_LABEL = { games: 'Games', apps: 'Apps', remixes: 'Remixes' };
+  const TAB_LABEL = { games: 'Games', apps: 'Apps', remixes: 'Remixes', mobile: 'Mobile' };
 
   // ---------- GPU effects per world (Shaders, shaders.com, MIT). Loaded only near the scene. ----------
   // Liquid light behind the STEZY name; its colours follow the theme and palette switches.
@@ -1952,6 +2025,7 @@
   function secondAction(p) {
     if (p.cat === 'remixes') return { icon: 'ph-download-simple', label: 'Get the mod' };
     if (p.cat === 'apps') return { icon: 'ph-download-simple', label: 'Get it' };
+    if (p.cat === 'mobile') return { icon: 'ph-android-logo', label: 'Get it' };
     return p.web ? { icon: 'ph-game-controller', label: 'Play' } : { icon: 'ph-download-simple', label: 'Download' };
   }
   // Names are split into letters (or two halves for 'fuse') so each can make its own entrance
@@ -1966,6 +2040,8 @@
     const word = w => `<span class="word">${[...w].map(c => `<span class="ch" style="--i:${i++};--r:${Math.random().toFixed(2)}">${c}</span>`).join('')}</span>`;
     return label + `<span aria-hidden="true">${p.name.split(' ').map(word).join(' ')}</span>`;
   }
+  // Afterhours' dial: 06 to midnight over the horizon the name stands on (the scene script places the dot at the real time)
+  const AH_DIAL = '<svg class="ah-dial" viewBox="0 0 200 100" aria-hidden="true" overflow="visible"><path class="ah-track" d="M4.00 100.00A96 96 0 0 1 196.00 100.00"/><path class="ah-zone" d="M148.00 16.86A96 96 0 0 1 196.00 100.00"/><g class="ah-ticks"><line x1="7.00" y1="100.00" x2="10.50" y2="100.00"/><line x1="19.46" y1="53.50" x2="22.49" y2="55.25"/><line x1="53.50" y1="19.46" x2="55.25" y2="22.49"/><line x1="100.00" y1="7.00" x2="100.00" y2="10.50"/><line x1="146.50" y1="19.46" x2="144.75" y2="22.49"/><line x1="180.54" y1="53.50" x2="177.51" y2="55.25"/><line x1="193.00" y1="100.00" x2="189.50" y2="100.00"/></g><g class="ah-labels"><text x="48.5" y="12.4">12</text><text x="151.5" y="12.4" class="dz">18</text></g><circle class="ah-ring" r="3" cx="-50" cy="-50"/><circle class="ah-now" r="2.2" cx="-50" cy="-50"/></svg><span class="ah-live" aria-hidden="true">After hours from 18:00</span>';
   // The layers each living scene needs (the scene script moves the ones that follow the mouse)
   const DECO = {
     nocturne: '<div class="deco lamp-glow" aria-hidden="true"></div>',
@@ -2021,7 +2097,7 @@
       <span class="ghost-word" aria-hidden="true" style="font-family:${p.font};${p.titleCss || ''}">${p.name}</span>
       ${sparksHtml(p.sparks)}
       <button class="credit ${creditSide}" type="button" data-copy="${p.slug}" aria-label="Copy the link to ${p.name}">stezy.lt/p/${p.slug}<span>Updated ${p.updated}</span></button>
-      <h2 class="title ${p.title}${p.enter ? ' split enter-' + p.enter : ''}" id="title-${p.slug}" data-text="${p.name}" style="--n:${p.name.replace(/ /g, '').length}">${p.enter ? splitName(p) : p.name}</h2>
+      <h2 class="title ${p.title}${p.enter ? ' split enter-' + p.enter : ''}" id="title-${p.slug}" data-text="${p.name}" style="--n:${p.name.replace(/ /g, '').length}">${p.enter ? splitName(p) : p.name}${p.inTitle === 'dial' ? AH_DIAL : ''}</h2>
       ${p.note ? `<p class="chrome-note">${p.note}</p>` : ''}
       <div class="info ${p.layout}">
         <p class="credits">${p.kind} &middot; ${p.platform} &middot; v${p.version}${p.pick ? pickTag() : ''}${p.sample ? '<span class="sample-tag">Sample</span>' : ''}${p.legacy ? '<span class="sample-tag">Made before this site</span>' : ''}${p.fresh ? `<span class="sample-tag">${p.fresh === true ? 'New' : p.fresh}</span>` : ''}${p.by ? `<span class="made-by">Made by ${p.by}</span>` : ''}</p>
@@ -2051,17 +2127,18 @@
     markNear();
   }
 
-  // ---------- Tabs: Games / Apps / Remixes ----------
+  // ---------- Tabs: Games / Apps / Remixes / Mobile ----------
   let currentTab = 'games';
   // The intro doubles as the chosen tab's cover: the particles write its name and the line counts what's below
   let coverTab = null;
   const tagText = document.getElementById('tag-text');
   const DEFAULT_TAG = tagText.innerHTML;
-  const SINGULAR = { games: 'game', apps: 'app', remixes: 'remix' };
+  const SINGULAR = { games: 'game', apps: 'app', remixes: 'remix', mobile: 'phone app' };
+  const PLURAL = { games: 'games', apps: 'apps', remixes: 'remixes', mobile: 'phone apps' };
   const NUMBER = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
   function coverLine(cat) {
     const n = projects.filter(p => p.cat === cat).length;
-    return `${NUMBER[n] || n} ${n === 1 ? SINGULAR[cat] : TAB_LABEL[cat].toLowerCase()}. <strong>Scroll down to see ${n === 1 ? 'it' : 'them'}.</strong>`;
+    return `${NUMBER[n] || n} ${n === 1 ? SINGULAR[cat] : PLURAL[cat]}. <strong>Scroll down to see ${n === 1 ? 'it' : 'them'}.</strong>`;
   }
   let tagTimer;
   function setTagline(html) {
@@ -2108,7 +2185,7 @@
     buildRail();
     moveIndicator();
     const others = usedTabs.filter(c => c !== cat);
-    outroNext.innerHTML = others.map(c => `<button class="btn ghost" type="button" data-tab="${c}">See the ${TAB_LABEL[c].toLowerCase()}</button>`).join('');
+    outroNext.innerHTML = others.map(c => `<button class="btn ghost" type="button" data-tab="${c}">See the ${PLURAL[c]}</button>`).join('');
     if (scroller) scroller.refresh();
     if (typeof placeAnchors === 'function') placeAnchors();
   }
@@ -2203,6 +2280,7 @@
     </div>`;
   }
   const onPhone = matchMedia('(pointer: coarse)').matches && !/Windows NT|Macintosh|CrOS|Linux x86/.test(navigator.userAgent);
+  const onAndroid = /Android/i.test(navigator.userAgent);
   // The details are always dark, so a dark accent (from a paper or light world) would vanish there
   function lightEnough(hex) {
     const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
@@ -2212,7 +2290,11 @@
   }
   function detail(p) {
     const remix = p.cat === 'remixes';
-    const phoneNote = onPhone && !p.noDownload ? `<p class="note phone-note"><i class="ph ph-device-mobile" aria-hidden="true"></i>This one runs on a Windows PC. On your phone? Share the link to yourself and grab it later.</p>` : '';
+    const android = p.platform === 'Android';
+    const phoneNote = android
+      ? (onAndroid ? '' : onPhone ? `<p class="note phone-note"><i class="ph ph-device-mobile" aria-hidden="true"></i>This one is for Android phones. There's no iPhone version yet.</p>`
+        : `<div class="qr-note"><img src="img/${p.slug}/qr.svg" alt="A code that opens stezy.lt/p/${p.slug}/ on your phone" width="104" height="104" loading="lazy"><p><b>It's a phone app.</b> Point your Android phone's camera at this code to open this page there, then tap Download for Android.</p></div>`)
+      : onPhone && !p.noDownload ? `<p class="note phone-note"><i class="ph ph-device-mobile" aria-hidden="true"></i>This one runs on a Windows PC. On your phone? Share the link to yourself and grab it later.</p>` : '';
     const buttons = remix
       ? (p.download ? `<a class="btn primary" href="${p.download}" download><i class="ph ph-download-simple" aria-hidden="true"></i>Download the mod</a>` : `<a class="btn primary" href="#" data-demo><i class="ph ph-download-simple" aria-hidden="true"></i>Download the mod</a>`)
       : p.play
@@ -2220,11 +2302,12 @@
       : p.web
       ? `<a class="btn primary" href="#" data-demo><i class="ph ph-play" aria-hidden="true"></i>${p.webLabel || 'Play in browser'}</a>
          <a class="btn ghost" href="#" data-demo><i class="ph ph-download-simple" aria-hidden="true"></i>Download</a>`
-      : p.download ? `<a class="btn primary" href="${p.download}" download><i class="ph ph-download-simple" aria-hidden="true"></i>Download for Windows</a>${p.demo ? `<a class="btn ghost" href="${p.demo}"><i class="ph ph-play" aria-hidden="true"></i>Try the live demo</a>` : ''}`
+      : p.download ? `<a class="btn primary" href="${p.download}" download><i class="ph ${android ? 'ph-android-logo' : 'ph-download-simple'}" aria-hidden="true"></i>Download for ${android ? 'Android' : 'Windows'}</a>${p.demo ? `<a class="btn ghost" href="${p.demo}"><i class="ph ph-play" aria-hidden="true"></i>Try the live demo</a>` : ''}`
       : `<a class="btn primary" href="#" data-demo><i class="ph ph-download-simple" aria-hidden="true"></i>Download for Windows</a>`;
     const note = remix
       ? `<p class="note"><i class="ph ph-info" aria-hidden="true"></i>Back up your saves first. This download contains no Minecraft files: the installer copies them from your own Minecraft. Fan mod, not affiliated with Mojang, Microsoft or the game's makers.</p>`
-      : p.platform === 'Windows' ? `<p class="note"><i class="ph ph-shield-warning" aria-hidden="true"></i>Windows may warn you because this app isn't signed. Click More info, then Run anyway.</p>` : '';
+      : p.platform === 'Windows' ? `<p class="note"><i class="ph ph-shield-warning" aria-hidden="true"></i>Windows may warn you because this app isn't signed. Click More info, then Run anyway.</p>`
+      : android ? `<p class="note"><i class="ph ph-shield-warning" aria-hidden="true"></i>It isn't from the Play Store, so Android asks first: allow your browser to install apps when it asks. If Play Protect offers to scan it, that's fine, let it.</p>` : '';
     return `<div class="d" style="--accent:${lightEnough(p.accent) ? p.accent : '#F2F0FF'}">
       <button class="icon-btn close" type="button" aria-label="Close"><i class="ph ph-x" aria-hidden="true"></i></button>
       <div class="d-media">
@@ -2254,10 +2337,10 @@
             <div><dt>Version</dt><dd>${p.version}</dd></div>
             <div><dt>${p.play ? 'Install' : 'Size'}</dt><dd>${p.size}</dd></div>
             <div><dt>Updated</dt><dd>${p.updated}</dd></div>
-            <div><dt>${remix ? 'Works with' : 'Works on'}</dt><dd>${remix ? p.game : p.platform}</dd></div>
+            <div><dt>${remix ? 'Works with' : 'Works on'}</dt><dd>${remix ? p.game : p.works || p.platform}</dd></div>
           </dl>
           <p class="dl-count" data-dl-count="${(p.download || '').match(/releases\/download\/([^/]+)\//)?.[1] || ''}" hidden></p>
-          ${p.sha && !p.noDownload ? `<details class="sha"><summary>File checksum (SHA-256)</summary><code>${p.sha}</code><p>Optional. To check your download, open PowerShell in the folder and run <code>Get-FileHash</code> followed by the zip's name. The long code it prints should match this one.</p></details>` : ''}
+          ${p.sha && !p.noDownload ? `<details class="sha"><summary>File checksum (SHA-256)</summary><code>${p.sha}</code><p>Optional. To check your download${android ? ' on a PC' : ''}, open PowerShell in the folder and run <code>Get-FileHash</code> followed by the ${android ? 'file' : 'zip'}'s name. The long code it prints should match this one.</p></details>` : ''}
           ${note}
         </div>
       </div>
@@ -2393,7 +2476,7 @@
     if (e.target === dlg || e.target.closest('.close')) closeProject();
     if (e.target.closest('[data-demo]')) { e.preventDefault(); toast('Downloads go up very soon.'); }
   });
-  // Links: #games / #apps / #remixes open a tab; #ghost-line etc. open a project
+  // Links: #games / #apps / #remixes / #mobile open a tab; #ghost-line etc. open a project
   function route(first) {
     const h = location.hash.slice(1);
     if (h === 'latest' || h.startsWith('latest/')) { closeProject(); openLatest(h.slice(7)); return; }
@@ -2811,7 +2894,7 @@
     const cur = { a: [150, 170, 255], b: [200, 140, 255] };
     let tgt = { a: [150, 170, 255], b: [200, 140, 255] };
 
-    const KIND = { 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'lanes', poltergeist: 'float', 'ledger': 'ink', 'hush': 'bokeh', 'nocturne': 'fireflies', 'specter': 'stars', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'sky', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl', echo: 'echo', reaper: 'reap', tempo: 'beat' };
+    const KIND = { afterhours: 'stars', 'schedule-steve': 'vinyl', intro: 'form', outro: 'form', 'ghost-line': 'smoke', shadow: 'ink', phantom: 'stars', linkfuse: 'lanes', poltergeist: 'float', 'ledger': 'ink', 'hush': 'bokeh', 'nocturne': 'fireflies', 'specter': 'stars', 'lull': 'breath', 'prism': 'rays', 'tether': 'embers', 'wisp': 'sky', 'afterimage': 'film', undertow: 'current', veil: 'drape', static: 'glitch', halo: 'halo', 'midnight-pack': 'vinyl', afterglow: 'vinyl', echo: 'echo', reaper: 'reap', tempo: 'beat' };
     const COLORS = {
       'ghost-line': [[232, 238, 255], [150, 170, 240]],
       shadow: [[22, 8, 18], [70, 24, 52]],
@@ -2834,6 +2917,7 @@
       echo: [[225, 232, 255], [143, 168, 255]],
       reaper: [[236, 231, 221], [143, 179, 232]],
       tempo: [[240, 250, 205], [212, 255, 63]],
+      afterhours: [[242, 241, 238], [228, 168, 102]],
       'schedule-steve': [[214, 246, 205], [110, 200, 90]],
       'midnight-pack': [[214, 224, 255], [120, 140, 255]],
       afterglow: [[255, 214, 236], [255, 120, 190]]
@@ -4135,6 +4219,32 @@
             this.chs.forEach(c => c.classList.remove('beat'));
             this.chs[beat % this.chs.length].classList.add('beat');
           }
+        }
+      },
+      afterhours: {
+        init(sc) {
+          this.t = titleOf(sc);
+          this.dot = sc.querySelector('.ah-now');
+          this.ring = sc.querySelector('.ah-ring');
+          this.live = sc.querySelector('.ah-live');
+          this.last = -1e9;
+          // the reflection under the horizon splits its colour where "hours" starts
+          const h = this.t.querySelectorAll('.ch')[5];
+          if (h && this.t.clientWidth) this.t.style.setProperty('--ah-split', (h.offsetLeft / this.t.clientWidth * 100).toFixed(1) + '%');
+        },
+        enter() { this.last = -1e9; },
+        frame(t, sc) {
+          if (t - this.last < 5000) return;
+          this.last = t;
+          const d = new Date(), m = d.getHours() * 60 + d.getMinutes(), wd = d.getDay();
+          const weekend = wd === 0 || wd === 6, after = weekend || m >= 1080 || m < 360;
+          const pad = n => String(n).padStart(2, '0'), clock = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+          const a = Math.PI - (m - 360) / 1080 * Math.PI, x = (100 + 96 * Math.cos(a)).toFixed(2), y = (100 - 96 * Math.sin(a)).toFixed(2);
+          [this.dot, this.ring].forEach(c => { c.setAttribute('cx', x); c.setAttribute('cy', y); });
+          sc.classList.toggle('has-now', m >= 360);
+          sc.classList.toggle('is-after', after);
+          const left = 1080 - m;
+          this.live.textContent = weekend ? `Weekend · it all counts · ${clock}` : after ? `After hours now · ${clock}` : `After hours in ${Math.floor(left / 60) ? Math.floor(left / 60) + ' h ' : ''}${left % 60 ? (left % 60) + ' min' : ''}`.trim();
         }
       },
       veil: {

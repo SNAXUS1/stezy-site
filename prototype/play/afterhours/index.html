@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B0B0C">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F3F0">
+<meta name="description" content="Afterhours: your work hours, with every evening and weekend counted.">
+<title>Afterhours live demo · STEZY</title>
+<meta name="description" content="Try Afterhours, work hours for Android with every evening and weekend counted apart, right in your browser with made-up hours.">
+<link rel="canonical" href="https://stezy.lt/play/afterhours/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="STEZY">
+<meta property="og:title" content="Afterhours live demo">
+<meta property="og:description" content="Your work hours, with every evening and weekend counted apart. Try it right in your browser.">
+<meta property="og:url" content="https://stezy.lt/play/afterhours/">
+<meta property="og:image" content="https://stezy.lt/img/share/afterhours.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/img/icons/afterhours.png" type="image/png">
+<style>
+  /* ---- the website demo ---- */
+  .side, .demo-top { display: none; }
+  .side a, .demo-top a { color: inherit; text-decoration: none; }
+  /* a phone: the app fills the screen under a slim bar */
+  @media (max-width: 899px), (max-height: 659px) {
+    .phone { --top: calc(max(env(safe-area-inset-top, 0px), 0px) + 44px); }
+    .demo-top { display: flex; position: fixed; z-index: 60; left: 0; right: 0; top: 0; height: calc(max(env(safe-area-inset-top, 0px), 0px) + 40px);
+      padding: max(env(safe-area-inset-top, 0px), 0px) 16px 0; align-items: center; justify-content: space-between; gap: 12px;
+      font: 500 12.5px/1 'Geist', system-ui, sans-serif; color: var(--muted); background: var(--bg); box-shadow: 0 1px 0 var(--line); }
+    .demo-top .tag { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+    .demo-top .get { color: var(--dusk); font-weight: 600; }
+  }
+  /* a computer: the app in a phone frame, a few words beside it */
+  @media (min-width: 900px) and (min-height: 660px) {
+    body { overflow: hidden; }
+    .stage { position: fixed; inset: 0; display: grid; grid-template-columns: minmax(0, 360px) 390px; justify-content: center; align-items: center; gap: clamp(48px, 7vw, 110px); padding: 32px; }
+    .stage::before { content: ""; position: fixed; inset: 0; pointer-events: none;
+      background: radial-gradient(60vw 50vh at 72% 108%, rgba(var(--dusk-rgb), .16), transparent 70%); }
+    .phone { position: relative; width: 390px; height: min(844px, calc(100vh - 64px)); transform: translateZ(0); border-radius: 48px; overflow: hidden;
+      --top: 20px; --bottom: 6px;
+      box-shadow: 0 0 0 1px var(--line2), 0 0 0 11px #050506, 0 0 0 12px rgba(255,255,255,.1), 0 50px 120px -30px rgba(0,0,0,.65); }
+    .phone .app { max-width: none; border: 0; }
+    .phone .sheet { max-width: none; }
+    .side { display: block; position: relative; color: var(--ink); }
+    .side .back { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); padding: 8px 14px 8px 12px; margin-left: -12px; border-radius: 99px; }
+    .side .back:hover { background: var(--surface); color: var(--ink); }
+    .side .ic { display: block; width: 64px; height: 64px; border-radius: 16px; margin-top: 34px; box-shadow: 0 0 0 1px var(--line2); }
+    .side h1 { font-size: 46px; font-weight: 600; letter-spacing: -.04em; line-height: 1; margin-top: 22px; }
+    .side h1 em { font-style: normal; color: var(--dusk); }
+    .side p { font-size: 16px; color: var(--muted); margin-top: 14px; max-width: 34ch; text-wrap: pretty; }
+    .side .tag { display: inline-block; margin-top: 22px; padding: 7px 12px; border-radius: 99px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); box-shadow: inset 0 0 0 1px var(--line2); }
+    .side .acts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+    .side .get { display: inline-flex; align-items: center; height: 46px; padding: 0 22px; border-radius: 99px; background: var(--btn); color: var(--btn-ink); font-weight: 600; font-size: 14.5px; }
+    .side .get:hover { filter: brightness(1.06); }
+    .side .langs { display: inline-flex; padding: 3px; border-radius: 99px; box-shadow: inset 0 0 0 1px var(--line2); }
+    .side .langs a { display: grid; place-items: center; min-width: 44px; height: 40px; border-radius: 99px; font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--faint); }
+    .side .langs a.on { background: var(--raise); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line2); }
+  }
+</style>
+<script>window.AFTERHOURS_DEMO = true;</script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-tab="today">
+<div class="stage">
+  <aside class="side" data-l>
+    <a class="back" href="/#afterhours">&larr; stezy.lt</a>
+    <img class="ic" src="/img/icons/afterhours.png" alt="" width="64" height="64">
+    <h1 data-en="Afterhours" data-lt="Afterhours">Afterhours</h1>
+    <p data-en="Your work hours, with every evening, weekend and public holiday counted apart. Tap around: these hours are made up and nothing is saved." data-lt="Jūsų darbo valandos, o vakarai, savaitgaliai ir šventės skaičiuojami atskirai. Spaudinėkite drąsiai: valandos sugalvotos, niekas neišsaugoma.">Your work hours, with every evening, weekend and public holiday counted apart. Tap around: these hours are made up and nothing is saved.</p>
+    <span class="tag" data-en="Live demo · made-up hours" data-lt="Demo · sugalvotos valandos">Live demo · made-up hours</span>
+    <div class="acts"><a class="get" href="/#afterhours" data-en="Get it for Android" data-lt="Atsisiųsti Android telefonui">Get it for Android</a>
+      <span class="langs"><a href="?lang=en" data-lang="en">EN</a><a href="?lang=lt" data-lang="lt">LT</a></span></div>
+  </aside>
+  <div class="phone">
+    <div class="demo-top"><a href="/#afterhours">&larr; stezy.lt</a><span class="tag" data-en="Live demo · made-up hours" data-lt="Demo · sugalvotos valandos">Live demo · made-up hours</span><a class="get" href="/#afterhours" data-en="Get it" data-lt="Atsisiųsti">Get it</a></div>
+
+  <div class="app" id="app">
+    <main class="views">
+      <!-- TODAY -->
+      <section class="view" id="v-today" aria-label="Today" data-wl="today">
+        <header class="top">
+          <div class="brand" aria-label="Afterhours"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path class="mk-moon" d="M10.44,2.69 A9.2,9.2 0 1 0 21.31,13.56 A7.73,7.73 0 1 1 10.44,2.69 Z"/><path class="mk-star" d="M16.9,4.62 L17.45,6.55 L19.38,7.1 L17.45,7.65 L16.9,9.58 L16.35,7.65 L14.42,7.1 L16.35,6.55 Z"/></svg><span>Afterhours</span></div>
+          <button type="button" class="icon-btn" data-open="settings" aria-label="Settings" data-wl="settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg></button>
+        </header>
+        <div class="today" id="today"></div>
+        <div class="dock" id="dock"></div>
+      </section>
+      <!-- LOG -->
+      <section class="view" id="v-log" aria-label="Log" data-wl="log" hidden>
+        <header class="top"><h1 class="title" data-w="log">Log</h1><div class="top-r"><div class="month-nav" data-nav="log"></div><button type="button" class="icon-btn add" data-open="add" aria-label="Add a day" data-wl="addDay"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div></header>
+        <div class="scroll" id="log"></div>
+      </section>
+      <!-- MONTH -->
+      <section class="view" id="v-month" aria-label="Month" data-wl="monthTab" hidden>
+        <header class="top"><h1 class="title" data-w="monthTab">Month</h1><div class="month-nav" data-nav="month"></div></header>
+        <div class="scroll" id="month"></div>
+      </section>
+    </main>
+    <nav class="tabs" id="tabs" aria-label="Sections">
+      <span class="tab-ind" aria-hidden="true"></span>
+      <button type="button" data-tab="today" class="on"><svg viewBox="0 0 24 24"><path d="M4.5 16a7.5 7.5 0 0 1 15 0"/><path d="M2.5 19.5h19"/></svg><span data-w="today">Today</span></button>
+      <button type="button" data-tab="log"><svg viewBox="0 0 24 24"><path d="M8.5 6.5h11M8.5 12h11M8.5 17.5h11"/><path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"/></svg><span data-w="log">Log</span></button>
+      <button type="button" data-tab="month"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="3.5"/><path d="M3.5 10h17M8.5 3v3.5M15.5 3v3.5"/></svg><span data-w="monthTab">Month</span></button>
+    </nav>
+  </div>
+
+  <div class="scrim" id="scrim" hidden></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden><div class="grab" aria-hidden="true"><i></i></div><div class="sheet-body" id="sheet-body"></div></div>
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  </div>
+</div>
+<script>
+  // the intro beside the phone speaks the demo's language
+  (() => {
+    const q = new URLSearchParams(location.search).get('lang');
+    const lang = q === 'lt' || q === 'en' ? q : /^lt/i.test(navigator.language || '') ? 'lt' : 'en';
+    document.querySelectorAll('[data-en]').forEach(el => el.textContent = el.dataset[lang]);
+    document.querySelectorAll('[data-lang]').forEach(a => a.classList.toggle('on', a.dataset.lang === lang));
+  })();
+</script>
+<script data-goatcounter="https://stats.stezy.lt/count" async src="/js/count.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

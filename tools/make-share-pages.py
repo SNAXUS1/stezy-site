@@ -27,7 +27,7 @@ for m in re.finditer(r"\{\s*slug: '([a-z0-9-]+)'", src):
     projects.append({
         'slug': m.group(1), 'name': field(block, 'name'), 'cat': field(block, 'cat'),
         'kind': field(block, 'kind'), 'blurb': field(block, 'blurb'), 'page': field(block, 'page') or '#050509',
-        'game': field(block, 'game'),
+        'game': field(block, 'game'), 'platform': field(block, 'platform'),
     })
 
 for p in projects:
@@ -37,8 +37,8 @@ for p in projects:
     kind = 'VideoGame' if p['cat'] == 'games' else 'SoftwareApplication'
     ld = {
         '@context': 'https://schema.org', '@type': kind, 'name': p['name'], 'description': p['blurb'],
-        'operatingSystem': 'Windows', 'image': image, 'url': f"{SITE}/#{p['slug']}",
-        'applicationCategory': 'GameApplication' if p['cat'] != 'apps' else 'UtilitiesApplication',
+        'operatingSystem': 'Android' if p.get('platform') == 'Android' else 'Windows', 'image': image, 'url': f"{SITE}/#{p['slug']}",
+        'applicationCategory': 'UtilitiesApplication' if p['cat'] in ('apps', 'mobile') else 'GameApplication',
         'author': {'@type': 'Person', 'name': 'STEZY', 'url': SITE + '/'},
         'offers': {'@type': 'Offer', 'price': '0', 'priceCurrency': 'EUR'},
     }
