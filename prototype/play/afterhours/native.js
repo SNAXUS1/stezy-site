@@ -74,6 +74,41 @@ export function onResume(cb) {
 }
 export function hideSplash() { const s = P('SplashScreen'); if (s) safe(() => s.hide({ fadeOutDuration: 200 })); }
 
+// ---------------------------------------------------------------- a second copy of the hours
+// Kept in the app's own files (they stay through updates), in case the WebView's storage ever comes back empty.
+const MIRROR = 'afterhours-data.json';
+let mirrorT = 0, mirrorText = null;
+function mirrorFlush() {
+  clearTimeout(mirrorT);
+  const fs = P('Filesystem'), t = mirrorText;
+  mirrorText = null;
+  if (fs && t != null) safe(() => fs.writeFile({ path: MIRROR, data: t, directory: 'DATA', encoding: 'utf8' }));
+}
+export function mirrorSave(text) {
+  if (!P('Filesystem')) return;
+  mirrorText = text;
+  clearTimeout(mirrorT);
+  mirrorT = setTimeout(mirrorFlush, 700);
+}
+export async function mirrorLoad() {
+  const fs = P('Filesystem');
+  if (!fs) return null;
+  const r = await safe(() => fs.readFile({ path: MIRROR, directory: 'DATA', encoding: 'utf8' }), null);
+  return r && typeof r.data === 'string' ? r.data : null;
+}
+// write it straight away when the app goes into the background
+document.addEventListener('visibilitychange', () => { if (document.hidden && mirrorText != null) mirrorFlush(); });
+
+/** Opens a web address in the phone's browser (Capacitor hands links to other sites to the system). */
+export function openUrl(url) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 // ---------------------------------------------------------------- sharing
 
 /** Shares a file (a spreadsheet, a backup) through the phone's share sheet; in a browser it downloads. */

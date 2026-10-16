@@ -10,7 +10,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const QS = new URLSearchParams(location.search);
 const DEMO = QS.has('demo') || !!window.AFTERHOURS_DEMO;
 const KEY = 'afterhours.v1';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const MINMS = 60000;
 const addDays = (t, n) => { const d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -23,14 +23,22 @@ function load() {
   if (DEMO) return demoData();
   try {
     const d = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (d && d.v === 1 && Array.isArray(d.shifts)) return { ...blank(), ...d, settings: { ...L.DEFAULTS, ...d.settings } };
+    if (d && d.v === 1 && Array.isArray(d.shifts)) return upgrade(d);
   } catch (e) { console.warn(e); }
   return blank();
 }
+/** Fills in what older versions didn't keep: days saved by 1.0 take the after-hours rules they were counted with. */
+function upgrade(d) {
+  const out = { ...blank(), ...d, settings: { ...L.DEFAULTS, ...d.settings } };
+  for (const s of out.shifts) if (s.end != null && !s.rules) s.rules = rulesOf(out.settings);
+  return out;
+}
+function rulesOf(s) { return { otStart: s.otStart, dayStart: s.dayStart, weekends: s.weekends, holidays: s.holidays }; }
 function save() {
   if (DEMO) return;
+  const text = JSON.stringify(D);
+  N.mirrorSave(text);
   try {
-    const text = JSON.stringify(D);
     localStorage.setItem(KEY, text);
     // one copy a day kept aside, in case something ever goes wrong with the main one
     const day = L.dayKey(Date.now());
@@ -42,6 +50,7 @@ const running = () => D.shifts.find(s => s.end == null) || null;
 const comp = (sh, now = Date.now()) => L.computeShift(sh, S(), now);
 const byStart = (a, b) => a.start - b.start;
 const roundingNow = () => ({ step: S().roundStep, start: S().roundStart, end: S().roundEnd });
+const rulesNow = () => rulesOf(S());
 
 // ================================================================ theme
 
@@ -135,7 +144,9 @@ function renderToday() {
   }
   if (!r && !cs.length && kind.all) facts.push(T('allTodayFact'));
 
-  $('today').innerHTML = `
+  const first = !drawn && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const el = $('today');
+  el.innerHTML = `
     <div class="day-head"><span class="day-date">${W.day(now)}</span><span class="kind-chip${kind.dusk ? ' dusk' : ''}">${esc(kind.label)} · ${esc(kind.sub)}</span></div>
     <div class="hero"><div class="dial-wrap">${dial(cs, now, kind, r)}
       <div class="read">${status}<div class="big">${bigDur(tot.total)}</div></div></div>
@@ -143,8 +154,20 @@ function renderToday() {
       ${facts.length ? `<div class="facts">${facts.map(f => `<span class="fact">${f}</span>`).join('')}</div>` : ''}</div>
     ${weekStrip(now)}`;
   drawn = true;
+  fitToday();
+  if (first) {
+    el.classList.add('first');
+    clearTimeout(el._first);
+    el._first = setTimeout(() => el.classList.remove('first'), 1600);
+    countUp(el.querySelector('.big'), tot.total);
+  }
 
-  $('dock').innerHTML = !r
+  // the buttons change only when the day's state does (rebuilding them every refresh would cut a long press short)
+  const dock = $('dock'), key = (!r ? 'start' : onBreak ? 'break' : 'run') + W.getLang();
+  if (dock.dataset.k === key) return;
+  const swap = !!dock.dataset.k;
+  dock.dataset.k = key;
+  dock.innerHTML = !r
     ? `<button type="button" class="cta" id="b-start">${icon('play')}${T('start')}</button>`
     : onBreak
       ? `<button type="button" class="cta" id="b-break">${icon('back')}${T('back')}</button><button type="button" class="cta ghost small" id="b-end">${T('end')}</button>`
@@ -152,7 +175,40 @@ function renderToday() {
   const bs = $('b-start'), bb = $('b-break'), be = $('b-end');
   if (bs) { bs.onclick = () => startWork(); press(bs, () => openStart()); }
   if (bb) bb.onclick = toggleBreak;
-  if (be) be.onclick = () => openEnd(r);
+  if (be) be.onclick = () => openEnd(running());
+  if (swap && !matchMedia('(prefers-reduced-motion: reduce)').matches) { dock.classList.remove('swap'); void dock.offsetWidth; dock.classList.add('swap'); }
+}
+
+/** Today fits any phone: tighter on short screens (nothing slides under the buttons), fuller on tall ones. */
+function fitToday() {
+  const el = $('today');
+  if (!el || !el.clientHeight) return;
+  el.classList.remove('fit-1', 'fit-2', 'fit-3', 'fit-4', 'roomy');
+  let lvl = 0;
+  while (el.scrollHeight > el.clientHeight + 1 && lvl < 4) el.classList.add('fit-' + ++lvl);
+  if (lvl) return;
+  const used = [...el.children].reduce((a, c) => a + c.offsetHeight, 0);
+  if (el.clientHeight - used > 110) {
+    el.classList.add('roomy');
+    if (el.scrollHeight > el.clientHeight + 1) el.classList.remove('roomy');
+  }
+}
+addEventListener('resize', () => { if (tab === 'today') fitToday(); });
+// the font arriving can change how lines wrap
+if (document.fonts) document.fonts.ready.then(() => { if (tab === 'today') fitToday(); });
+
+/** The day's total counts up the first time it's shown. */
+function countUp(el, to) {
+  if (!el || to <= 0) return;
+  const t0 = performance.now(), dur = 900;
+  const step = t => {
+    const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    el.innerHTML = bigDur(Math.round(to * e));
+    if (k < 1 && el.isConnected) requestAnimationFrame(step);
+    else if (el.isConnected) fitToday();
+  };
+  el.innerHTML = bigDur(0);
+  requestAnimationFrame(step);
 }
 
 /** A long press (half a second) on a button. */
@@ -230,7 +286,7 @@ function weekStrip(now) {
   const max = Math.max(10 * 60, ...per.map(t => t.total));
   const today = L.midnight(now);
   return `<div class="week"><div class="week-head"><span>${T('thisWeek')}</span><span><b>${hrs(wk.total)}</b>${wk.after ? ` · <span class="a">${T('weekAfter', { d: hrs(wk.after) })}</span>` : ''}</span></div>
-    <div class="bars">${per.map((t, i) => `<div class="bar${days[i] === today ? ' now' : ''}"><div class="col">${t.after ? `<i class="a" style="height:${(t.after / max * 100).toFixed(1)}%"></i>` : ''}${t.normal ? `<i style="height:${(t.normal / max * 100).toFixed(1)}%"></i>` : ''}</div><span>${W.weekLetters()[i]}</span></div>`).join('')}</div></div>`;
+    <div class="bars">${per.map((t, i) => `<div class="bar${days[i] === today ? ' now' : ''}" style="--k:${i}"><div class="col">${t.after ? `<i class="a" style="height:${(t.after / max * 100).toFixed(1)}%"></i>` : ''}${t.normal ? `<i style="height:${(t.normal / max * 100).toFixed(1)}%"></i>` : ''}</div><span>${W.weekLetters()[i]}</span></div>`).join('')}</div></div>`;
 }
 
 // ---------------------------------------------------------------- the day's actions
@@ -369,7 +425,7 @@ function openEnd(sh, endAt) {
   body.querySelector('#e-save').onclick = () => {
     const now = Date.now();
     for (const b of sh.breaks) if (b.end == null) b.end = Math.min(now, st.end);
-    Object.assign(sh, { start: st.start, end: st.end, extraBreak: st.extra, note: body.querySelector('#e-note').value.trim(), round: roundingNow() });
+    Object.assign(sh, { start: st.start, end: st.end, extraBreak: st.extra, note: body.querySelector('#e-note').value.trim(), round: roundingNow(), rules: rulesNow() });
     if (sh.end < sh.start) sh.end = sh.start;
     save();
     N.haptic.done();
@@ -430,7 +486,7 @@ function openDay(sh) {
     <div class="sh-k">${T('howCounts')}</div><div id="res"></div>
     <div class="sh-k">${T('note')}</div><input class="note" id="d-note" maxlength="120" placeholder="${esc(T('notePh2'))}" value="${esc(st.note)}" enterkeyhint="done">
     <div class="sh-act">${isNew ? `<button type="button" class="cta ghost" id="d-cancel">${T('cancel')}</button>` : `<button type="button" class="cta ghost" id="d-del">${T('del')}</button>`}<button type="button" class="cta" id="d-save">${T('save')}</button></div>`);
-  const shape = () => ({ id: sh ? sh.id : 'new', start: st.start, end: st.end, breaks: breaksTouched || isNew ? [] : (sh.breaks || []).map(b => ({ ...b })), extraBreak: st.extra, note: st.note, round: sh && sh.round && !breaksTouched && st.start === sh.start && st.end === sh.end ? sh.round : roundingNow() });
+  const shape = () => ({ id: sh ? sh.id : 'new', start: st.start, end: st.end, breaks: breaksTouched || isNew ? [] : (sh.breaks || []).map(b => ({ ...b })), extraBreak: st.extra, note: st.note, round: sh && sh.round && !breaksTouched && st.start === sh.start && st.end === sh.end ? sh.round : roundingNow(), rules: sh && sh.rules ? sh.rules : rulesNow() });
   const draw = () => {
     const c = comp(shape());
     const k = dayKind(st.day);
@@ -466,7 +522,7 @@ function openDay(sh) {
     const s2 = shape();
     if (isNew) { D.shifts.push({ ...s2, id: uid() }); toast(T('added', { day: W.dayShort(st.day), d: hrs(comp(s2).total) })); }
     else {
-      Object.assign(sh, { start: s2.start, extraBreak: s2.extraBreak, note: s2.note, round: s2.round });
+      Object.assign(sh, { start: s2.start, extraBreak: s2.extraBreak, note: s2.note, round: s2.round, rules: sh.end != null ? s2.rules : sh.rules });
       if (sh.end != null) sh.end = s2.end;
       if (breaksTouched) sh.breaks = [];
       toast(T('saved'));
@@ -533,6 +589,7 @@ function renderLog() {
     html += '</div></div>';
   }
   $('log').innerHTML = html;
+  stagger($('log'));
 }
 $('log').addEventListener('click', e => {
   const r = e.target.closest('[data-shift]');
@@ -577,6 +634,14 @@ function renderMonth() {
     </div>
     <div class="cal"><div class="cal-h">${W.weekLetters().map(x => `<span>${x}</span>`).join('')}</div><div class="cal-g">${cells}</div></div>
     <div class="actions"><button type="button" class="btn" id="m-csv">${icon('sheet')}${T('sheet')}</button><button type="button" class="btn" id="m-share">${icon('share')}${T('shareSum')}</button></div>`;
+  stagger($('month'));
+  if ($('month').classList.contains('stag')) {
+    // the month's bar fills from nothing
+    const bars = [...$('month').querySelectorAll('.m-bar i')], w = bars.map(b => b.style.width);
+    bars.forEach(b => b.style.width = '0%');
+    void $('month').offsetWidth;
+    requestAnimationFrame(() => bars.forEach((b, i) => b.style.width = w[i]));
+  }
   const csv = $('m-csv'), sh = $('m-share');
   if (csv) csv.onclick = async () => {
     N.haptic.tap();
@@ -607,6 +672,7 @@ function openSettings() {
     return T('ex', { a: L.fmtClock(L.roundTime(a, s.roundStep, s.roundStart)), b: L.fmtClock(L.roundTime(b, s.roundStep, s.roundEnd)) });
   };
   const html = `<h2 class="sh-t">${T('settings')}</h2><p class="sh-s">${T('setSub')}</p>
+    ${update ? `<button type="button" class="upd" id="st-upd"><b>${T('updCard', { v: esc(update.v) })}</b><span>${T('updCardS')}</span></button>` : ''}
     <div class="sh-k">${T('sLang')}</div>${seg('lang', [['system', T('likePhone')], ['en', 'English'], ['lt', 'Lietuvių']], s.lang)}
     <div class="sh-k">${T('sAfter')}</div><div class="card" style="margin-top:0">
       <div class="set-row"><span>${T('sStarts')}<small>${T('sStartsS')}</small></span>${tbtn('otStart')}</div>
@@ -637,6 +703,7 @@ function openSettings() {
     </div>
     <div class="sh-k">${T('sLook')}</div>${seg('theme', [['system', T('likePhone')], ['dark', T('dark')], ['light', T('light')]], s.theme)}
     <div class="sh-k">${T('sData')}</div><div class="card" style="margin-top:0">
+      ${N.isNative ? `<div class="set-row"><span>${T('sUpd')}<small>${T('sUpdS')}</small></span>${tog('updates', s.updates !== false, T('sUpd'))}</div>` : ''}
       <button type="button" class="set-row" style="width:100%;text-align:left" id="st-backup"><span>${T('backup')}<small>${T('backupS')}</small></span></button>
       <button type="button" class="set-row" style="width:100%;text-align:left" id="st-restore"><span>${T('restore')}<small>${T('restoreS')}</small></span></button>
       <button type="button" class="set-row" style="width:100%;text-align:left" id="st-wipe"><span style="color:#E5675A">${T('wipe')}</span></button>
@@ -644,6 +711,8 @@ function openSettings() {
     <p class="about">${T('about', { v: VERSION })}</p>`;
   const body = openSheet(html, { full: true });
   const changed = () => { save(); renderAll(); plan(); };
+  const up = body.querySelector('#st-upd');
+  if (up) up.onclick = () => { N.haptic.tap(); N.openUrl(update.url); };
   body.querySelectorAll('[data-tog]').forEach(b => b.onclick = async () => {
     const k = b.dataset.tog, on = !s[k];
     if (on && /^remind/.test(k) && N.isNative) {
@@ -652,6 +721,7 @@ function openSettings() {
       if (p !== 'granted') { toast(T('notifOff')); return; }
     }
     s[k] = on; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); N.haptic.tick(); changed();
+    if (k === 'updates' && on) checkUpdate(true);
   });
   body.querySelectorAll('[data-seg]').forEach(g => g.addEventListener('click', e => {
     const b = e.target.closest('[data-v]'); if (!b) return;
@@ -782,15 +852,30 @@ N.onReminderTap(act => {
 // ================================================================ tabs, back button, refresh
 
 let tab = 'today';
+let staggerNext = false;
 function go(t) {
   if (t === tab) return;
+  const prev = tab;
   tab = t;
   document.body.dataset.tab = t;
-  for (const v of ['today', 'log', 'month']) { const el = $('v-' + v); el.hidden = v !== t; el.classList.toggle('enter', v === t); }
+  const order = ['today', 'log', 'month'], dir = Math.sign(order.indexOf(t) - order.indexOf(prev));
+  for (const v of order) { const el = $('v-' + v); el.hidden = v !== t; el.classList.remove('enter'); if (v === t) { el.style.setProperty('--dx', dir * 18 + 'px'); void el.offsetWidth; el.classList.add('enter'); } }
+  staggerNext = true;
   document.querySelectorAll('#tabs [data-tab]').forEach((b, i) => { b.classList.toggle('on', b.dataset.tab === t); if (b.dataset.tab === t) document.querySelector('.tab-ind').style.transform = `translateX(${i * 100}%)`; });
   if (t === 'log') renderLog();
   if (t === 'month') renderMonth();
   if (t === 'today') { drawn = true; renderToday(); }
+  staggerNext = false;
+}
+/** When a tab opens, its blocks rise in one after another (only then, not on every refresh). */
+function stagger(box) {
+  box.classList.remove('stag');
+  if (!staggerNext || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  [...box.children].forEach((c, i) => c.style.setProperty('--k', Math.min(i, 8)));
+  void box.offsetWidth;
+  box.classList.add('stag');
+  clearTimeout(box._stag);
+  box._stag = setTimeout(() => box.classList.remove('stag'), 1100);
 }
 $('tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { N.haptic.tick(); go(b.dataset.tab); } });
 document.addEventListener('click', e => {
@@ -818,7 +903,71 @@ function checkForgot() {
     toast(T('forgot'));
   }
 }
-N.onResume(() => { renderAll(); plan(); checkForgot(); });
+N.onResume(() => { renderAll(); plan(); checkForgot(); checkUpdate(); });
+
+// ================================================================ the hours' second copy
+// If the WebView's storage ever comes back empty, the hours are read back from the copy in the app's own files.
+async function recover() {
+  if (DEMO || !N.isNative) return;
+  const text = await N.mirrorLoad();
+  if (localStorage.getItem(KEY)) { if (!text) N.mirrorSave(localStorage.getItem(KEY)); return; }
+  if (!text) return;
+  try {
+    const d = JSON.parse(text);
+    if (!d || d.v !== 1 || !Array.isArray(d.shifts) || (!d.shifts.length && !d.onboarded)) return;
+    D = upgrade(d);
+    window.__ah.D = D;
+    save();
+    applyLang(); applyTheme(); renderAll(); plan();
+    if (D.onboarded) document.querySelectorAll('.welcome').forEach(w => w.remove());
+  } catch (e) { console.warn(e); }
+}
+
+// ================================================================ updates
+// Afterhours comes from stezy.lt, not a store, so once a day it looks there for a newer version.
+const UPD = 'afterhours.update';
+const newer = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
+let update = null;
+async function checkUpdate(force) {
+  if (DEMO || !N.isNative || S().updates === false) return;
+  let st = {};
+  try { st = JSON.parse(localStorage.getItem(UPD) || '{}') || {}; } catch {}
+  update = st.v && newer(st.v, VERSION) ? st : null;
+  if (!force && st.at && Date.now() - st.at < 20 * 3600000) { if (update) offerUpdate(st); return; }
+  try {
+    const r = await fetch('https://stezy.lt/play/afterhours/latest.json', { cache: 'no-store' });
+    if (!r.ok) return;
+    const j = await r.json();
+    if (!j || !j.version || !/^https:\/\//.test(j.url || '')) return;
+    st = { at: Date.now(), v: j.version, url: j.url, told: st.told };
+    localStorage.setItem(UPD, JSON.stringify(st));
+    update = newer(j.version, VERSION) ? st : null;
+    if (update) offerUpdate(st);
+  } catch {}
+}
+function offerUpdate(st) {
+  if (st.told === st.v || !$('sheet').hidden) return;
+  st.told = st.v;
+  try { localStorage.setItem(UPD, JSON.stringify(st)); } catch {}
+  toast(T('updT', { v: st.v }), T('updGet'), () => N.openUrl(st.url));
+}
+
+// ================================================================ the opening
+/** A short opening on every start: the moon lifts over a horizon and the name appears; then the day draws itself. Tap to skip. */
+function intro() {
+  if (QS.has('nointro') || matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+  const el = document.createElement('div');
+  el.className = 'intro';
+  el.setAttribute('aria-hidden', 'true');
+  el.innerHTML = `<i class="in-glow"></i><svg class="in-moon" viewBox="0 0 108 108"><defs><linearGradient id="inm" gradientUnits="userSpaceOnUse" x1="31.5" y1="76.5" x2="65.1" y2="42.9"><stop offset="0" stop-color="#F6DCB6"/><stop offset=".55" stop-color="#E8AD6B"/><stop offset="1" stop-color="#C9813F"/></linearGradient></defs><path d="M50.66,28.99 A24,24 0 1 0 79.01,57.34 A20.16,20.16 0 1 1 50.66,28.99 Z" fill="url(#inm)"/><path class="in-star" d="M67.5,34.02 L68.93,39.07 L73.98,40.5 L68.93,41.93 L67.5,46.98 L66.07,41.93 L61.02,40.5 L66.07,39.07 Z"/></svg><i class="in-line"></i><b class="in-name">After<em>hours</em></b>`;
+  document.body.appendChild(el);
+  return new Promise(res => {
+    let done = false;
+    const finish = () => { if (done) return; done = true; el.classList.add('out'); res(); setTimeout(() => el.remove(), 450); };
+    setTimeout(finish, 1500);
+    el.addEventListener('pointerdown', finish, { once: true });
+  });
+}
 
 // ================================================================ demo (the live demo on stezy.lt): made-up hours
 
@@ -856,8 +1005,14 @@ function demoData() {
 applyLang();
 applyTheme();
 renderToday();
-drawn = false; // the first real paint animates the day in
-requestAnimationFrame(() => { renderToday(); N.hideSplash(); });
-if (!D.onboarded && !DEMO) welcome();
-else { plan(); checkForgot(); }
+const opening = intro();
+requestAnimationFrame(() => N.hideSplash());
+opening.then(() => {
+  drawn = false; // the first real paint animates the day in
+  renderToday();
+  if (!D.onboarded && !DEMO) welcome();
+  else { plan(); checkForgot(); }
+  setTimeout(() => checkUpdate(), 2500);
+});
+recover();
 window.__ah = { D, L, go, openSettings, openDay, openEnd, openStart, startWork, toggleBreak, renderAll };

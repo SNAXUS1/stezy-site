@@ -133,6 +133,8 @@ const EN = {
   nYestT: 'Yesterday is still running', nYestB: 'Tap to set when you finished.', nBackT: 'Still on your break?', nBackB: 'Tap if you\'re back at work.',
   nBrkT: 'Time for a break?', nBrkB: 'Tap to start it, so it\'s counted right.', forgot: 'Your day was still running. When did you finish?', channel: 'Reminders', channelD: 'Start, end and break reminders',
   prevMonth: 'Previous month', nextMonth: 'Next month', dialLabel: 'Today, from 6 in the morning to midnight',
+  updT: 'Afterhours {v} is out', updGet: 'Get it', updCard: 'A new version is out: {v}', updCardS: 'Tap to download it. Your hours stay when you install it over this one.',
+  sUpd: 'Check for new versions', sUpdS: 'Once a day, on stezy.lt. Nothing about you is sent.',
   csv: ['Date', 'Day', 'Start', 'End', 'Break (min)', 'Normal (h)', 'After {t} (h)', 'Weekend (h)', 'Holiday (h)', 'Total (h)', 'Note'],
   brkChips: ['None', '15 min', '30 min', '45 min', '1 hour'], moreChips: ['No more', '+15 min', '+30 min', '+1 hour'],
 };
@@ -141,7 +143,7 @@ const LT = {
   workday: 'Darbo diena', afterFrom: 'Viršvalandžiai nuo {t}', allAfter: 'Visa diena – viršvalandžiai',
   notStarted: 'Dar nepradėta', lateNight: 'Vėlyva naktis', workingSince: 'Dirbate nuo {t}', afterSince: 'Viršvalandžiai nuo {t}', onBreak: 'Pertrauka · {d}', done: 'Baigta · {a}–{b}',
   normal: 'įprasto darbo', afterHours: 'viršvalandžių', breaksFact: 'Pertraukos <b>{d}</b>', endNowFact: 'Baigus dabar, bus skaičiuojama iki <b>{t}</b>', allTodayFact: 'Šiandien visos valandos – <b style="color:var(--dusk)">viršvalandžiai</b>',
-  thisWeek: 'Ši savaitė', weekAfter: '{d} viršvalandžių',
+  thisWeek: 'Ši savaitė', weekAfter: '{d}',
   start: 'Pradėti darbą', end: 'Baigti dieną', brk: 'Pertrauka', back: 'Grįžti į darbą',
   startedToast: 'Pradėta. Skaičiuojama nuo {t}', change: 'Keisti', backAfter: 'Grįžote po {d} pertraukos', backQuick: 'Grįžote į darbą. Pertrauka per trumpa, neįskaityta', breakStarted: 'Pertrauka pradėta',
   savedToast: 'Išsaugota: {d}', savedAfter: 'Išsaugota: {d}, iš jų {a} viršvalandžių', saveFail: 'Nepavyko išsaugoti. Gal telefone baigėsi vieta?',
@@ -179,6 +181,8 @@ const LT = {
   nYestT: 'Vakarykštė diena dar neužbaigta', nYestB: 'Bakstelėkite ir nurodykite, kada baigėte.', nBackT: 'Dar pertrauka?', nBackB: 'Bakstelėkite, jei jau grįžote į darbą.',
   nBrkT: 'Laikas pertraukai?', nBrkB: 'Bakstelėkite ir pradėkite ją – bus teisingai įskaityta.', forgot: 'Diena dar nebuvo užbaigta. Kada baigėte?', channel: 'Priminimai', channelD: 'Priminimai pradėti, baigti ir apie pertraukas',
   prevMonth: 'Ankstesnis mėnuo', nextMonth: 'Kitas mėnuo', dialLabel: 'Šiandien, nuo 6 ryto iki vidurnakčio',
+  updT: 'Išėjo Afterhours {v}', updGet: 'Atsisiųsti', updCard: 'Yra nauja versija: {v}', updCardS: 'Bakstelėkite ir atsisiųskite. Įdiegus ant viršaus, jūsų valandos išliks.',
+  sUpd: 'Tikrinti, ar yra naujesnė versija', sUpdS: 'Kartą per dieną, stezy.lt svetainėje. Apie jus niekas nesiunčiama.',
   csv: ['Data', 'Diena', 'Pradžia', 'Pabaiga', 'Pertrauka (min.)', 'Įprastos (val.)', 'Po {t} (val.)', 'Savaitgalis (val.)', 'Šventė (val.)', 'Iš viso (val.)', 'Pastaba'],
   brkChips: ['Be pertraukos', '15 min.', '30 min.', '45 min.', '1 val.'], moreChips: ['Daugiau nebuvo', '+15 min.', '+30 min.', '+1 val.'],
 };

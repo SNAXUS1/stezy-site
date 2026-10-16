@@ -15,6 +15,7 @@ export const DEFAULTS = Object.freeze({
   remindLate: true, lateAt: 23 * 60 + 15,
   remindBreak: false, breakAt: 13 * 60,
   theme: 'system',
+  updates: true,
   lang: 'system',         // system | dark | light
 });
 
@@ -103,7 +104,9 @@ export function roundTime(t, step, rule) {
  * cover; breaks given as a length (at the end of the day) come out of normal time first, then after hours.
  */
 export function computeShift(sh, s, now = Date.now()) {
+  // a saved day keeps the rounding and after-hours rules it was counted with
   const rs = sh.round || { step: s.roundStep, start: s.roundStart, end: s.roundEnd };
+  if (sh.rules) s = { ...s, ...sh.rules };
   const S = roundTime(sh.start, rs.step, rs.start);
   let E = sh.end != null ? roundTime(sh.end, rs.step, rs.end) : Math.max(S, Math.floor(now / MIN) * MIN);
   if (E < S) E = S;
