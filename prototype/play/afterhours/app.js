@@ -10,7 +10,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const QS = new URLSearchParams(location.search);
 const DEMO = QS.has('demo') || !!window.AFTERHOURS_DEMO;
 const KEY = 'afterhours.v1';
-const VERSION = '1.2.0';
+const VERSION = '1.2.1';
 const MINMS = 60000;
 const addDays = (t, n) => { const d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -52,6 +52,31 @@ const comp = (sh, now = Date.now()) => L.computeShift(sh, S(), now);
 const byStart = (a, b) => a.start - b.start;
 const roundingNow = () => ({ step: S().roundStep, start: S().roundStart, end: S().roundEnd });
 const rulesNow = () => rulesOf(S());
+
+// ================================================================ the phone's bars
+// env(safe-area-inset-*) knows where the WebView really sits. Capacitor also reports the bars' sizes, but on some phones
+// (the owner's Samsung: a 705-tall view on a 780-tall screen, bars 27 + 48) the WebView already sits between the bars,
+// and adding those sizes again left empty bands at the top and bottom. They're used only when the WebView really fills
+// the screen and env() says nothing.
+function fitBars() {
+  if (document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return; // the keyboard changes the height
+  const r = document.documentElement, cs = getComputedStyle(r);
+  const vt = parseFloat(cs.getPropertyValue('--safe-area-inset-top')) || 0, vb = parseFloat(cs.getPropertyValue('--safe-area-inset-bottom')) || 0;
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;visibility:hidden;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)';
+  document.body.appendChild(probe);
+  const ps = getComputedStyle(probe), et = parseFloat(ps.paddingTop) || 0, eb = parseFloat(ps.paddingBottom) || 0;
+  probe.remove();
+  const fills = Math.max(screen.width, screen.height) - Math.max(innerWidth, innerHeight) <= 4;
+  const want = !et && !eb && (vt || vb) && fills ? [vt + 'px', vb + 'px'] : ['', ''];
+  if (r.style.getPropertyValue('--bars-top') !== want[0]) want[0] ? r.style.setProperty('--bars-top', want[0]) : r.style.removeProperty('--bars-top');
+  if (r.style.getPropertyValue('--bars-bottom') !== want[1]) want[1] ? r.style.setProperty('--bars-bottom', want[1]) : r.style.removeProperty('--bars-bottom');
+}
+let barsBusy = false;
+const barsAgain = () => { if (barsBusy) return; barsBusy = true; requestAnimationFrame(() => { fitBars(); barsBusy = false; if (tab === 'today') fitToday(); }); };
+addEventListener('resize', barsAgain);
+// Capacitor sends the bars' sizes whenever they change (it writes them on <html>)
+new MutationObserver(barsAgain).observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
 
 // ================================================================ theme
 
@@ -287,7 +312,7 @@ function weekStrip(now) {
   const wk = per.reduce((a, t) => ({ total: a.total + t.total, after: a.after + t.after }), { total: 0, after: 0 });
   const max = Math.max(10 * 60, ...per.map(t => t.total));
   const today = L.midnight(now);
-  return `<div class="week"><div class="week-head"><span>${T('thisWeek')}</span><span><b>${hrs(wk.total)}</b>${wk.after ? ` · <span class="a">${T('weekAfter', { d: hrs(wk.after) })}</span>` : ''}</span></div>
+  return `<div class="week"><div class="week-head"><span>${T('thisWeek')}</span><span>${wk.after && wk.after === wk.total ? `<b class="a">${hrs(wk.total)}</b>` : `<b>${hrs(wk.total)}</b>${wk.after ? ` · <span class="a">${T('weekAfter', { d: hrs(wk.after) })}</span>` : ''}`}</span></div>
     <div class="bars">${per.map((t, i) => `<div class="bar${days[i] === today ? ' now' : ''}" style="--k:${i}"><div class="col">${t.after ? `<i class="a" style="height:${(t.after / max * 100).toFixed(1)}%"></i>` : ''}${t.normal ? `<i style="height:${(t.normal / max * 100).toFixed(1)}%"></i>` : ''}</div><span>${W.weekLetters()[i]}</span></div>`).join('')}</div></div>`;
 }
 
@@ -799,7 +824,7 @@ function screenInfo() {
   const v = n => (root.getPropertyValue(n) || '–').trim();
   const wv = (navigator.userAgent.match(/Chrome\/(\d+)/) || [])[1] || '?';
   const t = $('today');
-  return `${innerWidth}×${innerHeight} @${devicePixelRatio} · bars ${v('--safe-area-inset-top')}/${v('--safe-area-inset-bottom')} · env ${envT}/${envB} · WebView ${wv} · ${t ? t.className.replace('today', '').trim() || 'normal' : ''}`;
+  return `${innerWidth}×${innerHeight} of ${screen.width}×${screen.height} @${devicePixelRatio} · bars ${v('--safe-area-inset-top')}/${v('--safe-area-inset-bottom')} · env ${envT}/${envB} · used ${v('--bars-top') || 'env'} · WebView ${wv} · ${t ? t.className.replace('today', '').trim() || 'normal' : ''}`;
 }
 
 // ================================================================ SETTINGS
@@ -1157,6 +1182,7 @@ function demoData() {
 
 // ================================================================ go
 
+fitBars();
 applyLang();
 applyTheme();
 renderToday();

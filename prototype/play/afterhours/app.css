@@ -9,8 +9,9 @@
   --btn: #F2F1EE; --btn-ink: #0B0B0C;
   --shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 24px 60px -24px rgba(0,0,0,.8);
   --ease: cubic-bezier(.23, 1, .32, 1); --drawer: cubic-bezier(.32, .72, 0, 1);
-  --top: max(var(--safe-area-inset-top, 0px), env(safe-area-inset-top, 0px));
-  --bottom: max(var(--safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  /* where the phone's bars are: env() (see fitBars in app.js for the one case it can't tell) */
+  --top: var(--bars-top, env(safe-area-inset-top, 0px));
+  --bottom: var(--bars-bottom, env(safe-area-inset-bottom, 0px));
   --tabs-h: 58px;
   color-scheme: dark;
 }
@@ -125,6 +126,7 @@ svg { display: block; }
 .week { padding-top: 14px; }
 .week-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
 .week-head b { color: var(--ink); font-weight: 500; }
+.week-head b.a { color: var(--dusk); }
 .week-head > span:first-child { white-space: nowrap; margin-right: 10px; }
 .week-head > span:last-child { text-align: right; }
 .week-head .a { color: var(--dusk); }
