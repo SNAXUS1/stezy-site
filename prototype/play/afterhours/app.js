@@ -10,7 +10,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const QS = new URLSearchParams(location.search);
 const DEMO = QS.has('demo') || !!window.AFTERHOURS_DEMO;
 const KEY = 'afterhours.v1';
-const VERSION = '1.2.1';
+const VERSION = '1.2.2';
 const MINMS = 60000;
 const addDays = (t, n) => { const d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
