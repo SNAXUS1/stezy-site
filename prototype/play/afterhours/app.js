@@ -10,7 +10,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const QS = new URLSearchParams(location.search);
 const DEMO = QS.has('demo') || !!window.AFTERHOURS_DEMO;
 const KEY = 'afterhours.v1';
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const MINMS = 60000;
 const addDays = (t, n) => { const d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -18,7 +18,7 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 // ================================================================ data
 
 let D = load();
-function blank() { return { v: 1, shifts: [], settings: { ...L.DEFAULTS }, onboarded: false, created: Date.now() }; }
+function blank() { return { v: 1, shifts: [], payouts: [], settings: { ...L.DEFAULTS }, onboarded: false, created: Date.now() }; }
 function load() {
   if (DEMO) return demoData();
   try {
@@ -30,6 +30,7 @@ function load() {
 /** Fills in what older versions didn't keep: days saved by 1.0 take the after-hours rules they were counted with. */
 function upgrade(d) {
   const out = { ...blank(), ...d, settings: { ...L.DEFAULTS, ...d.settings } };
+  if (!Array.isArray(out.payouts)) out.payouts = [];
   for (const s of out.shifts) if (s.end != null && !s.rules) s.rules = rulesOf(out.settings);
   return out;
 }
@@ -77,6 +78,7 @@ addEventListener('languagechange', () => { if (S().lang === 'system') { applyLan
 
 const ICON = {
   play: '<path d="M8 5.5v13l10-6.5Z"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   stop: '<rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/>',
   cup: '<path d="M5 9h11v4.5A4.5 4.5 0 0 1 11.5 18h-2A4.5 4.5 0 0 1 5 13.5Z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8.5 3.5v2.5M12 3.5v2.5"/>',
   back: '<path d="M5 12h14M13 6l6 6-6 6"/>',
@@ -490,7 +492,7 @@ function openDay(sh) {
   const draw = () => {
     const c = comp(shape());
     const k = dayKind(st.day);
-    body.querySelector('#d-sub').textContent = `${W.day(st.day)}${k.all ? ` · ${k.hol ? T('holAll', { h: k.label }) : T('weekendAll')}` : ''}`;
+    body.querySelector('#d-sub').textContent = `${W.day(st.day)}${k.all ? ` · ${k.hol ? T('holAll', { h: k.label }) : T('weekendAll')}` : ''}${isPaidKey(L.dayKey(st.day)) ? ` · ${T('paidNote')}` : ''}`;
     body.querySelector('#span').innerHTML = spanHtml(c, roundNote(st.start, c.start), roundNote(st.end, c.end), sh && sh.end == null);
     body.querySelector('#res').innerHTML = resultHtml(c);
     body.querySelectorAll('[data-br]').forEach(b => b.classList.toggle('on', (breaksTouched || isNew || timed <= 0) && +b.dataset.br === st.extra));
@@ -573,18 +575,21 @@ function renderLog() {
   }
   const weeks = new Map();
   for (const s of list) { const w = L.weekStart(s.start); if (!weeks.has(w)) weeks.set(w, []); weeks.get(w).push(s); }
-  let html = '';
+  const upTo = paidUpTo();
+  let html = '', sepDone = false;
   for (const [w, ss] of weeks) {
     const cs = ss.map(s => comp(s, now)), t = L.totals(cs);
     const end = addDays(w, 6);
     html += `<div class="wk"><div class="wk-h"><span>${W.weekLabel(L.isoWeek(w), w, end)}</span><span><b>${hrs(t.total)}</b>${t.after ? ` · <span class="a">${hrs(t.after)}</span>` : ''}</span></div><div class="days">`;
     for (let i = 0; i < ss.length; i++) {
       const s = ss[i], c = cs[i], d = new Date(s.start), k = dayKind(s.start);
-      const cls = [k.all ? (k.hol ? 'hol' : 'we') : '', s.end == null ? 'run' : ''].join(' ');
+      const paid = !!upTo && L.dayKey(s.start) <= upTo;
+      const cls = [k.all ? (k.hol ? 'hol' : 'we') : '', s.end == null ? 'run' : '', paid ? 'paid' : ''].join(' ');
+      if (paid && !sepDone) { sepDone = true; html += `<div class="paid-sep">${icon('check')}${T('paidSep', { day: W.date(L.fromKey(upTo)) })}</div>`; }
       const sub = [c.breakMin ? T('breakLen', { d: hrs(c.breakMin) }) : T('noBreak'), k.all ? `<span class="a">${esc(k.hol ? k.label : T('weekend'))}</span>` : '', s.note ? esc(s.note) : ''].filter(Boolean).join(' · ');
       html += `<button type="button" class="drow ${cls}" data-shift="${s.id}"><div class="dd"><small>${W.weekday(d.getDay(), true)}</small><b>${d.getDate()}</b></div>
         <div class="dm"><div class="t">${L.fmtClock(c.start)} – ${s.end == null ? `${L.fmtClock(now)}<span class="nw"> · ${T('now')}</span>` : L.fmtClock(c.end)}</div><div class="s">${sub}</div></div>
-        <div class="dr"><b>${hrs(c.total)}</b>${c.after ? `<small>${T('afterShort', { d: hrs(c.after) })}</small>` : ''}</div></button>`;
+        <div class="dr"><b>${hrs(c.total)}</b>${c.after ? `<small title="${esc(T('afterShort', { d: hrs(c.after) }))}"><svg class="mn" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.44,2.69 A9.2,9.2 0 1 0 21.31,13.56 A7.73,7.73 0 1 1 10.44,2.69 Z"/></svg>${hrs(c.after)}</small>` : ''}</div></button>`;
     }
     html += '</div></div>';
   }
@@ -618,7 +623,8 @@ function renderMonth() {
   for (let d = 1; d <= nDays; d++) {
     const day = new Date(first.getFullYear(), first.getMonth(), d).getTime(), k = L.dayKey(day), p = perDay.get(k), kind = dayKind(day);
     const hol = S().holidays && W.holiday(L.holidayName(day));
-    cells += `<div class="cell${p ? ' worked' : ''}${p && p.after ? ' after' : ''}${k === todayKey ? ' today' : ''}${kind.all && !hol && !p ? ' off' : ''}${hol ? ' hol' : ''}" title="${hol ? esc(hol) : ''}"><b>${d}</b>${p ? `<small>${W.dec(p.total)}${W.getLang() === 'lt' ? '' : 'h'}</small>` : ''}</div>`;
+    const paidDay = p && isPaidKey(k);
+    cells += `<div class="cell${p ? ' worked' : ''}${p && p.after ? ' after' : ''}${k === todayKey ? ' today' : ''}${kind.all && !hol && !p ? ' off' : ''}${hol ? ' hol' : ''}${paidDay ? ' paid' : ''}" title="${hol ? esc(hol) : ''}"><b>${d}</b>${p ? `<small>${W.dec(p.total)}${W.getLang() === 'lt' ? '' : 'h'}</small>` : ''}</div>`;
   }
   const avg = t.days ? t.total / t.days : 0;
   $('month').innerHTML = !list.length ? `<div class="empty">${icon('empty')}<b>${T('emptyMonthT', { m: W.inMonth(first.getMonth(), true) })}</b><p>${T('emptyMonthP')}</p></div>` : `
@@ -656,6 +662,144 @@ function renderMonth() {
     const r = await N.shareText(text, T('hoursTitle', { m: W.month(from) }));
     if (r === 'copied') toast(T('copied'));
   };
+}
+
+// ================================================================ PAY
+// Only after hours count here. "They paid me" marks every day up to a chosen one as paid: those days turn grey and
+// stop counting, and counting starts again from the next day.
+
+const paidUpTo = () => (D.payouts || []).reduce((m, p) => p.upTo > m ? p.upTo : m, '');
+const isPaidKey = k => { const u = paidUpTo(); return !!u && k <= u; };
+const amountFor = mins => S().rate ? Math.round(mins / 60 * S().rate * 100) / 100 : null;
+/** After hours not paid yet: every day after the last payout, today's running day included. */
+function owedNow(now = Date.now()) {
+  const u = paidUpTo();
+  const list = D.shifts.filter(s => !u || L.dayKey(s.start) > u).sort(byStart).map(s => comp(s, now));
+  const t = L.totals(list), withAfter = list.filter(c => c.after > 0);
+  return { t, list, days: new Set(withAfter.map(c => L.dayKey(c.realStart))).size, from: withAfter.length ? withAfter[0].realStart : null };
+}
+function renderPay() {
+  const o = owedNow(), rate = S().rate, pays = [...(D.payouts || [])].sort((a, b) => b.upTo.localeCompare(a.upTo));
+  const box = $('pay');
+  if (!D.shifts.length && !pays.length) {
+    box.innerHTML = `<div class="empty">${icon('empty')}<b>${T('emptyPayT')}</b><p>${T('emptyPayP')}</p></div>${rate ? '' : `<button type="button" class="p-invite" id="p-rate"><b>${T('noRateT')}</b><span>${T('noRateS')}</span></button>`}`;
+    const r0 = $('p-rate');
+    if (r0) r0.onclick = () => { N.haptic.tap(); openRate(); };
+    return;
+  }
+  const owedMoney = amountFor(o.t.after);
+  let html = `<div class="p-hero">
+      <div class="m-k">${o.t.after ? T('owed') : T('allPaid')}</div>
+      <div class="m-big p-big" id="p-big">${o.t.after && rate ? W.bigMoney(owedMoney) : bigDur(o.t.after)}</div>
+      <div class="m-k p-sub">${o.t.after ? `${rate ? T('forHours', { d: hrs(o.t.after) }) : T('notPaidHours')}${o.from ? ' · ' + T('since', { day: W.date(o.from) }) : ''}` : T('allPaidS')}</div>
+    </div>`;
+  html += rate
+    ? `<button type="button" class="card p-rate" id="p-rate"><span>${T('rateRow')}</span><b>${T('perHour', { v: W.money(rate) })}</b>${icon('right')}</button>`
+    : `<button type="button" class="p-invite" id="p-rate"><b>${T('noRateT')}</b><span>${T('noRateS')}</span></button>`;
+  if (o.t.after) {
+    const row = (label, m) => `<div class="row"><span>${label}</span><b class="a">${hrs(m)}${rate && m ? `<small class="p-m">${W.money(amountFor(m))}</small>` : ''}</b></div>`;
+    html += `<div class="card">${row(T('afterOnWorkdays', { t: L.fmtMins(S().otStart) }), o.t.evening)}${o.t.weekend ? row(T('weekends'), o.t.weekend) : ''}${o.t.holiday ? row(T('holidays'), o.t.holiday) : ''}
+      <div class="row"><span>${T('daysRow')}</span><b>${o.days}</b></div></div>`;
+  }
+  const canPay = o.list.some(c => !c.running);
+  html += `<div class="p-act">${canPay ? `<button type="button" class="cta" id="p-paid">${icon('check')}${T('paidBtn')}</button>` : ''}${o.t.after ? `<button type="button" class="btn" id="p-share">${icon('share')}${T('share')}</button>` : ''}</div>`;
+  if (pays.length) html += `<div class="p-hist"><div class="sh-k">${T('history')}</div><div class="days">${pays.map((p, i) => `<div class="p-row"><div><b>${W.range(L.fromKey(p.from || p.upTo), L.fromKey(p.upTo))}</b><span>${hrs(p.after || 0)}${p.amount != null ? ' · ' + W.money(p.amount) : ''}</span></div>${i === 0 ? `<button type="button" class="p-undo" data-undo="${esc(p.id)}">${T('undo')}</button>` : `${icon('check', 'p-ok')}`}</div>`).join('')}</div></div>`;
+  box.innerHTML = html;
+  $('p-rate').onclick = () => { N.haptic.tap(); openRate(); };
+  const pp = $('p-paid'), ps = $('p-share');
+  if (pp) pp.onclick = () => { N.haptic.tap(); openPaid(); };
+  if (ps) ps.onclick = async () => {
+    N.haptic.tap();
+    const text = T('owedText', { d: hrs(o.t.after), day: o.from ? W.date(o.from) : '', money: rate ? ' = ' + W.money(owedMoney) : '' });
+    const r = await N.shareText(text, T('payTab'));
+    if (r === 'copied') toast(T('copied'));
+  };
+  const un = box.querySelector('[data-undo]');
+  if (un) un.onclick = () => {
+    const i = D.payouts.findIndex(p => p.id === un.dataset.undo);
+    if (i < 0) return;
+    const [gone] = D.payouts.splice(i, 1);
+    save(); N.haptic.firm(); renderAll();
+    toast(T('payoutRemoved'), T('undo'), () => { D.payouts.push(gone); save(); renderAll(); });
+  };
+  const animate = staggerNext;
+  stagger(box);
+  if (animate && rate && o.t.after) countMoney($('p-big'), owedMoney);
+}
+/** The amount counts up when the tab opens. */
+function countMoney(el, to) {
+  if (!el || !(to > 0) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const t0 = performance.now(), dur = 800;
+  const step = t => {
+    const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    el.innerHTML = W.bigMoney(k < 1 ? Math.round(to * e) : to);
+    if (k < 1 && el.isConnected) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+/** "They paid me": pick the last paid day. */
+function openPaid() {
+  const u = paidUpTo();
+  const days = [...new Set(D.shifts.filter(s => s.end != null && (!u || L.dayKey(s.start) > u)).map(s => L.dayKey(s.start)))].sort().reverse().slice(0, 62);
+  if (!days.length) { toast(T('nothingToPay')); return; }
+  const st = { upTo: days[0] };
+  const body = openSheet(`<h2 class="sh-t">${T('paidT')}</h2><p class="sh-s">${T('paidS')}</p>
+    <div class="wheel-day" id="pd-days">${days.map(k => { const d = L.fromKey(k); return `<button type="button" data-k="${k}"><small>${W.weekday(new Date(d).getDay(), true)}</small><b>${new Date(d).getDate()}</b></button>`; }).join('')}</div>
+    <div class="result col" id="pd-res"></div>
+    <div class="sh-act"><button type="button" class="cta ghost" id="pd-cancel">${T('cancel')}</button><button type="button" class="cta" id="pd-ok">${T('markPaid')}</button></div>`);
+  const pick = () => {
+    const list = D.shifts.filter(s => { const k = L.dayKey(s.start); return s.end != null && (!u || k > u) && k <= st.upTo; }).map(s => comp(s));
+    const t = L.totals(list), m = amountFor(t.after);
+    body.querySelector('#pd-res').innerHTML = `<b>${T('paidUpToLong', { day: W.date(L.fromKey(st.upTo)) })}</b><span>${T('paidWill', { n: W.daysN(t.days), d: hrs(t.after) })}${m != null ? `<br><span class="a">${W.money(m)}</span>` : ''}</span>`;
+    body.querySelectorAll('[data-k]').forEach(b => b.classList.toggle('on', b.dataset.k === st.upTo));
+    return { list, t, m };
+  };
+  body.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { st.upTo = b.dataset.k; N.haptic.tick(); pick(); });
+  body.querySelector('#pd-cancel').onclick = closeSheet;
+  body.querySelector('#pd-ok').onclick = () => {
+    const { list, t, m } = pick();
+    const first = list.length ? L.dayKey(Math.min(...list.map(c => c.realStart))) : st.upTo;
+    const p = { id: uid(), from: first, upTo: st.upTo, at: Date.now(), after: t.after, days: t.days, rate: S().rate || null, amount: m };
+    D.payouts.push(p);
+    save(); N.haptic.done(); closeSheet(); renderAll();
+    toast(T('paidToast', { day: W.date(L.fromKey(st.upTo)) }), T('undo'), () => { D.payouts = D.payouts.filter(x => x.id !== p.id); save(); renderAll(); });
+  };
+  pick();
+}
+/** Your pay for one hour after hours. */
+function openRate() {
+  const lt = W.getLang() === 'lt', rate = S().rate;
+  const shown = rate ? (lt ? String(rate).replace('.', ',') : String(rate)) : '';
+  const body = openSheet(`<h2 class="sh-t">${T('rateT')}</h2><p class="sh-s">${T('rateS')}</p>
+    <label class="rate-in"><input id="r-in" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="${lt ? '0,00' : '0.00'}" value="${esc(shown)}"><span>€ / ${T('hUnit')}</span></label>
+    <p class="example" id="r-ex"></p>
+    <div class="sh-act">${rate ? `<button type="button" class="cta ghost" id="r-clear">${T('rateClear')}</button>` : `<button type="button" class="cta ghost" id="r-cancel">${T('cancel')}</button>`}<button type="button" class="cta" id="r-save">${T('save')}</button></div>`);
+  const input = body.querySelector('#r-in');
+  const read = () => { const v = parseFloat(input.value.replace(',', '.').replace(/[^\d.]/g, '')); return v > 0 && v < 10000 ? Math.round(v * 100) / 100 : null; };
+  const ex = () => { const v = read(); body.querySelector('#r-ex').textContent = v ? T('rateEx', { v: W.money(v * 10) }) : ''; };
+  input.addEventListener('input', ex);
+  ex();
+  const done = v => { S().rate = v; save(); N.haptic.done(); closeSheet(); renderAll(); if (v) toast(T('rateSaved', { v: W.money(v) })); };
+  body.querySelector('#r-save').onclick = () => { const v = read(); if (!v) { toast(T('rateBad')); input.focus(); return; } done(v); };
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') body.querySelector('#r-save').click(); });
+  const c = body.querySelector('#r-clear'), x = body.querySelector('#r-cancel');
+  if (c) c.onclick = () => done(null);
+  if (x) x.onclick = closeSheet;
+  setTimeout(() => input.focus(), 380);
+}
+
+/** The screen's measurements (Settings: tap the version line five times), for sorting out spacing on a phone. */
+function screenInfo() {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;visibility:hidden;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)';
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe), envT = parseFloat(cs.paddingTop), envB = parseFloat(cs.paddingBottom);
+  probe.remove();
+  const root = getComputedStyle(document.documentElement);
+  const v = n => (root.getPropertyValue(n) || '–').trim();
+  const wv = (navigator.userAgent.match(/Chrome\/(\d+)/) || [])[1] || '?';
+  const t = $('today');
+  return `${innerWidth}×${innerHeight} @${devicePixelRatio} · bars ${v('--safe-area-inset-top')}/${v('--safe-area-inset-bottom')} · env ${envT}/${envB} · WebView ${wv} · ${t ? t.className.replace('today', '').trim() || 'normal' : ''}`;
 }
 
 // ================================================================ SETTINGS
@@ -711,6 +855,9 @@ function openSettings() {
     <p class="about">${T('about', { v: VERSION })}</p>`;
   const body = openSheet(html, { full: true });
   const changed = () => { save(); renderAll(); plan(); };
+  const ab = body.querySelector('.about');
+  let abTaps = 0;
+  if (ab) ab.onclick = () => { if (++abTaps === 5) ab.insertAdjacentHTML('afterend', `<p class="diag">${esc(screenInfo())}</p>`); };
   const up = body.querySelector('#st-upd');
   if (up) up.onclick = () => { N.haptic.tap(); N.openUrl(update.url); };
   body.querySelectorAll('[data-tog]').forEach(b => b.onclick = async () => {
@@ -762,6 +909,8 @@ function openSettings() {
       let n = 0;
       for (const x of d.shifts) if (x && typeof x.start === 'number' && !have.has(x.id)) { D.shifts.push({ breaks: [], extraBreak: 0, note: '', ...x }); n++; }
       D.shifts.sort(byStart);
+      const havePay = new Set(D.payouts.map(x => x.id));
+      for (const x of Array.isArray(d.payouts) ? d.payouts : []) if (x && x.upTo && !havePay.has(x.id)) D.payouts.push(x);
       changed();
       toast(n ? T('restored', { n }) : T('restoredNone'));
     } catch { toast(T('notBackup')); }
@@ -769,10 +918,11 @@ function openSettings() {
   body.querySelector('#st-wipe').onclick = () => {
     const b = body.querySelector('#st-wipe');
     if (!b.dataset.sure) { b.dataset.sure = '1'; b.querySelector('span').textContent = T('wipeSure'); setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.querySelector('span').textContent = T('wipe'); } }, 4000); return; }
-    const old = D.shifts;
+    const old = D.shifts, oldPay = D.payouts;
     D.shifts = [];
+    D.payouts = [];
     changed(); closeSheet(); N.haptic.firm();
-    toast(T('wiped'), T('undo'), () => { D.shifts = old; changed(); });
+    toast(T('wiped'), T('undo'), () => { D.shifts = old; D.payouts = oldPay; changed(); });
   };
 }
 
@@ -858,12 +1008,13 @@ function go(t) {
   const prev = tab;
   tab = t;
   document.body.dataset.tab = t;
-  const order = ['today', 'log', 'month'], dir = Math.sign(order.indexOf(t) - order.indexOf(prev));
+  const order = ['today', 'log', 'month', 'pay'], dir = Math.sign(order.indexOf(t) - order.indexOf(prev));
   for (const v of order) { const el = $('v-' + v); el.hidden = v !== t; el.classList.remove('enter'); if (v === t) { el.style.setProperty('--dx', dir * 18 + 'px'); void el.offsetWidth; el.classList.add('enter'); } }
   staggerNext = true;
   document.querySelectorAll('#tabs [data-tab]').forEach((b, i) => { b.classList.toggle('on', b.dataset.tab === t); if (b.dataset.tab === t) document.querySelector('.tab-ind').style.transform = `translateX(${i * 100}%)`; });
   if (t === 'log') renderLog();
   if (t === 'month') renderMonth();
+  if (t === 'pay') renderPay();
   if (t === 'today') { drawn = true; renderToday(); }
   staggerNext = false;
 }
@@ -891,8 +1042,8 @@ N.onBack(() => {
   N.exitApp();
 });
 
-function renderAll() { renderToday(); if (tab === 'log') renderLog(); if (tab === 'month') renderMonth(); }
-setInterval(() => { if (!document.hidden) { renderToday(); if (tab === 'log' && running()) renderLog(); } }, 20000);
+function renderAll() { renderToday(); if (tab === 'log') renderLog(); if (tab === 'month') renderMonth(); if (tab === 'pay') renderPay(); }
+setInterval(() => { if (!document.hidden) { renderToday(); if (tab === 'log' && running()) renderLog(); if (tab === 'pay' && running()) renderPay(); } }, 20000);
 let forgotAsked = false;
 function checkForgot() {
   const r = running();
@@ -989,6 +1140,10 @@ function demoData() {
     const s = L.at(day, st), e = s + len * MINMS;
     d.shifts.push({ id: 'd' + i, start: s, end: e, breaks: [], extraBreak: wd === 6 ? 0 : [30, 30, 45, 60][Math.floor(rnd() * 4)], note: rnd() > .85 ? NOTES[Math.floor(rnd() * 3)] : '', round: { step: 60, start: 'nearest', end: 'up' } });
   }
+  d.settings.rate = 9.5;
+  const paidTo = L.dayKey(addDays(today, -8)), paidList = d.shifts.filter(s => L.dayKey(s.start) <= paidTo).map(s => L.computeShift(s, d.settings));
+  const pt = L.totals(paidList);
+  if (paidList.length) d.payouts = [{ id: 'dp1', from: L.dayKey(paidList[0].realStart), upTo: paidTo, at: now, after: pt.after, days: pt.days, rate: 9.5, amount: Math.round(pt.after / 60 * 9.5 * 100) / 100 }];
   const h = new Date(now).getHours();
   if (h >= 8 && new Date(now).getDay() !== 0) {
     // a day still running, or (late at night) one that ended at 21:40

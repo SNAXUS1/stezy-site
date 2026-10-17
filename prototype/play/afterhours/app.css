@@ -11,7 +11,7 @@
   --ease: cubic-bezier(.23, 1, .32, 1); --drawer: cubic-bezier(.32, .72, 0, 1);
   --top: max(var(--safe-area-inset-top, 0px), env(safe-area-inset-top, 0px));
   --bottom: max(var(--safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px));
-  --tabs-h: 64px;
+  --tabs-h: 58px;
   color-scheme: dark;
 }
 :root[data-theme="light"] {
@@ -46,7 +46,7 @@ svg { display: block; }
 .view.enter { animation: viewin .3s var(--ease); }
 @keyframes viewin { from { opacity: 0; transform: translateX(var(--dx, 0)) translateY(4px); } }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
-.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px 8px; min-height: 58px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 20px 6px; min-height: 52px; }
 .title { font-size: 28px; font-weight: 600; letter-spacing: -.02em; }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 16px; letter-spacing: -.01em; }
 .mark { width: 22px; height: 22px; }
@@ -59,13 +59,13 @@ svg { display: block; }
 .scroll::-webkit-scrollbar { display: none; }
 
 /* bottom tabs */
-.tabs { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); height: calc(var(--tabs-h) + var(--bottom)); padding-bottom: var(--bottom);
+.tabs { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); height: calc(var(--tabs-h) + var(--bottom)); padding-bottom: var(--bottom);
   background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3); border-top: 1px solid var(--line); z-index: 5; }
 .tabs button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--faint); font-size: 11px; font-weight: 500; letter-spacing: .01em; transition: color .2s; }
 .tabs button svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s var(--ease); }
 .tabs button.on { color: var(--ink); }
 .tabs button:active svg { transform: scale(.9); }
-.tab-ind { position: absolute; top: -1px; left: 0; height: 2px; width: calc(100% / 3); display: flex; justify-content: center; transition: transform .38s var(--ease); pointer-events: none; }
+.tab-ind { position: absolute; top: -1px; left: 0; height: 2px; width: 25%; display: flex; justify-content: center; transition: transform .38s var(--ease); pointer-events: none; }
 .tab-ind::before { content: ""; width: 26px; height: 2px; border-radius: 2px; background: var(--ink); }
 
 /* ------------------------------------------------------------ today */
@@ -170,7 +170,7 @@ svg { display: block; }
 .today.first .day-head { animation: rise .45s var(--ease) both; }
 
 /* the buttons at the bottom of Today */
-.dock { padding: 10px 20px 14px; display: flex; gap: 10px; }
+.dock { padding: 8px 20px 10px; display: flex; gap: 10px; }
 .cta { flex: 1; height: 58px; border-radius: 18px; font-size: 16.5px; font-weight: 600; letter-spacing: -.01em; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   background: var(--btn); color: var(--btn-ink); transition: transform .14s var(--ease), filter .14s, background-color .2s; box-shadow: 0 10px 30px -14px rgba(0,0,0,.6); }
 .cta svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -211,13 +211,61 @@ svg { display: block; }
 .dm .s .a { color: var(--dusk); }
 .dr { text-align: right; }
 .dr b { display: block; font-size: 17px; font-weight: 500; letter-spacing: -.01em; }
-.dr small { display: block; font-size: 12px; color: var(--dusk); margin-top: 1px; }
+.dr small { display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 12px; color: var(--dusk); margin-top: 1px; white-space: nowrap; }
+.dr small .mn { width: 11px; height: 11px; fill: currentColor; }
 .dm .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dm .t .nw { color: var(--muted); }
 .empty { text-align: center; padding: 60px 24px; color: var(--muted); }
 .empty svg { width: 46px; height: 46px; margin: 0 auto 14px; fill: none; stroke: var(--faint); stroke-width: 1.4; stroke-linecap: round; }
 .empty b { display: block; color: var(--ink); font-size: 16px; font-weight: 500; margin-bottom: 6px; }
 .empty p { font-size: 14px; max-width: 28ch; margin: 0 auto; }
+/* paid days: greyed, with a tick, under a line saying up to when */
+.drow.paid .dd b, .drow.paid .dm .t, .drow.paid .dr b { color: var(--muted); }
+.drow.paid .dr small { color: var(--faint); }
+.drow.paid .dr b::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 5px; vertical-align: -1px; background: var(--faint);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+.paid-sep { display: flex; align-items: center; gap: 7px; padding: 9px 16px; font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); background: var(--bg2); position: relative; }
+.paid-sep svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.paid-sep + .drow::before { display: none; }
+.cell.paid { opacity: .55; }
+.cell.paid::before { content: ""; position: absolute; top: 5px; right: 5px; width: 9px; height: 9px; background: var(--muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+.cell.paid.after::after { background: var(--faint); }
+
+/* ------------------------------------------------------------ pay */
+.p-hero { margin-top: 10px; }
+.p-big { font-variant-numeric: tabular-nums; }
+.m-big.p-big small { margin-left: 0; }
+.m-big.p-big small:first-child { margin-right: 3px; }
+.p-sub { margin-top: 4px; }
+.p-rate { width: 100%; display: flex; align-items: center; gap: 10px; padding: 15px 16px; text-align: left; font-size: 15px; }
+.p-rate > span { flex: 1; color: var(--ink2); }
+.p-rate b { font-weight: 600; color: var(--dusk); font-variant-numeric: tabular-nums; }
+.p-rate svg { width: 16px; height: 16px; fill: none; stroke: var(--faint); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.p-rate:active { background: var(--surface2); }
+.p-invite { display: block; width: 100%; margin-top: 22px; text-align: left; padding: 16px; border-radius: 18px; background: rgba(var(--dusk-rgb), .08); box-shadow: inset 0 0 0 1px rgba(var(--dusk-rgb), .4); }
+.p-invite b { display: block; color: var(--dusk); font-size: 15.5px; font-weight: 600; }
+.p-invite span { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
+.row b .p-m { display: block; font-size: 12px; font-weight: 400; color: var(--muted); text-align: right; margin-top: 1px; }
+.p-act { display: flex; gap: 10px; margin-top: 22px; }
+.p-act .cta { height: 54px; }
+.p-act .btn { height: 54px; padding: 0 18px; flex: none; }
+.p-hist { margin-top: 8px; }
+.p-row { display: flex; align-items: center; gap: 12px; padding: 13px 16px; position: relative; }
+.p-row + .p-row::before { content: ""; position: absolute; left: 16px; right: 0; top: 0; height: 1px; background: var(--line); }
+.p-row > div { flex: 1; min-width: 0; }
+.p-row b { display: block; font-size: 15px; font-weight: 500; }
+.p-row span { display: block; font-size: 12.5px; color: var(--faint); margin-top: 2px; }
+.p-undo { font-size: 13px; font-weight: 500; color: var(--muted); padding: 7px 12px; border-radius: 11px; box-shadow: inset 0 0 0 1px var(--line2); }
+.p-ok { width: 16px; height: 16px; fill: none; stroke: var(--faint); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rate-in { display: flex; align-items: baseline; gap: 10px; padding: 12px 18px; border-radius: 18px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line2); }
+.rate-in:focus-within { box-shadow: inset 0 0 0 1.5px var(--line3); }
+.rate-in input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font-size: 40px; font-weight: 300; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.rate-in span { color: var(--muted); font-size: 16px; white-space: nowrap; }
+.diag { font-size: 11px; color: var(--faint); text-align: center; margin: 0 0 12px; font-family: ui-monospace, monospace; user-select: text; }
+
 .fab { position: absolute; right: 20px; bottom: calc(18px); width: 56px; height: 56px; border-radius: 18px; background: var(--btn); color: var(--btn-ink); display: grid; place-items: center; box-shadow: 0 14px 34px -12px rgba(0,0,0,.7); transition: transform .14s var(--ease); z-index: 3; }
 .fab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .fab:active { transform: scale(.93); }
@@ -290,6 +338,8 @@ svg { display: block; }
 .result b { font-size: 22px; font-weight: 500; letter-spacing: -.02em; white-space: nowrap; }
 .result span { font-size: 13px; color: var(--muted); text-align: right; }
 .result .a { color: var(--dusk); }
+.result.col { flex-direction: column; align-items: flex-start; gap: 6px; }
+.result.col span { text-align: left; line-height: 1.5; }
 
 /* chips */
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }

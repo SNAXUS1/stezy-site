@@ -52,8 +52,26 @@ export const month = t => { const d = new Date(t); return lang === 'lt' ? `${d.g
 export const inMonth = (m, capital) => lang === 'lt' ? `${capital ? cap(MO_GEN[m]) : MO_GEN[m]} mėnesį` : `in ${MO.en[m]}`;
 /** "Week 42 · 12–18 Oct" / "42 sav. · spalio 12–18" */
 export function weekLabel(n, from, to) {
-  const a = new Date(from), b = new Date(to);
-  return lang === 'lt' ? `${n} sav. · ${MO_GEN[b.getMonth()]} ${a.getDate()}–${b.getDate()}` : `Week ${n} · ${a.getDate()}–${b.getDate()} ${MO.en[b.getMonth()].slice(0, 3)}`;
+  return lang === 'lt' ? `${n} sav. · ${range(from, to)}` : `Week ${n} · ${range(from, to)}`;
+}
+/** "16 October" / "spalio 16 d." */
+export const date = t => { const d = new Date(t); return lang === 'lt' ? `${MO_GEN[d.getMonth()]} ${d.getDate()} d.` : `${d.getDate()} ${MO.en[d.getMonth()]}`; };
+/** "12–18 Oct", "28 Sep – 4 Oct" / "spalio 12–18 d.", "rugsėjo 28 d. – spalio 4 d." */
+export function range(from, to) {
+  const a = new Date(from), b = new Date(to), same = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+  if (lang === 'lt') return same ? `${MO_GEN[b.getMonth()]} ${a.getDate()}–${b.getDate()} d.` : `${MO_GEN[a.getMonth()]} ${a.getDate()} d. – ${MO_GEN[b.getMonth()]} ${b.getDate()} d.`;
+  const m = d => MO.en[d.getMonth()].slice(0, 3);
+  return same ? `${a.getDate()}–${b.getDate()} ${m(b)}` : `${a.getDate()} ${m(a)} – ${b.getDate()} ${m(b)}`;
+}
+/** "9 days" / "9 dienos" */
+export const daysN = n => lang === 'lt' ? `${n} ${ltPlural(n, 'diena', 'dienos', 'dienų')}` : `${n} day${n === 1 ? '' : 's'}`;
+// ---------------------------------------------------------------- money, in euros
+const fmt = () => new Intl.NumberFormat(lang === 'lt' ? 'lt-LT' : 'en-IE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** "€240.50" / "240,50 €" */
+export const money = v => fmt().format(v || 0);
+/** The big amount: whole euros large, cents and the sign small. */
+export function bigMoney(v) {
+  return fmt().formatToParts(v || 0).map(p => p.type === 'integer' || p.type === 'group' || p.type === 'minusSign' ? p.value : `<small>${p.value.replace(/\s/g, '&#8239;')}</small>`).join('');
 }
 
 // ---------------------------------------------------------------- durations
@@ -133,6 +151,13 @@ const EN = {
   nYestT: 'Yesterday is still running', nYestB: 'Tap to set when you finished.', nBackT: 'Still on your break?', nBackB: 'Tap if you\'re back at work.',
   nBrkT: 'Time for a break?', nBrkB: 'Tap to start it, so it\'s counted right.', forgot: 'Your day was still running. When did you finish?', channel: 'Reminders', channelD: 'Start, end and break reminders',
   prevMonth: 'Previous month', nextMonth: 'Next month', dialLabel: 'Today, from 6 in the morning to midnight',
+  payTab: 'Pay', owed: 'Owed to you', allPaid: 'All paid up', allPaidS: 'New after hours will add up here.', forHours: 'for {d} after hours', notPaidHours: 'after hours not paid yet', since: 'since {day}',
+  rateRow: 'After-hours pay', perHour: '{v} / h', noRateT: 'Add your hourly pay', noRateS: 'See what your after hours are worth as you work.', paidBtn: 'They paid me', share: 'Share', history: 'Paid before',
+  daysRow: 'Days with after hours', paidT: 'Paid up to which day?', paidS: 'That day and every day before it turn grey and stop counting here.', paidUpToLong: 'Up to {day}', paidWill: '{n} · {d} after hours',
+  markPaid: 'Mark as paid', paidToast: 'Paid up to {day}', nothingToPay: 'No finished days to mark yet', payoutRemoved: 'Payout removed', paidSep: 'Paid up to {day}',
+  paidNote: 'Before your last payout, so this day counts as paid.', rateT: 'After-hours pay', rateS: 'What you get for one hour after hours. Only you see it.', rateEx: '10 h after hours = {v}',
+  rateBad: 'Type an amount, like 12.50', rateClear: 'Remove', rateSaved: 'Saved: {v} an hour', hUnit: 'h', owedText: 'After hours not paid yet: {d} since {day}{money}.',
+  emptyPayT: 'Nothing here yet', emptyPayP: "Once you've worked some after hours, they show up here with what they're worth.",
   updT: 'Afterhours {v} is out', updGet: 'Get it', updCard: 'A new version is out: {v}', updCardS: 'Tap to download it. Your hours stay when you install it over this one.',
   sUpd: 'Check for new versions', sUpdS: 'Once a day, on stezy.lt. Nothing about you is sent.',
   csv: ['Date', 'Day', 'Start', 'End', 'Break (min)', 'Normal (h)', 'After {t} (h)', 'Weekend (h)', 'Holiday (h)', 'Total (h)', 'Note'],
@@ -181,6 +206,13 @@ const LT = {
   nYestT: 'Vakarykštė diena dar neužbaigta', nYestB: 'Bakstelėkite ir nurodykite, kada baigėte.', nBackT: 'Dar pertrauka?', nBackB: 'Bakstelėkite, jei jau grįžote į darbą.',
   nBrkT: 'Laikas pertraukai?', nBrkB: 'Bakstelėkite ir pradėkite ją – bus teisingai įskaityta.', forgot: 'Diena dar nebuvo užbaigta. Kada baigėte?', channel: 'Priminimai', channelD: 'Priminimai pradėti, baigti ir apie pertraukas',
   prevMonth: 'Ankstesnis mėnuo', nextMonth: 'Kitas mėnuo', dialLabel: 'Šiandien, nuo 6 ryto iki vidurnakčio',
+  payTab: 'Uždarbis', owed: 'Jums priklauso', allPaid: 'Viskas sumokėta', allPaidS: 'Nauji viršvalandžiai susidės čia.', forHours: 'už {d} viršvalandžių', notPaidHours: 'neapmokėtų viršvalandžių', since: 'nuo {day}',
+  rateRow: 'Viršvalandžių įkainis', perHour: '{v} / val.', noRateT: 'Įveskite valandinį įkainį', noRateS: 'Matysite, kiek vertos jūsų viršvalandžių valandos.', paidBtn: 'Man sumokėjo', share: 'Dalintis', history: 'Jau sumokėta',
+  daysRow: 'Dienos su viršvalandžiais', paidT: 'Iki kurios dienos sumokėta?', paidS: 'Ta diena ir visos ankstesnės taps pilkos ir čia nebeskaičiuojamos.', paidUpToLong: 'Iki {day}', paidWill: '{n} · {d} viršvalandžių',
+  markPaid: 'Pažymėti sumokėta', paidToast: 'Sumokėta iki {day}', nothingToPay: 'Dar nėra užbaigtų dienų, kurias galima pažymėti', payoutRemoved: 'Mokėjimas pašalintas', paidSep: 'Sumokėta iki {day}',
+  paidNote: 'Diena yra prieš paskutinį mokėjimą, todėl laikoma sumokėta.', rateT: 'Viršvalandžių įkainis', rateS: 'Kiek gaunate už vieną viršvalandžių valandą. Matote tik jūs.', rateEx: '10 val. viršvalandžių = {v}',
+  rateBad: 'Įveskite sumą, pvz., 12,50', rateClear: 'Pašalinti', rateSaved: 'Išsaugota: {v} už valandą', hUnit: 'val.', owedText: 'Neapmokėti viršvalandžiai: {d} nuo {day}{money}.',
+  emptyPayT: 'Kol kas tuščia', emptyPayP: 'Kai padirbsite viršvalandžių, čia matysite juos ir kiek jie verti.',
   updT: 'Išėjo Afterhours {v}', updGet: 'Atsisiųsti', updCard: 'Yra nauja versija: {v}', updCardS: 'Bakstelėkite ir atsisiųskite. Įdiegus ant viršaus, jūsų valandos išliks.',
   sUpd: 'Tikrinti, ar yra naujesnė versija', sUpdS: 'Kartą per dieną, stezy.lt svetainėje. Apie jus niekas nesiunčiama.',
   csv: ['Data', 'Diena', 'Pradžia', 'Pabaiga', 'Pertrauka (min.)', 'Įprastos (val.)', 'Po {t} (val.)', 'Savaitgalis (val.)', 'Šventė (val.)', 'Iš viso (val.)', 'Pastaba'],

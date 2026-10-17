@@ -16,6 +16,7 @@ export const DEFAULTS = Object.freeze({
   remindBreak: false, breakAt: 13 * 60,
   theme: 'system',
   updates: true,
+  rate: null,
   lang: 'system',         // system | dark | light
 });
 
