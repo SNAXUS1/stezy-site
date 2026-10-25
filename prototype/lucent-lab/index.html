@@ -285,6 +285,29 @@ footer .st { font: 500 11px/1 var(--display); letter-spacing: .5em; color: var(-
 .toast { position: fixed; left: 50%; bottom: 30px; transform: translate(-50%, 20px); opacity: 0; z-index: 60; padding: 14px 22px; border-radius: 999px; background: rgba(18, 18, 22, .86); backdrop-filter: blur(20px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); font-size: 14px; transition: opacity .35s var(--ease), transform .45s var(--ease); pointer-events: none; }
 .toast.on { opacity: 1; transform: translate(-50%, 0); }
 
+
+/* ------------------------------------------------------------------ the page's own scrollbar: a line of light */
+html { scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
+.thread { position: fixed; z-index: 55; right: 14px; top: 50%; height: min(62vh, 560px); width: 34px; transform: translateY(-50%); touch-action: none; cursor: ns-resize; opacity: 0; transition: opacity .6s var(--ease); }
+.ready .thread { opacity: 1; }
+.thread .trk { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; transform: translateX(-50%); background: linear-gradient(180deg, transparent, rgba(255, 255, 255, .14) 6%, rgba(255, 255, 255, .14) 94%, transparent); }
+/* the light falls from the bead back to the top, like the sliders' tails */
+.thread .tail { position: absolute; left: 50%; top: 0; width: 1px; height: var(--p, 0px); transform: translateX(-50%); background: linear-gradient(180deg, transparent, rgba(190, 205, 255, .35) 55%, rgba(235, 240, 255, .95)); }
+.thread .tail::before { content: ''; position: absolute; left: -5px; right: -5px; bottom: 0; height: min(140px, 100%); background: linear-gradient(180deg, transparent, rgba(150, 140, 255, .35)); filter: blur(6px); }
+.thread .bead { position: absolute; left: 50%; top: var(--p, 0px); width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .1), 0 0 14px 3px rgba(190, 210, 255, .85), 0 0 40px 10px rgba(138, 92, 255, .35); transition: transform .3s var(--ease); }
+.thread.moving .bead, .thread:hover .bead, .thread.drag .bead { transform: scale(1.35); }
+.thread .tick { position: absolute; left: 50%; width: 22px; height: 18px; margin: -9px 0 0 -11px; padding: 0; border: 0; background: none; cursor: pointer; }
+.thread .tick::before { content: ''; position: absolute; left: 50%; top: 50%; width: 5px; height: 1px; margin-left: -2.5px; background: rgba(255, 255, 255, .4); transition: width .3s var(--ease), margin .3s var(--ease), background .3s; }
+.thread .tick.past::before { background: rgba(220, 230, 255, .8); }
+.thread .tick:hover::before, .thread .tick.on::before { width: 11px; margin-left: -5.5px; background: #fff; }
+.thread .lab { position: absolute; right: 30px; top: 50%; transform: translate(6px, -50%); white-space: nowrap; font: 400 10px/1 var(--display); letter-spacing: .26em; color: rgba(255, 255, 255, .85); padding: 7px 11px; border-radius: 999px; background: rgba(10, 10, 14, .55); backdrop-filter: blur(12px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); opacity: 0; pointer-events: none; transition: opacity .25s var(--ease), transform .35s var(--ease); }
+.thread .tick:hover .lab, .thread .tick:focus-visible .lab { opacity: 1; transform: translate(0, -50%); }
+.thread .now { position: absolute; right: 30px; top: var(--p, 0px); transform: translate(6px, -50%); white-space: nowrap; font: 400 10px/1 var(--display); letter-spacing: .26em; color: rgba(255, 255, 255, .85); padding: 7px 11px; border-radius: 999px; background: rgba(10, 10, 14, .55); backdrop-filter: blur(12px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); opacity: 0; pointer-events: none; transition: opacity .35s var(--ease), transform .45s var(--ease); }
+.thread.moving .now { opacity: 1; transform: translate(0, -50%); }
+.thread:hover .now { opacity: 0; }
+@media (max-width: 760px), (hover: none) { .thread { display: none; } html { scrollbar-width: auto; } html::-webkit-scrollbar { display: initial; } }
+
 /* ------------------------------------------------------------------ smaller screens */
 @media (max-width: 1100px) {
   .room .pin { grid-template-columns: 1fr; align-content: center; gap: 30px; }
@@ -394,13 +417,13 @@ footer .st { font: 500 11px/1 var(--display); letter-spacing: .5em; color: var(-
         <p class="sub" data-rise="3">Neon, gel light, deep shadow, with grain so fine you feel it more than see it. Point at a photo, or hold it, to see its flat start, the way a RAW looks before it is developed.</p>
       </div>
       <div class="track" id="reel-track">
-        <figure class="shot" tabindex="0"><img src="media/p1-after.webp" alt="A portrait edited in Lucent Lab: velvet look, fine grain" loading="lazy" class="a"><img src="media/p1-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Velvet look</b>fine grain</figcaption></figure>
-        <figure class="shot" tabindex="0"><img src="media/p2-after.webp" alt="A portrait edited in Lucent Lab: deeper shadows, violet grade" loading="lazy" class="a"><img src="media/p2-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Deeper shadows</b>violet grade</figcaption></figure>
-        <figure class="shot" tabindex="0"><img src="media/p3-after.webp" alt="A portrait edited in Lucent Lab: teal grade, fine grain" loading="lazy" class="a"><img src="media/p3-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Teal grade</b>fine grain</figcaption></figure>
-        <figure class="shot" tabindex="0"><img src="media/p4-after.webp" alt="A portrait edited in Lucent Lab: faded film, grain" loading="lazy" class="a"><img src="media/p4-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Faded film</b>grain</figcaption></figure>
-        <figure class="shot" tabindex="0"><img src="media/p5-after.webp" alt="A portrait edited in Lucent Lab: cinematic, warm light, grain" loading="lazy" class="a"><img src="media/p5-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Cinematic</b>warm light, grain</figcaption></figure>
-        <figure class="shot" tabindex="0"><img src="media/p6-after.webp" alt="A portrait edited in Lucent Lab: texture, vignette, grain" loading="lazy" class="a"><img src="media/p6-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Texture</b>vignette, grain</figcaption></figure>
-        <figure class="shot" tabindex="0"><img src="media/p7-after.webp" alt="A portrait edited in Lucent Lab: black and white, fine grit" loading="lazy" class="a"><img src="media/p7-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Black and white</b>fine grit</figcaption></figure>
+        <figure class="shot" tabindex="0"><img src="media/p1-after.webp" width="1100" height="1956" alt="A portrait edited in Lucent Lab: velvet look, fine grain" loading="lazy" class="a"><img src="media/p1-before.webp" width="1100" height="1956" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Velvet look</b>fine grain</figcaption></figure>
+        <figure class="shot" tabindex="0"><img src="media/p2-after.webp" width="1100" height="1661" alt="A portrait edited in Lucent Lab: deeper shadows, violet grade" loading="lazy" class="a"><img src="media/p2-before.webp" width="1100" height="1661" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Deeper shadows</b>violet grade</figcaption></figure>
+        <figure class="shot" tabindex="0"><img src="media/p3-after.webp" width="1100" height="1661" alt="A portrait edited in Lucent Lab: teal grade, fine grain" loading="lazy" class="a"><img src="media/p3-before.webp" width="1100" height="1661" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Teal grade</b>fine grain</figcaption></figure>
+        <figure class="shot" tabindex="0"><img src="media/p4-after.webp" width="1100" height="1375" alt="A portrait edited in Lucent Lab: faded film, grain" loading="lazy" class="a"><img src="media/p4-before.webp" width="1100" height="1375" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Faded film</b>grain</figcaption></figure>
+        <figure class="shot" tabindex="0"><img src="media/p5-after.webp" width="1100" height="1650" alt="A portrait edited in Lucent Lab: cinematic, warm light, grain" loading="lazy" class="a"><img src="media/p5-before.webp" width="1100" height="1650" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Cinematic</b>warm light, grain</figcaption></figure>
+        <figure class="shot" tabindex="0"><img src="media/p6-after.webp" width="1100" height="1650" alt="A portrait edited in Lucent Lab: texture, vignette, grain" loading="lazy" class="a"><img src="media/p6-before.webp" width="1100" height="1650" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Texture</b>vignette, grain</figcaption></figure>
+        <figure class="shot" tabindex="0"><img src="media/p7-after.webp" width="1100" height="1650" alt="A portrait edited in Lucent Lab: black and white, fine grit" loading="lazy" class="a"><img src="media/p7-before.webp" width="1100" height="1650" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Black and white</b>fine grit</figcaption></figure>
       </div>
       <div class="reel-foot">
         <p><b>Your turn.</b> Free for Windows. Bring your own photos, RAW or JPEG.</p>
@@ -545,6 +568,7 @@ footer .st { font: 500 11px/1 var(--display); letter-spacing: .5em; color: var(-
     </div>
   </div>
 </footer>
+<nav class="thread" id="thread" aria-label="Sections of this page"><i class="trk"></i><i class="tail"></i><span class="now" id="thread-now"></span><i class="bead"></i></nav>
 <div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
@@ -952,6 +976,59 @@ $$('.shot').forEach((f) => {
   const up = () => { clearTimeout(t); f.classList.remove('hold'); };
   ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => f.addEventListener(ev, up));
 });
+
+// ---------------------------------------------------------------- the page's own scrollbar: drag the light, or jump to a section
+{
+  const th = $('#thread'), now = $('#thread-now');
+  const SECTIONS = [['#hero', 'TOP'], ['#room', 'THE LOOK'], ['#glow', 'PHOTOS'], ['#sliders', 'SLIDERS'], ['#ai', 'AI'], ['#grit', 'GRIT'], ['#all', 'EVERYTHING'], ['#homesec', 'HOME'], ['#download', 'DOWNLOAD']];
+  const ticks = SECTIONS.map(([sel, name]) => {
+    const b = document.createElement('button');
+    b.className = 'tick'; b.type = 'button'; b.setAttribute('aria-label', name.charAt(0) + name.slice(1).toLowerCase());
+    b.innerHTML = `<span class="lab">${name}</span>`;
+    b.addEventListener('click', (e) => { e.stopPropagation(); const t = $(sel); const y = t.getBoundingClientRect().top + scrollY - (sel === '#homesec' ? 120 : 0); lenis ? lenis.scrollTo(Math.max(0, y)) : scrollTo({ top: y, behavior: 'smooth' }); });
+    th.append(b);
+    return { b, sel, name, at: 0 };
+  });
+  const maxY = () => Math.max(1, document.documentElement.scrollHeight - innerHeight);
+  function place() {
+    const H = th.clientHeight, M = maxY();
+    ticks.forEach((t) => {
+      const el = $(t.sel);
+      const y = el.getBoundingClientRect().top + scrollY - (t.sel === '#homesec' ? 120 : 0);
+      t.at = clamp(y / M, 0, 1);
+      t.b.style.top = (t.at * H).toFixed(1) + 'px';
+    });
+    paint();
+  }
+  let moveT = 0;
+  function paint() {
+    const p = clamp(scrollY / maxY(), 0, 1), H = th.clientHeight;
+    th.style.setProperty('--p', (p * H).toFixed(1) + 'px');
+    let cur = ticks[0];
+    ticks.forEach((t) => { if (p + 0.002 >= t.at) cur = t; t.b.classList.toggle('past', p + 0.002 >= t.at); });
+    ticks.forEach((t) => t.b.classList.toggle('on', t === cur));
+    if (now.textContent !== cur.name) now.textContent = cur.name;
+  }
+  addEventListener('scroll', () => {
+    paint();
+    th.classList.add('moving'); clearTimeout(moveT); moveT = setTimeout(() => th.classList.remove('moving'), 900);
+  }, { passive: true });
+  // drag anywhere on the line to scroll
+  const toY = (e) => { const r = th.getBoundingClientRect(); return clamp((e.clientY - r.top) / r.height, 0, 1) * maxY(); };
+  th.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.tick')) return;
+    th.setPointerCapture(e.pointerId); th.classList.add('drag');
+    const go = (ev) => { const y = toY(ev); lenis ? lenis.scrollTo(y, { immediate: true }) : scrollTo(0, y); };
+    go(e);
+    const mv = (ev) => go(ev);
+    const up = () => { th.classList.remove('drag'); th.removeEventListener('pointermove', mv); th.removeEventListener('pointerup', up); th.removeEventListener('pointercancel', up); };
+    th.addEventListener('pointermove', mv); th.addEventListener('pointerup', up); th.addEventListener('pointercancel', up);
+  });
+  addEventListener('resize', place);
+  addEventListener('load', place);
+  new ResizeObserver(place).observe(document.body);
+  place();
+}
 </script>
 <script data-goatcounter="https://stats.stezy.lt/count" async src="/js/count.js"></script>
 </body>
