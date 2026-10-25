@@ -25,7 +25,7 @@
   --bg2: #0a0a0d;
   --text: #f3f1f6;
   --dim: rgba(243, 241, 246, .66);
-  --faint: rgba(243, 241, 246, .42);
+  --faint: rgba(243, 241, 246, .52);
   --hair: rgba(255, 255, 255, .09);
   --a1: #5cc4ff;
   --a2: #8a5cff;
@@ -51,9 +51,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .nav { position: fixed; z-index: 50; left: 0; right: 0; top: 0; height: 72px; display: flex; align-items: center; justify-content: space-between; padding: 0 var(--pad);
   transition: background .5s var(--ease), backdrop-filter .5s var(--ease), border-color .5s; border-bottom: 1px solid transparent; }
 .nav.solid { background: rgba(5, 5, 6, .62); backdrop-filter: blur(22px) saturate(140%); border-color: var(--hair); }
-.brand { display: flex; align-items: center; gap: 14px; }
-.brand img { width: 30px; height: 30px; border-radius: 8px; }
-.brand span { font: 500 10.5px/1 var(--display); letter-spacing: .5em; }
+.brand { font: 600 15px/1 var(--display); letter-spacing: .5em; margin-right: -.5em; padding: 6px 0; transition: opacity .2s; }
+.brand:hover { opacity: .75; }
 .nav nav { display: flex; gap: 6px; align-items: center; }
 .nav nav a { font-size: 13.5px; color: var(--dim); padding: 8px 14px; border-radius: 999px; transition: color .2s, background .2s; }
 .nav nav a:hover { color: var(--text); background: rgba(255, 255, 255, .06); }
@@ -66,16 +65,20 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .hero .ph { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 42%; }
 .hero .ph.after { clip-path: inset(0 0 0 var(--x, 0%)); }
 .hero .ph.before { filter: saturate(.92) brightness(.97); }
-.hero .wash { position: absolute; top: 0; bottom: 0; left: var(--x, 0%); width: min(36vw, 520px); pointer-events: none; mix-blend-mode: screen;
+.hero .wash { position: absolute; top: 0; bottom: 0; left: 0; transform: translateX(var(--px, 0px)); width: min(36vw, 520px); pointer-events: none; mix-blend-mode: screen;
   background: linear-gradient(90deg, rgba(220, 230, 255, .16), rgba(180, 160, 255, .05) 30%, transparent 70%); opacity: var(--glow, 0); }
-.hero .needle { position: absolute; top: 0; bottom: 0; left: var(--x, 0%); width: 0; pointer-events: none; }
-.hero .needle::before { content: ''; position: absolute; top: 0; bottom: 0; left: -0.5px; width: 1px; background: linear-gradient(180deg, transparent, rgba(255, 255, 255, .9) 18%, #fff 58%, rgba(255, 255, 255, .85) 82%, transparent); box-shadow: 0 0 18px rgba(200, 215, 255, .8), 0 0 60px rgba(150, 140, 255, .45); }
+.hero .beam { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.hero .beam path { fill: none; stroke-linecap: round; }
+.hero .beam .g2 { stroke: rgba(150, 140, 255, .32); stroke-width: 26; filter: blur(22px); }
+.hero .beam .g1 { stroke: rgba(205, 220, 255, .75); stroke-width: 6; filter: blur(6px); }
+.hero .beam .l { stroke: url(#beamfade); stroke-width: 1.3; }
+.hero .needle { position: absolute; top: 0; bottom: 0; left: 0; width: 0; pointer-events: none; will-change: transform; }
 .hero .spark { position: absolute; left: 0; top: 58%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 4px rgba(255, 255, 255, .12), 0 0 24px 6px rgba(190, 210, 255, .9), 0 0 90px 24px rgba(138, 92, 255, .5); }
 .hero .grip { position: absolute; left: 0; top: 58%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; pointer-events: auto; cursor: ew-resize; }
 .hero .grip:focus-visible { outline-offset: -6px; }
 .hero .tag { position: absolute; top: 96px; font: 400 10.5px/1 var(--display); letter-spacing: .32em; color: rgba(255, 255, 255, .78); text-shadow: 0 1px 12px rgba(0, 0, 0, .6); opacity: var(--glow, 0); transition: opacity .4s; }
-.hero .tag.b { right: calc(100% - var(--x, 0%) + 22px); }
-.hero .tag.a { left: calc(var(--x, 0%) + 22px); }
+.hero .tag.b { right: calc(100% - var(--tx, 0px) + 22px); }
+.hero .tag.a { left: calc(var(--tx, 0px) + 22px); }
 .hero .scrim { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(5, 5, 6, .55) 0%, transparent 18%, transparent 46%, rgba(5, 5, 6, .55) 72%, rgba(5, 5, 6, .96) 100%); }
 .hero .copy { position: absolute; left: var(--pad); right: var(--pad); bottom: clamp(36px, 7vh, 80px); display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; pointer-events: none; }
 .hero .copy > * { pointer-events: auto; }
@@ -86,7 +89,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .lede b { color: var(--text); font-weight: 400; }
 .acts { display: flex; gap: 12px; margin-top: 34px; flex-wrap: wrap; }
 .cta { height: 54px; border-radius: 999px; background: #fff; color: #0a0a0c; font-weight: 500; font-size: 15px; display: inline-flex; align-items: center; gap: 18px; padding: 0 6px 0 26px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, .2), 0 18px 60px -12px rgba(138, 92, 255, .55), 0 8px 30px -10px rgba(92, 196, 255, .5); transition: transform .2s var(--ease), box-shadow .3s; }
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .25), 0 20px 50px -18px rgba(255, 255, 255, .45); transition: transform .2s var(--ease), box-shadow .3s; }
+.cta:hover { box-shadow: 0 0 0 1px rgba(255, 255, 255, .35), 0 24px 70px -16px rgba(255, 255, 255, .6); }
 .cta:active { transform: scale(.975); }
 .cta .ic { width: 42px; height: 42px; border-radius: 50%; background: #0a0a0c; color: #fff; display: grid; place-items: center; transition: transform .35s var(--ease); }
 .cta:hover .ic { transform: translateY(2px); }
@@ -104,9 +108,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 /* ------------------------------------------------------------------ section heads */
 .sec { position: relative; padding: clamp(110px, 16vh, 200px) 0; }
 .kick { font: 400 11px/1 var(--display); letter-spacing: .34em; color: var(--faint); display: flex; align-items: center; gap: 14px; }
-.kick::before { content: ''; width: 28px; height: 1px; background: linear-gradient(90deg, var(--a1), var(--a2)); }
+.kick::before { content: ''; width: 28px; height: 1px; background: rgba(255, 255, 255, .28); }
 h2 { font: 300 clamp(34px, 4.6vw, 76px)/1.04 var(--display); letter-spacing: -.035em; margin-top: 26px; max-width: 14em; text-wrap: balance; }
-h2 em { font-style: normal; background: linear-gradient(100deg, #fff 20%, #cfe6ff 50%, #c9b6ff 80%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+h2 em { font-style: normal; color: rgba(243, 241, 246, .46); }
 .sub { font-size: clamp(16px, 1.15vw, 18.5px); color: var(--dim); max-width: 34em; margin-top: 24px; text-wrap: pretty; }
 [data-rise] { opacity: 0; transform: translateY(26px); transition: opacity 1s var(--ease), transform 1.2s var(--ease); }
 [data-rise].in { opacity: 1; transform: none; }
@@ -132,6 +136,52 @@ h2 em { font-style: normal; background: linear-gradient(100deg, #fff 20%, #cfe6f
 .win img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .9s var(--ease); }
 .win img.on { opacity: 1; }
 .room .stage .win { transform: rotateX(calc(var(--tilt, 0) * 14deg)) scale(calc(1 - var(--tilt, 0) * .08)); transform-origin: 50% 80%; }
+
+
+/* ------------------------------------------------------------------ made for photos that glow (a sideways reel) */
+.reel { position: relative; height: 300vh; }
+.reel .pin { position: sticky; top: 0; height: 100svh; overflow: hidden; display: flex; flex-direction: column; justify-content: center; gap: clamp(26px, 4.5vh, 54px); padding-top: 72px; }
+.reel-head { padding: 0 var(--pad); max-width: 1680px; width: 100%; margin: 0 auto; display: grid; grid-template-columns: auto 1fr; column-gap: clamp(30px, 6vw, 110px); align-items: end; }
+.reel-head .kick { grid-column: 1 / -1; }
+.reel-head h2 { margin-top: 18px; }
+.reel-head .sub { margin: 0 0 .35em; max-width: 30em; justify-self: end; }
+.track { display: flex; gap: clamp(14px, 1.4vw, 22px); padding: 0 var(--pad); height: min(56vh, 620px); will-change: transform; }
+.shot { position: relative; flex: none; height: 100%; margin: 0; border-radius: 14px; overflow: hidden; background: var(--bg2); box-shadow: 0 0 0 1px var(--hair), 0 40px 80px -40px rgba(0, 0, 0, .9); cursor: pointer; outline: none; }
+.shot img { height: 100%; width: auto; display: block; }
+.shot img.b { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .45s var(--ease); }
+.shot:hover img.b, .shot.hold img.b, .shot:focus-visible img.b { opacity: 1; }
+.shot .orig { position: absolute; top: 14px; left: 14px; font: 400 9.5px/1 var(--display); letter-spacing: .3em; padding: 7px 10px; border-radius: 999px; background: rgba(8, 8, 10, .5); backdrop-filter: blur(10px); opacity: 0; transform: translateY(-4px); transition: opacity .35s var(--ease), transform .45s var(--ease); }
+.shot:hover .orig, .shot.hold .orig, .shot:focus-visible .orig { opacity: 1; transform: none; }
+.shot figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 16px 14px; font-size: 12.5px; color: rgba(255, 255, 255, .7); background: linear-gradient(transparent, rgba(0, 0, 0, .55)); }
+.shot figcaption b { display: block; font: 400 14px/1.2 var(--display); font-weight: 300; color: #fff; letter-spacing: -.01em; margin-bottom: 3px; }
+.shot:focus-visible { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .8); }
+.your-turn { flex: none; width: min(460px, 80vw); margin-right: calc(var(--pad) * 0.5); display: flex; flex-direction: column; justify-content: center; padding: 0 clamp(20px, 3vw, 50px); }
+.your-turn h3 { font: 200 clamp(40px, 4.4vw, 72px)/1 var(--display); letter-spacing: -.04em; }
+.your-turn p { color: var(--dim); margin: 18px 0 30px; }
+.your-turn .cta { align-self: flex-start; }
+@media (max-width: 900px) {
+  .reel { height: auto; padding: 100px 0 40px; }
+  .reel .pin { position: static; height: auto; }
+  .reel-head { grid-template-columns: 1fr; }
+  .reel-head .sub { justify-self: start; margin-top: 20px; }
+  .track { overflow-x: auto; scroll-snap-type: x mandatory; transform: none !important; height: 62vh; scrollbar-width: none; }
+  .track::-webkit-scrollbar { display: none; }
+  .shot, .your-turn { scroll-snap-align: center; }
+}
+
+/* ------------------------------------------------------------------ download details */
+.sumbox { max-width: 700px; margin: 30px auto 0; text-align: left; position: relative; }
+.sumbox summary { list-style: none; cursor: pointer; font-size: 13px; color: var(--faint); text-align: center; }
+.sumbox summary::-webkit-details-marker { display: none; }
+.sumbox summary:hover { color: var(--dim); }
+.sumbox code { display: block; margin-top: 12px; padding: 14px 16px; border-radius: 12px; background: rgba(255, 255, 255, .05); font: 400 12px/1.6 ui-monospace, Consolas, monospace; color: var(--dim); word-break: break-all; text-align: center; }
+
+/* ------------------------------------------------------------------ footer */
+footer .wrap.cols { display: grid; grid-template-columns: 1.2fr 1fr 1.6fr; gap: 40px; }
+footer h4 { font: 400 10px/1 var(--display); letter-spacing: .3em; color: var(--faint); margin-bottom: 16px; font-weight: 400; }
+footer ul { list-style: none; padding: 0; display: grid; gap: 8px; }
+footer .credits a { color: var(--dim); text-decoration: underline; text-decoration-color: rgba(255, 255, 255, .2); text-underline-offset: 3px; }
+@media (max-width: 760px) { footer .cols { grid-template-columns: 1fr; } }
 
 /* ------------------------------------------------------------------ sliders made of light */
 .lightlab { display: grid; grid-template-columns: 1.45fr 1fr; gap: clamp(24px, 3vw, 48px); margin-top: clamp(50px, 8vh, 90px); align-items: stretch; }
@@ -252,9 +302,8 @@ footer .st { font: 500 11px/1 var(--display); letter-spacing: .5em; color: var(-
 <body>
 
 <header class="nav" id="nav">
-  <a class="brand" href="#top" aria-label="Lucent Lab, back to the top"><img src="media/icon.png" alt=""><span>LUCENT LAB</span></a>
+  <a class="brand" href="/" aria-label="STEZY, back to stezy.lt">STEZY</a>
   <nav>
-    <a class="home" href="/">STEZY</a>
     <a href="#room">The look</a>
     <a href="#ai">AI</a>
     <a href="#all">Everything</a>
@@ -269,6 +318,7 @@ footer .st { font: 500 11px/1 var(--display); letter-spacing: .5em; color: var(-
     <img class="ph before" src="media/hero-before.webp" alt="Northern lights over a forest, as the photo came" fetchpriority="high">
     <img class="ph after" src="media/hero-after.webp" alt="The same photo edited in Lucent Lab">
     <div class="wash"></div>
+    <svg class="beam" id="beam" aria-hidden="true"><defs><linearGradient id="beamfade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".16" stop-color="#fff" stop-opacity=".85"/><stop offset=".58" stop-color="#fff"/><stop offset=".84" stop-color="#fff" stop-opacity=".8"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><path class="g2"/><path class="g1"/><path class="l"/></svg>
     <span class="tag b">ORIGINAL</span><span class="tag a">LUCENT</span>
     <div class="needle"><i class="spark"></i><button class="grip" id="grip" role="slider" aria-label="Before and after" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></button></div>
     <div class="scrim"></div>
@@ -313,6 +363,31 @@ footer .st { font: 500 11px/1 var(--display); letter-spacing: .5em; color: var(-
           <img src="media/app-hongkong.webp" alt="Lucent Lab editing a harbour at night" loading="lazy">
           <img src="media/app-dunes.webp" alt="Lucent Lab editing desert dunes" loading="lazy">
           <img src="media/app-magnolia.webp" alt="Lucent Lab editing a magnolia flower" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- made for photos that glow: a reel of portraits edited in Lucent Lab (moves sideways while you scroll) -->
+  <section class="reel" id="glow">
+    <div class="pin">
+      <div class="reel-head">
+        <div class="kick" data-rise>MADE IN LUCENT LAB</div>
+        <h2 data-rise="2">Made for photos <em>that glow.</em></h2>
+        <p class="sub" data-rise="3">Neon, gel light, deep shadow. Lucent Lab keeps every colour where it belongs and adds grain so fine you feel it more than see it. Point at a photo, or hold it, to see the flat starting point, the way a camera RAW looks before it is developed.</p>
+      </div>
+      <div class="track" id="reel-track">
+        <figure class="shot" tabindex="0"><img src="media/p1-after.webp" alt="A portrait edited in Lucent Lab: velvet look, fine grain" loading="lazy" class="a"><img src="media/p1-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Velvet look</b>fine grain</figcaption></figure>
+        <figure class="shot" tabindex="0"><img src="media/p2-after.webp" alt="A portrait edited in Lucent Lab: deeper shadows, violet grade" loading="lazy" class="a"><img src="media/p2-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Deeper shadows</b>violet grade</figcaption></figure>
+        <figure class="shot" tabindex="0"><img src="media/p3-after.webp" alt="A portrait edited in Lucent Lab: teal grade, fine grain" loading="lazy" class="a"><img src="media/p3-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Teal grade</b>fine grain</figcaption></figure>
+        <figure class="shot" tabindex="0"><img src="media/p4-after.webp" alt="A portrait edited in Lucent Lab: faded film, grain" loading="lazy" class="a"><img src="media/p4-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Faded film</b>grain</figcaption></figure>
+        <figure class="shot" tabindex="0"><img src="media/p5-after.webp" alt="A portrait edited in Lucent Lab: cinematic, warm light, grain" loading="lazy" class="a"><img src="media/p5-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Cinematic</b>warm light, grain</figcaption></figure>
+        <figure class="shot" tabindex="0"><img src="media/p6-after.webp" alt="A portrait edited in Lucent Lab: texture, vignette, grain" loading="lazy" class="a"><img src="media/p6-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Texture</b>vignette, grain</figcaption></figure>
+        <figure class="shot" tabindex="0"><img src="media/p7-after.webp" alt="A portrait edited in Lucent Lab: black and white, fine grit" loading="lazy" class="a"><img src="media/p7-before.webp" alt="" loading="lazy" class="b"><span class="orig">FLAT START</span><figcaption><b>Black and white</b>fine grit</figcaption></figure>
+        <div class="your-turn">
+          <h3>Your turn.</h3>
+          <p>Free for Windows. Bring your own photos, RAW or JPEG.</p>
+          <a class="cta" href="#download">Download the beta<span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v10M3.5 8.5 8 13l4.5-4.5"/></svg></span></a>
         </div>
       </div>
     </div>
@@ -421,25 +496,37 @@ footer .st { font: 500 11px/1 var(--display); letter-spacing: .5em; color: var(-
     <div class="wrap">
       <img class="icon" src="media/icon.png" alt="Lucent Lab's icon" data-rise>
       <h2 data-rise="2">Lucent Lab <em>0.1 beta</em></h2>
-      <p class="sub" data-rise="3">Free, for Windows. It's a beta: everything works, and it gets better with every update. The app tells you when a new one is out.</p>
+      <p class="sub" data-rise="3">Free, for Windows. It's a beta: everything works, and it gets better with every update. The app tells you when a new one is out. Released 25 October 2026.</p>
       <div class="acts" data-rise="3">
-        <a class="cta" href="#download" id="dl-btn">Download for Windows<span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v10M3.5 8.5 8 13l4.5-4.5"/></svg></span></a>
+        <a class="cta" href="https://github.com/SNAXUS1/stezy-site/releases/download/lucent-lab-v0.1.0/LucentLab-0.1.0.zip" id="dl-btn" data-dl>Download for Windows<span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v10M3.5 8.5 8 13l4.5-4.5"/></svg></span></a>
       </div>
       <div class="specs" data-rise>
         <div><small>SYSTEM</small><b>Windows 10 or 11, 64-bit</b></div>
         <div><small>GRAPHICS</small><b>A card with DirectX 12</b></div>
-        <div><small>SIZE</small><b>About 440 MB, AI included</b></div>
+        <div><small>SIZE</small><b>457 MB, AI included</b></div>
         <div><small>PRICE</small><b>Free. No account.</b></div>
       </div>
+      <details class="sumbox" data-rise><summary>File checksum (SHA-256)</summary><code>087c32487a718610fe2d369ff18c0dac2f6db7e9a5be3cd86ba3f54820f40d1d</code></details>
       <p class="fine" data-rise>The app isn't signed yet, so the first time Windows may say it "protected your PC". Click <b>More info</b>, then <b>Run anyway</b>. Your photos never leave your PC and your originals are never changed. Once a day it only asks stezy.lt whether there's a newer version.</p>
     </div>
   </section>
 </main>
 
 <footer>
-  <div class="wrap">
-    <div><a class="st" href="/">STEZY</a><div style="margin-top: 14px">Made by STEZY, with a little help from Claude.</div></div>
-    <div style="max-width: 520px">Photos on this page are free CC0 photographs from <a href="https://commons.wikimedia.org/" rel="noopener">Wikimedia Commons</a>, edited in Lucent Lab. Lucent Lab uses LibRaw, Lensfun and open AI models; the licences come with the app.</div>
+  <div class="wrap cols">
+    <div><a class="st" href="/">STEZY</a><div style="margin-top: 16px; max-width: 22em">Free apps and games, made by STEZY with a little help from Claude.</div></div>
+    <div>
+      <h4>LUCENT LAB</h4>
+      <ul>
+        <li><a href="https://github.com/SNAXUS1/stezy-site/releases/download/lucent-lab-v0.1.0/LucentLab-0.1.0.zip" data-dl>Download 0.1 beta</a></li>
+        <li><a href="https://github.com/SNAXUS1/stezy-site/releases/tag/lucent-lab-v0.1.0" rel="noopener">Release notes</a></li>
+        <li><a href="/#apps">More apps on stezy.lt</a></li>
+      </ul>
+    </div>
+    <div class="credits">
+      <h4>PHOTOS</h4>
+      Landscapes: free CC0 photos from <a href="https://commons.wikimedia.org/" rel="noopener">Wikimedia Commons</a>. Portraits: photographers on <a href="https://unsplash.com/" rel="noopener">Unsplash</a> (<a href="https://unsplash.com/photos/YxKBT84-nm0" rel="noopener">1</a>, <a href="https://unsplash.com/photos/u8yJtV_9M9U" rel="noopener">2</a>, <a href="https://unsplash.com/photos/VVCq5tSLQ-U" rel="noopener">3</a>, <a href="https://unsplash.com/photos/e3mTnZAfmPU" rel="noopener">4</a>, <a href="https://unsplash.com/photos/o5t-p_CRFWE" rel="noopener">5</a>, <a href="https://unsplash.com/photos/B7U_UwUSyJQ" rel="noopener">6</a>, <a href="https://unsplash.com/photos/DQ1k6BhxZDI" rel="noopener">7</a>); their flat starting points were made for this page. Every photo here was edited in Lucent Lab. The app uses LibRaw, Lensfun and open AI models; their licences come with the download.
+    </div>
   </div>
 </footer>
 <div class="toast" id="toast"></div>
@@ -462,7 +549,6 @@ if (!reduce && window.Lenis) {
 }
 $$('a[href^="#"]').forEach((a) => a.addEventListener('click', (e) => {
   const id = a.getAttribute('href');
-  if (id === '#download' && a.id === 'dl-btn') return;
   const t = id === '#top' ? 0 : $(id);
   if (t == null) return;
   e.preventDefault();
@@ -473,9 +559,47 @@ $$('a[href^="#"]').forEach((a) => a.addEventListener('click', (e) => {
 const hero = $('#hero');
 const grip = $('#grip');
 $('.wordmark').innerHTML = 'LUCENT LAB'.split('').map((c, i) => c === ' ' ? ' ' : `<span class="ch" style="transition-delay:${(0.1 + i * 0.05).toFixed(2)}s">${c}</span>`).join('');
-let heroX = 0;
-const setHero = (x) => { heroX = clamp(x, 0, 100); hero.style.setProperty('--x', heroX + '%'); grip.setAttribute('aria-valuenow', Math.round(heroX)); };
+// The line is light: it trails a little behind the way it's moving, bowing in the middle, then springs straight
+// with a soft wobble. The edited photo is cut along the same curve.
+const after = $('.hero .ph.after'), needle = $('.hero .needle'), beamPaths = $$('#beam path');
+let heroX = 0, drawX = 0, bend = 0, bendV = 0, beamRaf = 0;
+const SPARK_Y = 0.58;
+const bow = (t) => Math.sin(Math.PI * t);                        // 0 at the ends, 1 in the middle
+function drawBeam() {
+  const W = hero.clientWidth, H = hero.clientHeight;
+  const X = drawX / 100 * W, B = clamp(bend, -1, 1) * Math.min(90, W * 0.07);
+  const N = 28, pts = [];
+  for (let i = 0; i <= N; i++) { const t = i / N; pts.push([X + B * bow(t), t * H]); }
+  const d = 'M' + pts.map(([x, y]) => x.toFixed(1) + ' ' + y.toFixed(1)).join(' L');
+  beamPaths.forEach((pa) => pa.setAttribute('d', d));
+  // the edited photo: everything to the right of the curve
+  const poly = pts.map(([x, y]) => `${(x / W * 100).toFixed(3)}% ${(y / H * 100).toFixed(3)}%`).join(',');
+  after.style.clipPath = `polygon(${poly}, 100% 100%, 100% 0%)`;
+  const sx = X + B * bow(SPARK_Y);
+  needle.style.transform = `translateX(${sx.toFixed(1)}px)`;
+  hero.style.setProperty('--px', X.toFixed(1) + 'px');
+  hero.style.setProperty('--tx', (X + B * bow(0.11)).toFixed(1) + 'px');
+}
+function beamTick() {
+  const prev = drawX;
+  drawX += (heroX - drawX) * 0.38;
+  if (Math.abs(heroX - drawX) < 0.005) drawX = heroX;
+  const v = drawX - prev;                                       // % of the width per frame
+  const target = reduce ? 0 : clamp(-v * 0.32, -1, 1);           // light lags behind the way it moves
+  bendV += (target - bend) * 0.16;
+  bendV *= 0.8;
+  bend += bendV;
+  drawBeam();
+  if (Math.abs(heroX - drawX) > 0.005 || Math.abs(bend) > 0.002 || Math.abs(bendV) > 0.002) beamRaf = requestAnimationFrame(beamTick);
+  else { bend = 0; bendV = 0; drawBeam(); beamRaf = 0; }
+}
+const setHero = (x) => {
+  heroX = clamp(x, 0, 100);
+  grip.setAttribute('aria-valuenow', Math.round(heroX));
+  if (!beamRaf) beamRaf = requestAnimationFrame(beamTick);
+};
 setHero(0);
+addEventListener('resize', () => drawBeam());
 const loaded = (img) => img.complete ? Promise.resolve() : new Promise((r) => { img.onload = img.onerror = r; });
 Promise.all([...$$('.hero .ph').map(loaded), document.fonts.ready]).then(() => {
   document.body.classList.add('ready');
@@ -663,12 +787,36 @@ const ITEMS = [
 $('#index').innerHTML = ITEMS.map(([t, d], i) => `<div class="item" data-rise="${(i % 3) + 1}"><b>${t}</b><span>${d}</span></div>`).join('');
 $$('#index [data-rise]').forEach((el) => io.observe(el));
 
-// ---------------------------------------------------------------- download (the beta goes up with the launch)
-const toast = $('#toast');
-$('#dl-btn').addEventListener('click', (e) => {
-  e.preventDefault();
-  toast.textContent = 'The beta goes up here very soon.';
-  toast.classList.add('on'); setTimeout(() => toast.classList.remove('on'), 2600);
+// ---------------------------------------------------------------- download: counted (no personal data), like everywhere on stezy.lt
+$$('[data-dl]').forEach((a) => a.addEventListener('click', () => {
+  try { window.goatcounter?.count({ path: 'download/lucent-lab-v0.1.0', title: 'Lucent Lab 0.1.0', event: true }); } catch {}
+}));
+
+// ---------------------------------------------------------------- the reel: sideways while you scroll; hold a photo to see the original
+const reel = $('#glow'), track = $('#reel-track');
+const wide = () => matchMedia('(min-width: 901px)').matches;
+function sizeReel() {
+  if (!wide()) { reel.style.height = ''; return; }
+  const extra = Math.max(0, track.scrollWidth - innerWidth);
+  reel.style.height = (innerHeight + extra + innerHeight * 0.35) + 'px';
+}
+function moveReel() {
+  if (!wide()) { track.style.transform = ''; return; }
+  const r = reel.getBoundingClientRect();
+  const span = r.height - innerHeight;
+  const p = span > 0 ? clamp(-r.top / span, 0, 1) : 0;
+  const extra = Math.max(0, track.scrollWidth - innerWidth);
+  track.style.transform = `translate3d(${(-p * extra).toFixed(1)}px,0,0)`;
+}
+$$('#reel-track img').forEach((im) => im.addEventListener('load', () => { sizeReel(); moveReel(); }, { once: true }));
+addEventListener('resize', () => { sizeReel(); moveReel(); });
+addEventListener('scroll', () => requestAnimationFrame(moveReel), { passive: true });
+sizeReel(); moveReel();
+$$('.shot').forEach((f) => {
+  let t = 0;
+  f.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') t = setTimeout(() => f.classList.add('hold'), 120); });
+  const up = () => { clearTimeout(t); f.classList.remove('hold'); };
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => f.addEventListener(ev, up));
 });
 </script>
 <script data-goatcounter="https://stats.stezy.lt/count" async src="/js/count.js"></script>

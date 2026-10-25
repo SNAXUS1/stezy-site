@@ -74,7 +74,45 @@ for p in projects:
     os.makedirs(out, exist_ok=True)
     open(os.path.join(out, 'index.html'), 'w', encoding='utf-8', newline='\n').write(page)
 
-urls = [SITE + '/'] + [f"{SITE}/p/{p['slug']}/" for p in projects]
+# apps with a page of their own (not a scene on the main page): the share link forwards to that page
+OWN = [{'slug': 'lucent-lab', 'name': 'Lucent Lab', 'blurb': 'A free photo editor for Windows, made of light: camera RAW, masks and AI that never leaves your PC.',
+        'page': '/lucent-lab/', 'image': f'{SITE}/lucent-lab/media/share.jpg'}]
+for o in OWN:
+    e = {k: html.escape(v, quote=True) for k, v in o.items()}
+    ld = {'@context': 'https://schema.org', '@type': 'SoftwareApplication', 'name': o['name'], 'description': o['blurb'], 'operatingSystem': 'Windows',
+          'applicationCategory': 'MultimediaApplication', 'image': o['image'], 'url': SITE + o['page'],
+          'author': {'@type': 'Person', 'name': 'STEZY', 'url': SITE + '/'}, 'offers': {'@type': 'Offer', 'price': '0', 'priceCurrency': 'EUR'}}
+    page = f'''<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{e['name']} by STEZY</title>
+<meta name="description" content="{e['blurb']}">
+<link rel="canonical" href="{SITE}{o['page']}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="STEZY">
+<meta property="og:title" content="{e['name']}">
+<meta property="og:description" content="{e['blurb']}">
+<meta property="og:url" content="{SITE}/p/{o['slug']}/">
+<meta property="og:image" content="{o['image']}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script type="application/ld+json">{json.dumps(ld)}</script>
+<meta http-equiv="refresh" content="0; url={o['page']}">
+<script>location.replace('{o['page']}');</script>
+<style>body{{margin:0;min-height:100vh;display:grid;place-items:center;background:#050506;color:#a9a6c4;font:16px system-ui,sans-serif}}a{{color:#f2f0ff}}</style>
+</head>
+<body><p>Opening <a href="{o['page']}">{e['name']}</a> on stezy.lt...</p></body>
+</html>
+'''
+    out = os.path.join(ROOT, 'p', o['slug'])
+    os.makedirs(out, exist_ok=True)
+    open(os.path.join(out, 'index.html'), 'w', encoding='utf-8', newline='\n').write(page)
+
+urls = [SITE + '/'] + [SITE + o['page'] for o in OWN] + [f"{SITE}/p/{p['slug']}/" for p in projects]
 open(os.path.join(ROOT, 'sitemap.xml'), 'w', encoding='utf-8', newline='\n').write(
     '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     + ''.join(f'  <url><loc>{u}</loc></url>\n' for u in urls) + '</urlset>\n')

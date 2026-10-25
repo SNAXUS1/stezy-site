@@ -1162,7 +1162,14 @@
   @keyframes pk-glint { 0% { transform: scale(0.3) rotate(-90deg); opacity: 0; } 55% { transform: scale(1.6) rotate(20deg); opacity: 1; } 100% { transform: none; opacity: 1; } }
   .d-credits .pick-tag { margin-left: 1em; letter-spacing: 0.2em; }
   .pk-title { position: relative; top: -0.62em; width: 0.26em; height: 0.26em; min-width: 14px; min-height: 14px; margin-left: 0.1em; vertical-align: baseline; }
-  .cover-dock button { position: relative; }
+  .cover-dock button, .cover-dock .dock-link { position: relative; }
+  .lt-iconart { display: grid; place-items: center; background: radial-gradient(70% 70% at 50% 40%, rgba(92, 140, 255, 0.28), transparent 70%), #0A0A10; }
+  .lt-iconart img { width: 96px; height: 96px; border-radius: 24px; box-shadow: 0 20px 40px -14px rgba(92, 140, 255, 0.6); }
+  .cover-dock .dock-link { display: block; border-radius: 13px; animation: dock-in 0.5s var(--ease-out) both; transition: transform 0.2s var(--ease-out); }
+  .cover-dock .dock-link img { box-shadow: 0 0 0 1px rgba(140, 170, 255, 0.35), 0 8px 26px -8px rgba(92, 140, 255, 0.7); }
+  .dock-tag { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); padding: 2px 6px; border-radius: 999px; background: #fff; color: #0a0a0c; font: 600 7.5px/1.2 'Unbounded', sans-serif; letter-spacing: 0.08em; text-transform: uppercase; pointer-events: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4); }
+  @media (hover: hover) and (pointer: fine) { .cover-dock .dock-link:hover { transform: translateY(-4px) scale(1.08); } }
+  .cover-dock .dock-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   .dock-pk { position: absolute; top: -5px; right: -5px; width: 13px; height: 13px; pointer-events: none; }
   .index-pk { position: absolute; top: 14px; right: 14px; width: 18px; height: 18px; }
   .index-filters .pk-star { display: inline-block; width: 12px; height: 12px; margin-right: 7px; vertical-align: -1px; }
@@ -2158,11 +2165,14 @@
     fillDock(cat);
   }
   // Every app's icon in a row under the tab name: a quick way to jump straight to one
+  // apps with a page of their own: just their icon in the dock, opening that page
+  const LINKS = [{ name: 'Lucent Lab', icon: 'img/icons/lucent-lab.png', href: '/lucent-lab/', cat: 'apps', tag: 'Beta' }];
   function fillDock(cat) {
     const dock = document.getElementById('cover-dock');
     const list = cat ? projects.filter(p => p.cat === cat && p.icon) : [];
-    dock.hidden = list.length === 0;
-    dock.innerHTML = list.map((p, i) => `<button type="button" data-open="${p.slug}" title="${p.name}" aria-label="Open ${p.name}" style="--d:${i * 35}ms"><img src="${p.icon}" alt="" width="44" height="44">${p.pick ? `<i class="pk dock-pk">${SPARK}</i>` : ''}</button>`).join('');
+    const links = cat ? LINKS.filter(l => l.cat === cat) : [];
+    dock.hidden = list.length + links.length === 0;
+    dock.innerHTML = links.map(l => `<a class="dock-link" href="${l.href}" title="${l.name} (${l.tag}): its own page" aria-label="${l.name}, ${l.tag}, opens its page"><img src="${l.icon}" alt="" width="44" height="44"><i class="pk dock-pk">${SPARK}</i><b class="dock-tag">${l.tag}</b></a>`).join('') + list.map((p, i) => `<button type="button" data-open="${p.slug}" title="${p.name}" aria-label="Open ${p.name}" style="--d:${i * 35}ms"><img src="${p.icon}" alt="" width="44" height="44">${p.pick ? `<i class="pk dock-pk">${SPARK}</i>` : ''}</button>`).join('');
   }
   const tabsEl = document.getElementById('tabs');
   const tabInd = tabsEl.querySelector('.ind');
@@ -2683,10 +2693,12 @@
         : `<a class="btn primary" href="#${p.slug}">Open ${p.name}</a>`;
       actions = `<div class="lt-actions">${get}<button class="btn ghost" type="button" data-lt-copy="${n.id}"><i class="ph ph-link-simple" aria-hidden="true"></i>Copy link</button></div>`;
     } else {
-      art = `<div class="lt-stezy" aria-hidden="true">STEZY${SPARK}</div>`;
-      name = `<h3 class="lt-name" style="font-family:'Unbounded',sans-serif;font-weight:800;letter-spacing:-0.01em">${n.title}</h3>`;
+      art = n.icon ? `<a class="lt-cover lt-iconart" href="${n.link || '#'}" aria-label="${n.title}"><img src="${n.icon}" alt="" width="96" height="96" loading="lazy"></a>`
+        : `<div class="lt-stezy" aria-hidden="true">STEZY${SPARK}</div>`;
+      name = `<h3 class="lt-name" style="font-family:'Unbounded',sans-serif;font-weight:800;letter-spacing:-0.01em">${n.link ? `<a href="${n.link}">${n.title}</a>` : n.title}</h3>`;
+      if (n.link) actions = `<div class="lt-actions"><a class="btn primary" href="${n.link}">${n.linkLabel || 'Open'}</a></div>`;
     }
-    const kind = n.kind === 'drop' || n.kind === 'new' ? (p && p.cat === 'games' ? 'New game' : n.kind === 'drop' ? 'New' : 'New app') : KIND_LABEL[n.kind];
+    const kind = n.label || (n.kind === 'drop' || n.kind === 'new' ? (p && p.cat === 'games' ? 'New game' : n.kind === 'drop' ? 'New' : 'New app') : KIND_LABEL[n.kind]);
     return `<li class="lt-item k-${n.kind}" id="lt-${n.id}" data-kind="${n.kind}" data-cat="${p ? p.cat : ''}" style="--c:${c};--accent:${c}">
       ${date}<span class="lt-node" aria-hidden="true"></span>
       <div class="lt-card">${art}<div class="lt-body">

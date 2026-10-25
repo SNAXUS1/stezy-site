@@ -120,5 +120,19 @@
       "Phone apps now have their own tab next to Games, Apps and Remixes, so they never get mixed up with the PC ones.",
       "On a computer, an Android app's page shows a code to scan with your phone."
     ]
+  },
+  {
+    "id": "lucent-lab-beta",
+    "kind": "site",
+    "label": "New app, beta",
+    "date": "2026-10-25T16:00:00Z",
+    "title": "Lucent Lab beta",
+    "icon": "img/icons/lucent-lab.png",
+    "link": "/lucent-lab/",
+    "linkLabel": "See Lucent Lab",
+    "summary": [
+      "A free photo editor for Windows made of light, with its own page: camera RAW, masks, and AI that never leaves your PC.",
+      "Remove anything you paint over, select the sky in one click, lens blur, AI Denoise, grit and fine grain."
+    ]
   }
 ]
