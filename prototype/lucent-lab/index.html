@@ -65,6 +65,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .hero .ph { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 42%; }
 .hero .ph.after { clip-path: inset(0 0 0 var(--x, 0%)); }
 .hero .ph.before { filter: saturate(.92) brightness(.97); }
+.hero .glph { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .6s var(--ease); }
+.hero.gl .glph { opacity: 1; }
+.hero.gl .wash { display: none; }
 .hero .wash { position: absolute; top: 0; bottom: 0; left: 0; transform: translateX(var(--px, 0px)); width: min(36vw, 520px); pointer-events: none; mix-blend-mode: screen;
   background: linear-gradient(90deg, rgba(220, 230, 255, .16), rgba(180, 160, 255, .05) 30%, transparent 70%); opacity: var(--glow, 0); }
 .hero .beam { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
@@ -317,6 +320,7 @@ footer .st { font: 500 11px/1 var(--display); letter-spacing: .5em; color: var(-
   <section class="hero" id="hero" aria-label="Lucent Lab">
     <img class="ph before" src="media/hero-before.webp" alt="Northern lights over a forest, as the photo came" fetchpriority="high">
     <img class="ph after" src="media/hero-after.webp" alt="The same photo edited in Lucent Lab">
+    <canvas class="glph" id="glph" aria-hidden="true"></canvas>
     <div class="wash"></div>
     <svg class="beam" id="beam" aria-hidden="true"><defs><linearGradient id="beamfade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".16" stop-color="#fff" stop-opacity=".85"/><stop offset=".58" stop-color="#fff"/><stop offset=".84" stop-color="#fff" stop-opacity=".8"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><path class="g2"/><path class="g1"/><path class="l"/></svg>
     <span class="tag b">ORIGINAL</span><span class="tag a">LUCENT</span>
@@ -561,6 +565,110 @@ const grip = $('#grip');
 $('.wordmark').innerHTML = 'LUCENT LAB'.split('').map((c, i) => c === ' ' ? ' ' : `<span class="ch" style="transition-delay:${(0.1 + i * 0.05).toFixed(2)}s">${c}</span>`).join('');
 // The line is light: it trails a little behind the way it's moving, bowing in the middle, then springs straight
 // with a soft wobble. The edited photo is cut along the same curve.
+// ---------------------------------------------------------------- the opening, drawn live: the line of light bends the photo
+// Before and after are the same photo in two textures; the line splits them along its curve. Near the line the
+// picture refracts like light through a glass rod (stronger while it bends), its edge splits into a faint spectrum,
+// a glow spreads onto the developed side, and a very fine film grain moves over it all. Without WebGL the two
+// pictures stay as plain images.
+const glph = (() => {
+  const cv = $('#glph');
+  const gl = cv && cv.getContext('webgl', { antialias: false, alpha: false, premultipliedAlpha: false, powerPreference: 'high-performance' });
+  if (!gl) return null;
+  const VS = 'attribute vec2 p; varying vec2 v; void main(){ v = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }';
+  const FS = `precision highp float;
+    varying vec2 v;
+    uniform sampler2D tB, tA;
+    uniform vec2 res, isz, ioff;
+    uniform float bx, bend, t, glow, dpr, grain;
+    float hash(vec2 q) { q = fract(q * vec2(123.34, 456.21)); q += dot(q, q + 45.32); return fract(q.x * q.y); }
+    vec3 samp(vec2 px, float side) {
+      vec2 uv = clamp((px - ioff) / isz, vec2(0.0005), vec2(0.9995));
+      return mix(texture2D(tB, uv).rgb, texture2D(tA, uv).rgb, side);
+    }
+    void main() {
+      vec2 px = vec2(v.x * res.x, (1.0 - v.y) * res.y);
+      float y = px.y / res.y;
+      float xb = bx + bend * sin(3.14159265 * y);
+      float d = px.x - xb;
+      float side = smoothstep(-0.9 * dpr, 0.9 * dpr, d);
+      float w = 54.0 * dpr;
+      float lens = exp(-(d * d) / (w * w));
+      float k = 0.55 + 2.2 * min(1.0, abs(bend) / (70.0 * dpr));
+      float off = -d * lens * 0.26 * k;
+      vec2 o = vec2(d * lens * 0.045 * k, 0.0);
+      vec2 base = px + vec2(off, 0.0);
+      vec3 c = vec3(samp(base + o, side).r, samp(base, side).g, samp(base - o, side).b);
+      float wash = d > 0.0 ? exp(-d / (res.x * 0.2)) * 0.09 : 0.0;
+      c += vec3(0.80, 0.86, 1.0) * (wash + exp(-abs(d) / (7.0 * dpr)) * 0.16 + lens * 0.035 * k) * glow;
+      float n = hash(floor(px / max(1.0, dpr * 0.75)) + fract(t) * 91.7) - 0.5;
+      c += n * grain * (0.35 + 0.65 * smoothstep(0.0, 0.5, dot(c, vec3(0.3, 0.59, 0.11))));
+      gl_FragColor = vec4(c, 1.0);
+    }`;
+  const sh = (type, src) => { const x = gl.createShader(type); gl.shaderSource(x, src); gl.compileShader(x); if (!gl.getShaderParameter(x, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x)); return x; };
+  let prog;
+  try {
+    prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  } catch (e) { console.warn('hero: plain images', e); return null; }
+  gl.useProgram(prog);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const ap = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(ap); gl.vertexAttribPointer(ap, 2, gl.FLOAT, false, 0, 0);
+  const U = {}; for (const n of ['tB', 'tA', 'res', 'isz', 'ioff', 'bx', 'bend', 't', 'glow', 'dpr', 'grain']) U[n] = gl.getUniformLocation(prog, n);
+  const tex = (img, unit) => {
+    const tx = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tx);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+  };
+  const [ib, ia] = $$('.hero .ph');
+  let ready = false, state = { x: 0, b: 0 }, glowV = 0, raf = 0, visible = true, lastT = 0;
+  const dprOf = () => Math.min(devicePixelRatio || 1, 1.5);
+  function size() {
+    const d = dprOf(), W = Math.round(hero.clientWidth * d), H = Math.round(hero.clientHeight * d);
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    gl.viewport(0, 0, W, H);
+  }
+  function draw(now) {
+    if (!ready) return;
+    size();
+    const d = dprOf(), W = cv.width, H = cv.height;
+    const iw = ib.naturalWidth, ih = ib.naturalHeight, sc = Math.max(W / iw, H / ih);
+    gl.uniform2f(U.res, W, H);
+    gl.uniform2f(U.isz, iw * sc, ih * sc);
+    gl.uniform2f(U.ioff, (W - iw * sc) * 0.5, (H - ih * sc) * 0.42);
+    gl.uniform1f(U.bx, state.x * d); gl.uniform1f(U.bend, state.b * d);
+    gl.uniform1f(U.t, ((now || performance.now()) / 1000) % 1000);
+    gl.uniform1f(U.glow, glowV); gl.uniform1f(U.dpr, d);
+    gl.uniform1f(U.grain, reduce ? 0.018 : 0.03);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  // the grain moves at film speed while the opening is on screen
+  function loop(now) {
+    raf = 0;
+    if (!visible || reduce) return;
+    if (now - lastT > 41) { lastT = now; draw(now); }
+    raf = requestAnimationFrame(loop);
+  }
+  new IntersectionObserver((es) => { visible = es[0].isIntersecting; if (visible && !raf) raf = requestAnimationFrame(loop); }).observe(hero);
+  Promise.all([ib, ia].map((im) => im.decode().catch(() => {}))).then(() => {
+    try {
+      gl.uniform1i(U.tB, 0); gl.uniform1i(U.tA, 1);
+      tex(ib, 0); tex(ia, 1);
+      ready = true;
+      hero.classList.add('gl');
+      draw();
+      if (!raf) raf = requestAnimationFrame(loop);
+    } catch (e) { console.warn('hero: plain images', e); }
+  });
+  cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ready = false; hero.classList.remove('gl'); });
+  return {
+    set(x, b) { state.x = x; state.b = b; if (reduce || !visible) draw(); },
+    glow(v) { glowV = v; draw(); },
+    redraw: () => draw(),
+  };
+})();
 const after = $('.hero .ph.after'), needle = $('.hero .needle'), beamPaths = $$('#beam path');
 let heroX = 0, drawX = 0, bend = 0, bendV = 0, beamRaf = 0;
 const SPARK_Y = 0.58;
@@ -579,6 +687,7 @@ function drawBeam() {
   needle.style.transform = `translateX(${sx.toFixed(1)}px)`;
   hero.style.setProperty('--px', X.toFixed(1) + 'px');
   hero.style.setProperty('--tx', (X + B * bow(0.11)).toFixed(1) + 'px');
+  glph?.set(X, B);
 }
 function beamTick() {
   const prev = drawX;
@@ -604,6 +713,8 @@ const loaded = (img) => img.complete ? Promise.resolve() : new Promise((r) => { 
 Promise.all([...$$('.hero .ph').map(loaded), document.fonts.ready]).then(() => {
   document.body.classList.add('ready');
   hero.style.setProperty('--glow', 1);
+  // the glow on the photo rises with the page
+  if (glph) { const g0 = performance.now(); const up = (n) => { const k = clamp((n - g0) / 900, 0, 1); glph.glow(k * k * (3 - 2 * k)); if (k < 1) requestAnimationFrame(up); }; requestAnimationFrame(up); }
   if (reduce) { setHero(62); return; }
   // the line of light sweeps across and leaves the edited photo behind it
   const t0 = performance.now(), D = 2100, to = 62;
