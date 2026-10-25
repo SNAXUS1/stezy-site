@@ -134,5 +134,20 @@
       "A free photo editor for Windows made of light, with its own page: camera RAW, masks, and AI that never leaves your PC.",
       "Remove anything you paint over, select the sky in one click, lens blur, AI Denoise, grit and fine grain."
     ]
+  },
+  {
+    "id": "lucent-lab-0.2",
+    "kind": "site",
+    "label": "Update",
+    "date": "2026-10-25T21:08:47Z",
+    "title": "Lucent Lab 0.2",
+    "icon": "img/icons/lucent-lab.png",
+    "link": "/lucent-lab/",
+    "linkLabel": "Get Lucent Lab 0.2",
+    "summary": [
+      "Crop like Photoshop: the photo turns under an upright frame, and edges stop at the photo instead of flipping.",
+      "Heal and Clone are brushes now, masks show where they apply only while you work on them, and you can export at any size.",
+      "Steadier all round: the editor can no longer get stuck after an undo, and Continue editing always opens your photo."
+    ]
   }
 ]
