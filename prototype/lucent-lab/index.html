@@ -392,7 +392,7 @@ html::-webkit-scrollbar { display: none; }
         </div>
       </div>
       <div class="side fade-in d4">
-        <div><b>0.3 beta</b> &nbsp;·&nbsp; Windows 10 and 11</div>
+        <div><b>0.4 beta</b> &nbsp;·&nbsp; Windows 10 and 11</div>
         <div>Free, no account, nothing uploaded</div>
         <div class="drag"><i></i>Drag the light</div>
       </div>
@@ -524,7 +524,7 @@ html::-webkit-scrollbar { display: none; }
           <img class="after" src="media/blur-after.webp" alt="The same photo with a soft lens blur behind the cup" loading="lazy">
           <span class="bf">BEFORE</span><span class="af">AFTER</span>
           <div class="line"></div>
-          <div class="lab"><div><b>Lens blur</b><span>It reads the depth of the photo and blurs what's far away, like a wide-open lens.</span></div></div>
+          <div class="lab"><div><b>Lens blur</b><span>It reads the depth of the photo, keeps sharp what the camera focused on, and melts the rest like a wide-open lens.</span></div></div>
         </div>
       </div>
       <div class="facts">
@@ -579,10 +579,10 @@ html::-webkit-scrollbar { display: none; }
   <section class="dl" id="download">
     <div class="wrap">
       <img class="icon" src="media/icon.png" alt="Lucent Lab's icon" data-rise>
-      <h2 data-rise="2">Lucent Lab <em>0.3 beta</em></h2>
-      <p class="sub" data-rise="3">Free, for Windows. It's a beta: everything works, and it gets better with every update. The app tells you when a new one is out. Version 0.3, 26 October 2026.</p>
+      <h2 data-rise="2">Lucent Lab <em>0.4 beta</em></h2>
+      <p class="sub" data-rise="3">Free, for Windows. It's a beta: everything works, and it gets better with every update. The app tells you when a new one is out. Version 0.4, 27 October 2026.</p>
       <div class="acts" data-rise="3">
-        <a class="cta" href="https://github.com/SNAXUS1/stezy-site/releases/download/lucent-lab-v0.3.0/LucentLab-0.3.0.zip" id="dl-btn" data-dl>Download for Windows<span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v10M3.5 8.5 8 13l4.5-4.5"/></svg></span></a>
+        <a class="cta" href="https://github.com/SNAXUS1/stezy-site/releases/download/lucent-lab-v0.4.0/LucentLab-0.4.0.zip" id="dl-btn" data-dl>Download for Windows<span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v10M3.5 8.5 8 13l4.5-4.5"/></svg></span></a>
       </div>
       <div class="specs" data-rise>
         <div><small>SYSTEM</small><b>Windows 10 or 11, 64-bit</b></div>
@@ -590,7 +590,7 @@ html::-webkit-scrollbar { display: none; }
         <div><small>SIZE</small><b>690 MB, AI included</b></div>
         <div><small>PRICE</small><b>Free. No account.</b></div>
       </div>
-      <details class="sumbox" data-rise><summary>File checksum (SHA-256)</summary><code>0f157e9e8d3ccee6a9f6353273e9a11a8862b47857a3216c613c3799e153d749</code></details>
+      <details class="sumbox" data-rise><summary>File checksum (SHA-256)</summary><code>92b1338a3862bded89a3bcb1c30d41ce5a5e4543f9b782a19b6424d07d5a7293</code></details>
       <p class="fine" data-rise>The app isn't signed yet, so the first time Windows may say it "protected your PC". Click <b>More info</b>, then <b>Run anyway</b>. Your photos never leave your PC and your originals are never changed. Once a day it only asks stezy.lt whether there's a newer version.</p>
     </div>
   </section>
@@ -602,8 +602,8 @@ html::-webkit-scrollbar { display: none; }
     <div>
       <h4>LUCENT LAB</h4>
       <ul>
-        <li><a href="https://github.com/SNAXUS1/stezy-site/releases/download/lucent-lab-v0.3.0/LucentLab-0.3.0.zip" data-dl>Download 0.3 beta</a></li>
-        <li><a href="https://github.com/SNAXUS1/stezy-site/releases/tag/lucent-lab-v0.3.0" rel="noopener">Release notes</a></li>
+        <li><a href="https://github.com/SNAXUS1/stezy-site/releases/download/lucent-lab-v0.4.0/LucentLab-0.4.0.zip" data-dl>Download 0.4 beta</a></li>
+        <li><a href="https://github.com/SNAXUS1/stezy-site/releases/tag/lucent-lab-v0.4.0" rel="noopener">Release notes</a></li>
         <li><a href="/#apps">More apps on stezy.lt</a></li>
       </ul>
     </div>
@@ -976,8 +976,11 @@ $('#lab-reset').addEventListener('click', () => { for (const k in vals) vals[k] 
 const ITEMS = [
   ['Camera RAW', 'Opens the RAW files of over a thousand cameras, with automatic lens corrections for hundreds of lenses.'],
   ['Masks', 'Brush, gradients and distance masks, plus one click for the sky (every gap between the branches), the subject or anything you point at, with hair-fine edges.'],
+  ['Adaptive looks', 'One click, made for each photo: the AI finds the subject, the sky or the background and edits just those. Colour pop, Portrait glow, Cinematic, Spotlight and more.'],
+  ['Point colour', 'Click any colour in the photo and change just that colour. Colour pop keeps only the colours you picked.'],
+  ['Relight', 'Put a light into the photo and drag it around: it falls on what faces it, from the depth of the scene.'],
   ['Heal, Clone and Remove', 'Paint over a spot and clean texture from nearby blends in, or copy it exactly. Bigger things get painted over and filled in by AI.'],
-  ['AI Denoise', 'Cleans the camera\'s own sensor data, fast or at its very best, so even a nearly black photo comes back clean, with no purple in the blacks.'],
+  ['AI Denoise', 'Cleans the camera\'s own sensor data, fast or at its very best, so even a nearly black photo comes back clean. Colour blotches clears the big coloured patches in the dark parts of phone photos.'],
   ['Crop and Upright', 'Turn the photo under an upright frame, straighten in one click, and stand leaning buildings back up.'],
   ['Looks and presets', '12 looks to start from, your own presets, and the Lightroom presets you already own.'],
   ['Match a look', 'Point it at a photo you love and it matches the colour and the light.'],
@@ -992,7 +995,7 @@ $$('#index [data-rise]').forEach((el) => io.observe(el));
 
 // ---------------------------------------------------------------- download: counted (no personal data), like everywhere on stezy.lt
 $$('[data-dl]').forEach((a) => a.addEventListener('click', () => {
-  try { window.goatcounter?.count({ path: 'download/lucent-lab-v0.3.0', title: 'Lucent Lab 0.3.0', event: true }); } catch {}
+  try { window.goatcounter?.count({ path: 'download/lucent-lab-v0.4.0', title: 'Lucent Lab 0.4.0', event: true }); } catch {}
 }));
 
 // ---------------------------------------------------------------- the reel: sideways while you scroll; hold a photo to see the original

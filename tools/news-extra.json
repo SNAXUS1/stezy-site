@@ -136,6 +136,21 @@
     ]
   },
   {
+    "id": "lucent-lab-0.4",
+    "kind": "site",
+    "label": "Update",
+    "date": "2026-10-26T23:47:46Z",
+    "title": "Lucent Lab 0.4",
+    "icon": "img/icons/lucent-lab.png",
+    "link": "/lucent-lab/",
+    "linkLabel": "Get Lucent Lab 0.4",
+    "summary": [
+      "Point colour: click any colour in the photo and change just that colour. Colour pop keeps only the colours you picked.",
+      "Relight puts a light into the photo, and Adaptive looks edit the subject, sky or background in one click.",
+      "A smooth new lens blur that focuses where the camera did, a fix for coloured blotches in dark photos, and many fixes."
+    ]
+  },
+  {
     "id": "lucent-lab-0.3",
     "kind": "site",
     "label": "Update",
