@@ -392,7 +392,7 @@ html::-webkit-scrollbar { display: none; }
         </div>
       </div>
       <div class="side fade-in d4">
-        <div><b>0.2 beta</b> &nbsp;·&nbsp; Windows 10 and 11</div>
+        <div><b>0.3 beta</b> &nbsp;·&nbsp; Windows 10 and 11</div>
         <div>Free, no account, nothing uploaded</div>
         <div class="drag"><i></i>Drag the light</div>
       </div>
@@ -517,7 +517,7 @@ html::-webkit-scrollbar { display: none; }
           <img class="after" src="media/sky-after.webp" alt="The same lake with a deeper, moodier sky" loading="lazy">
           <span class="bf">BEFORE</span><span class="af">AFTER</span>
           <div class="line"></div>
-          <div class="lab"><div><b>Sky, in one click</b><span>Select the sky, a subject or anything you point at, then edit just that.</span></div></div>
+          <div class="lab"><div><b>Sky, in one click</b><span>Down to every gap between the branches. Or a subject, or anything you point at, then edit just that.</span></div></div>
         </div>
         <div class="cmp half" data-cmp data-rise="2">
           <img src="media/blur-before.webp" alt="A cup of coffee on a table" loading="lazy">
@@ -528,7 +528,7 @@ html::-webkit-scrollbar { display: none; }
         </div>
       </div>
       <div class="facts">
-        <div class="fact" data-rise><b class="num">4</b><span>AI models inside: Select, Remove, Denoise and Depth</span></div>
+        <div class="fact" data-rise><b class="num">6</b><span>AI models inside: Select, fine edges, Remove, Depth and two for Denoise</span></div>
         <div class="fact" data-rise="2"><b class="num">0</b><span>photos uploaded, ever</span></div>
         <div class="fact" data-rise="3"><b class="num">~7 s</b><span>to remove something on an ordinary PC</span></div>
       </div>
@@ -579,18 +579,18 @@ html::-webkit-scrollbar { display: none; }
   <section class="dl" id="download">
     <div class="wrap">
       <img class="icon" src="media/icon.png" alt="Lucent Lab's icon" data-rise>
-      <h2 data-rise="2">Lucent Lab <em>0.2 beta</em></h2>
-      <p class="sub" data-rise="3">Free, for Windows. It's a beta: everything works, and it gets better with every update. The app tells you when a new one is out. Version 0.2, 25 October 2026.</p>
+      <h2 data-rise="2">Lucent Lab <em>0.3 beta</em></h2>
+      <p class="sub" data-rise="3">Free, for Windows. It's a beta: everything works, and it gets better with every update. The app tells you when a new one is out. Version 0.3, 26 October 2026.</p>
       <div class="acts" data-rise="3">
-        <a class="cta" href="https://github.com/SNAXUS1/stezy-site/releases/download/lucent-lab-v0.2.0/LucentLab-0.2.0.zip" id="dl-btn" data-dl>Download for Windows<span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v10M3.5 8.5 8 13l4.5-4.5"/></svg></span></a>
+        <a class="cta" href="https://github.com/SNAXUS1/stezy-site/releases/download/lucent-lab-v0.3.0/LucentLab-0.3.0.zip" id="dl-btn" data-dl>Download for Windows<span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v10M3.5 8.5 8 13l4.5-4.5"/></svg></span></a>
       </div>
       <div class="specs" data-rise>
         <div><small>SYSTEM</small><b>Windows 10 or 11, 64-bit</b></div>
         <div><small>GRAPHICS</small><b>A card with DirectX 12</b></div>
-        <div><small>SIZE</small><b>457 MB, AI included</b></div>
+        <div><small>SIZE</small><b>690 MB, AI included</b></div>
         <div><small>PRICE</small><b>Free. No account.</b></div>
       </div>
-      <details class="sumbox" data-rise><summary>File checksum (SHA-256)</summary><code>7a00b0be009d9bec346cdef3e5adf3d788629d1b166a98862cb136510b133563</code></details>
+      <details class="sumbox" data-rise><summary>File checksum (SHA-256)</summary><code>0f157e9e8d3ccee6a9f6353273e9a11a8862b47857a3216c613c3799e153d749</code></details>
       <p class="fine" data-rise>The app isn't signed yet, so the first time Windows may say it "protected your PC". Click <b>More info</b>, then <b>Run anyway</b>. Your photos never leave your PC and your originals are never changed. Once a day it only asks stezy.lt whether there's a newer version.</p>
     </div>
   </section>
@@ -602,8 +602,8 @@ html::-webkit-scrollbar { display: none; }
     <div>
       <h4>LUCENT LAB</h4>
       <ul>
-        <li><a href="https://github.com/SNAXUS1/stezy-site/releases/download/lucent-lab-v0.2.0/LucentLab-0.2.0.zip" data-dl>Download 0.2 beta</a></li>
-        <li><a href="https://github.com/SNAXUS1/stezy-site/releases/tag/lucent-lab-v0.2.0" rel="noopener">Release notes</a></li>
+        <li><a href="https://github.com/SNAXUS1/stezy-site/releases/download/lucent-lab-v0.3.0/LucentLab-0.3.0.zip" data-dl>Download 0.3 beta</a></li>
+        <li><a href="https://github.com/SNAXUS1/stezy-site/releases/tag/lucent-lab-v0.3.0" rel="noopener">Release notes</a></li>
         <li><a href="/#apps">More apps on stezy.lt</a></li>
       </ul>
     </div>
@@ -975,9 +975,9 @@ $('#lab-reset').addEventListener('click', () => { for (const k in vals) vals[k] 
 // ---------------------------------------------------------------- everything else
 const ITEMS = [
   ['Camera RAW', 'Opens the RAW files of over a thousand cameras, with automatic lens corrections for hundreds of lenses.'],
-  ['Masks', 'Brush, gradients and distance masks, plus one click for the sky, the subject or anything you point at.'],
+  ['Masks', 'Brush, gradients and distance masks, plus one click for the sky (every gap between the branches), the subject or anything you point at, with hair-fine edges.'],
   ['Heal, Clone and Remove', 'Paint over a spot and clean texture from nearby blends in, or copy it exactly. Bigger things get painted over and filled in by AI.'],
-  ['AI Denoise', 'Cleans high-ISO noise and keeps the detail, on your own graphics card.'],
+  ['AI Denoise', 'Cleans the camera\'s own sensor data, fast or at its very best, so even a nearly black photo comes back clean, with no purple in the blacks.'],
   ['Crop and Upright', 'Turn the photo under an upright frame, straighten in one click, and stand leaning buildings back up.'],
   ['Looks and presets', '12 looks to start from, your own presets, and the Lightroom presets you already own.'],
   ['Match a look', 'Point it at a photo you love and it matches the colour and the light.'],
@@ -992,7 +992,7 @@ $$('#index [data-rise]').forEach((el) => io.observe(el));
 
 // ---------------------------------------------------------------- download: counted (no personal data), like everywhere on stezy.lt
 $$('[data-dl]').forEach((a) => a.addEventListener('click', () => {
-  try { window.goatcounter?.count({ path: 'download/lucent-lab-v0.2.0', title: 'Lucent Lab 0.2.0', event: true }); } catch {}
+  try { window.goatcounter?.count({ path: 'download/lucent-lab-v0.3.0', title: 'Lucent Lab 0.3.0', event: true }); } catch {}
 }));
 
 // ---------------------------------------------------------------- the reel: sideways while you scroll; hold a photo to see the original

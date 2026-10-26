@@ -136,6 +136,21 @@
     ]
   },
   {
+    "id": "lucent-lab-0.3",
+    "kind": "site",
+    "label": "Update",
+    "date": "2026-10-26T18:54:47Z",
+    "title": "Lucent Lab 0.3",
+    "icon": "img/icons/lucent-lab.png",
+    "link": "/lucent-lab/",
+    "linkLabel": "Get Lucent Lab 0.3",
+    "summary": [
+      "AI Denoise cleans RAW files on the camera's own sensor data, fast or at its very best: even a nearly black photo comes back clean, with no purple in the blacks.",
+      "Sky masks find the sky in every gap between branches and leaves, and keep clouds whole.",
+      "Hair-fine edges for selections, and an Open button to reach any photo or folder quickly."
+    ]
+  },
+  {
     "id": "lucent-lab-0.2",
     "kind": "site",
     "label": "Update",
