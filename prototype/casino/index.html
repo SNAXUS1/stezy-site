@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lucky Gambit Casino</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2310b981'/%3E%3Ctext x='32' y='47' font-size='40' text-anchor='middle' fill='%2304271a'%3E%E2%99%9E%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Anton&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="v3.css">
+<link rel="stylesheet" href="v4.css">
+<link rel="stylesheet" href="v5.css">
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <a class="brand" href="#/lobby"><span class="logo">♞</span><span class="bt"><b>Lucky Gambit</b><small>CASINO</small></span></a>
+    <nav id="nav"></nav>
+    <button id="namebtn" class="usercard" title="Your profile"></button>
+  </aside>
+  <div id="main">
+    <header id="top">
+      <div id="crumb" class="crumb"></div>
+      <div id="mpstat" class="mpstat"></div>
+      <div id="whohere" class="whohere"></div>
+      <div class="spacer"></div>
+      <button id="boostpill" class="chipinfo boost" hidden></button>
+      <div id="ratingpill" class="chipinfo rating"></div>
+      <button id="balpill" class="chipinfo bal" title="Balance — click to get more coins"></button>
+      <button id="refill" class="btn small gold" hidden>Free $1,000</button>
+      <button id="snd" class="icon-btn" title="Sound"></button>
+    </header>
+    <main id="view"></main>
+  </div>
+</div>
+<div id="toasts"></div>
+<script src="icons.js"></script>
+<script src="shared.js"></script>
+<script src="core.js"></script>
+<script src="mp.js"></script>
+<script src="table.js"></script>
+<script src="economy.js"></script>
+<script src="cheats.js"></script>
+<script src="ads.js"></script>
+<script src="rewards.js"></script>
+<script src="profile.js"></script>
+<script src="games/blackjack.js"></script>
+<script src="games/poker.js"></script>
+<script src="games/baccarat.js"></script>
+<script src="games/roulette.js"></script>
+<script src="games/craps.js"></script>
+<script src="games/videopoker.js"></script>
+<script src="games/hilo.js"></script>
+<script src="games/slots.js"></script>
+<script src="games/crash.js"></script>
+<script src="games/plinko.js"></script>
+<script src="games/mines.js"></script>
+<script src="games/dice.js"></script>
+<script src="games/keno.js"></script>
+<script src="games/wheel.js"></script>
+<script src="games/races.js"></script>
+<script src="guides.js"></script>
+<script src="tips.js"></script>
+<script>Casino.start();</script>
+</body>
+</html>
