@@ -136,6 +136,21 @@
     ]
   },
   {
+    "id": "lucent-lab-0.5",
+    "kind": "site",
+    "label": "Update",
+    "date": "2026-11-01T18:09:48Z",
+    "title": "Lucent Lab 0.5",
+    "icon": "img/icons/lucent-lab.png",
+    "link": "/lucent-lab/",
+    "linkLabel": "Get Lucent Lab 0.5",
+    "summary": [
+      "New effects: Flow draws the picture out into streaks, Glow and Sparkle make the bright parts shine, and Gradient map turns brightness into colour.",
+      "AI Enlarge makes a copy up to 4 times bigger with real detail, and Relight now takes up to eight lights.",
+      "The library shows whole photos with search and sort, press / to find any tool, and edits now follow a photo when its folder moves."
+    ]
+  },
+  {
     "id": "lucent-lab-0.4.2",
     "kind": "site",
     "label": "Update",
