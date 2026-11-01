@@ -136,6 +136,21 @@
     ]
   },
   {
+    "id": "lucent-lab-0.4.2",
+    "kind": "site",
+    "label": "Update",
+    "date": "2026-11-01T13:04:26Z",
+    "title": "Lucent Lab 0.4.2",
+    "icon": "img/icons/lucent-lab.png",
+    "link": "/lucent-lab/",
+    "linkLabel": "Get Lucent Lab 0.4.2",
+    "summary": [
+      "Exports now look like the editor: a new Match editor size keeps grain and grit as fine as you see them, even on small photos.",
+      "A switch keeps the grain fine when you zoom in on the file, or gives exactly the editor's normal view, pixel for pixel.",
+      "Picking a size larger than the photo now really enlarges it, up to 8192 pixels."
+    ]
+  },
+  {
     "id": "lucent-lab-0.4",
     "kind": "site",
     "label": "Update",
