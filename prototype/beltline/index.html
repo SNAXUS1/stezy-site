@@ -121,11 +121,11 @@ button { cursor: pointer; }
 .rows { display: flex; flex-direction: column; gap: 8px; }
 .rowbox { border: 1px solid var(--line); background: var(--panel-2); border-radius: 11px; padding: 9px; display: flex; flex-direction: column; gap: 8px; }
 .rowline { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
-.picker-btn { flex: 1 1 150px; min-width: 0; display: flex; align-items: center; gap: 8px; text-align: left; background: var(--panel); border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 9px; font-weight: 600; font-size: 13.5px; }
+.picker-btn { flex: 1 1 150px; min-width: 0; height: 34px; align-self: center; display: flex; align-items: center; gap: 8px; text-align: left; background: var(--panel); border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 9px; font-weight: 600; font-size: 13.5px; }
 .picker-btn:hover { border-color: var(--muted); }
 .picker-btn .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker-btn .chev { color: var(--faint); width: 14px; height: 14px; flex: none; }
-.picker-btn.empty .nm { color: var(--faint); font-weight: 500; }
+.picker-btn.is-empty .nm { color: var(--faint); font-weight: 500; }
 .chip { width: 9px; height: 9px; border-radius: 3px; background: var(--belt); flex: none; display: inline-block; }
 .chip.fluid { background: var(--fluid); border-radius: 50%; }
 .chip.raw { background: var(--muted); }
@@ -297,6 +297,32 @@ button { cursor: pointer; }
 .dg .ubar { fill: var(--panel-3); }
 .dg .ubar-f { fill: var(--muted); }
 
+.dg .rail-gap { stroke: var(--bg) !important; marker-end: none; }
+.dg .mod .rail-gap { stroke: var(--panel) !important; }
+.dg .stage-bg { fill: rgba(255,255,255,.018); stroke: rgba(255,255,255,.06); stroke-dasharray: 3 5; }
+.dg .stage-t { font: 600 10.5px var(--mono); letter-spacing: .16em; fill: var(--faint); }
+.dg .dim { opacity: .14; transition: opacity .2s; }
+.dg .edge.hl .ln { filter: drop-shadow(0 0 5px rgba(255,255,255,.22)); }
+.dg .mach.amp { stroke: #c4a6ff; }
+.dg .badge.amp rect { fill: rgba(196,166,255,.16); }
+.dg .badge.amp text { fill: #c4a6ff; }
+.dg .lbl-bg { stroke-opacity: .55; }
+.dg .lbl .w { fill: var(--warn); font-weight: 600; }
+.tag.amp { color: #c4a6ff; background: rgba(196,166,255,.14); }
+.stat.over { border-color: rgba(239,111,94,.5); }
+.legend .it { display: inline-flex; align-items: center; gap: 5px; }
+.legend .it i { width: 14px; height: 4px; border-radius: 2px; margin: 0; }
+.blist tr.stage-h td { padding: 14px 10px 6px; border-top: 0; font: 600 10.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--faint); }
+.link-tag { font-size: 12px; color: var(--muted); background: var(--panel); border: 1px dashed var(--line-2); border-radius: 7px; padding: 5px 8px; }
+#busy { display: none; }
+#busy.on { display: inline-flex; }
+#busy .dot { background: var(--belt); animation: blink .9s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: .2; } }
+.hist { display: inline-flex; gap: 2px; }
+.hist button { border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: 30px; width: 30px; height: 28px; display: grid; place-items: center; padding: 0; }
+.hist button:hover:not(:disabled) { color: var(--fg); border-color: var(--line-2); }
+.hist button:disabled { opacity: .35; cursor: default; }
+.hist svg { width: 14px; height: 14px; }
 .stat .gen { font-size: 11.5px; color: var(--faint); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dg .badge.done rect { fill: var(--good-soft); }
 .dg .badge.done text { fill: var(--good); }
@@ -421,7 +447,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
 </div>
 <div id="insp-host"></div>
 
-<script>
+<script id="engine-src">
 /* Satisfactory Planner engine: recipe unlocks, LP solver, machine counts, split/merge guides.
    Works in the browser (window.PlannerEngine) and in Node (module.exports). */
 (function (root, factory) {
@@ -455,6 +481,11 @@ details.mats[open] .chev { transform: rotate(180deg); }
       }
       return { coefs: coefs, op: op, rhs: rhs };
     });
+    // scale every row so its biggest coefficient is 1 (keeps pivots well-sized)
+    rows.forEach(function (r) {
+      var mx = 0; r.coefs.forEach(function (p) { if (Math.abs(p[1]) > mx) mx = Math.abs(p[1]); });
+      if (mx > 0 && mx !== 1) { r.coefs = r.coefs.map(function (p) { return [p[0], p[1] / mx]; }); r.rhs /= mx; }
+    });
     // tiny distinct slack on zero rows breaks degeneracy (stops stalls and tiny-pivot blowups)
     rows.forEach(function (r, i) { if (r.rhs === 0 && r.op === '<=') r.rhs = 1e-7 * (1 + (i * 37 % 101) / 101); });
     var m = rows.length, nSlack = 0, nArt = 0;
@@ -487,7 +518,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
 
     function run(maxCol) {
       var iter = 0, stall = 0, last = T[N], bland = false;
-      while (iter++ < 6000) {
+      while (iter++ < 20000) {
         var col = -1, best = -EPS, j;
         if (stall > 30) bland = true;   // once degenerate pivots pile up, stay on Bland's rule (cannot cycle)
         if (bland) {
@@ -562,6 +593,13 @@ details.mats[open] .chev { transform: rotate(180deg); }
     });
   }
   function availableRecipes(st) { return D.recipes.filter(function (r) { return recipeUnlocked(r, st); }); }
+  var ampCache = {};
+  function ampClone(r) {
+    if (ampCache[r.id]) return ampCache[r.id];
+    var M = D.machines[r.m];
+    return (ampCache[r.id] = { id: r.id + '~amp', base: r.id, name: r.name, alt: r.alt, m: r.m, time: r.time, in: r.in,
+      out: r.out.map(function (o) { return [o[0], o[1] * 2]; }), unlock: r.unlock, amp: M.sloops, power: recipePower(r) * 4 });
+  }
 
   // what would unlock an item (for "locked" messages)
   function howToUnlock(item) {
@@ -603,11 +641,13 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function buildModel(st, opts) {
     var avail = availableRecipes(st);
     if (opts.noLoops) avail = avail.filter(function (r) { return r.m !== 'packager' && r.m !== 'converter'; });
+    if (st.sloops > 0 && !opts.noAmp) avail = avail.concat(avail.filter(function (r) { return D.machines[r.m].sloops > 0; }).map(ampClone)
+      .filter(function (c) { return (!st._ampFixed || st._ampFixed[c.id] > 0) && !(st._ampExclude && st._ampExclude[c.id]); }));
     if (st.recipeChoice) {
       var all = avail;
       avail = all.filter(function (r) {
         var ch = st.recipeChoice[r.out[0][0]];
-        if (!ch || ch === r.id) return true;
+        if (!ch || ch === r.id || ch === r.base) return true;
         return !all.some(function (q) { return q.id === ch; });   // chosen recipe not unlocked: ignore the choice
       });
     }
@@ -675,8 +715,15 @@ details.mats[open] .chev { transform: rotate(180deg); }
       }
       cons.push({ coefs: coefs, op: '>=', rhs: rhs });
     });
-    model.supplies.forEach(function (s, k) { if (isFinite(s.cap)) cons.push({ coefs: [[nR + k, 1]], op: '<=', rhs: s.cap }); });
+    model.supplies.forEach(function (s, k) { if (isFinite(s.cap)) cons.push({ coefs: [[nR + k, 1]], op: '<=', rhs: s.cap * (1 + 1e-7) + 1e-7 }); });
     if (st.lockCount) model.recs.forEach(function (r, j) { var n = +st.lockCount[r.id]; if (n > 0) cons.push({ coefs: [[j, 1]], op: '=', rhs: n }); });
+    var ampTerms = [];
+    model.recs.forEach(function (r, j) {
+      if (!r.amp) return;
+      if (st._ampFixed) cons.push({ coefs: [[j, 1]], op: '<=', rhs: st._ampFixed[r.id] || 0 });
+      else ampTerms.push([j, r.amp]);
+    });
+    if (ampTerms.length) cons.push({ coefs: ampTerms, op: '<=', rhs: st.sloops });
     var c = new Float64Array(nV);
     if (useT && fixedT == null) {
       cons.push({ coefs: [[tIdx, 1]], op: '<=', rhs: 1e6 });
@@ -703,13 +750,13 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function machineSetup(x, st, lockN) {
     var cmax = (st.maxClock || 100) / 100;
     if (lockN > 0) { var lc = []; for (var z = 0; z < lockN; z++) lc.push(x / lockN); return { n: lockN, clocks: lc, even: true, alt: null }; }
-    var nMin = Math.max(1, Math.ceil(x / cmax - 1e-6));
+    var nMin = Math.max(1, Math.ceil(x / cmax - 1e-4));
     var n = nMin, clocks, layoutHint = null;
     if (st.split === 'fill') {
-      var full = Math.floor(x / cmax + 1e-6), rem = x - full * cmax;
+      var full = Math.floor(x / cmax + 1e-4), rem = x - full * cmax;
       clocks = [];
       for (var i = 0; i < full; i++) clocks.push(cmax);
-      if (rem > 1e-6) clocks.push(rem);
+      if (rem > 1e-4) clocks.push(rem);
       if (!clocks.length) clocks.push(x);
       n = clocks.length;
     } else {
@@ -797,7 +844,37 @@ details.mats[open] .chev { transform: rotate(180deg); }
       if (res.status !== 'optimal') res = r1;
     } else {
       res = solveModel(model, st, 'exact');
-      if (res.status !== 'optimal') { var e2 = explainShort(st, model, res, mode, noLoops); e2.solverTrouble = res.status !== 'infeasible'; return e2; }
+      if (res.status !== 'optimal') {
+        var e2 = explainShort(st, model, res, mode, noLoops); e2.solverTrouble = res.status !== 'infeasible';
+        if (e2.maxScale && e2.maxScale > 0.9995) {
+          var mx2 = Object.assign({}, st, { want: (st.want || []).map(function (w) { return { item: w.item, rate: w.rate, fixed: false }; }) });
+          var near = planWith(mx2, 'max', noLoops);
+          if (near.status === 'ok') { near.mode = 'exact'; return near; }
+        }
+        return e2;
+      }
+    }
+    // somersloops come in whole machines: round the amplified machines, then solve again with those counts
+    var used = [];
+    model.recs.forEach(function (r, j) { if (r.amp && res.recX[j] > 1e-6) used.push({ id: r.id, x: res.recX[j], slots: r.amp }); });
+    if (used.length && !st._ampFixed) {
+      var budget = st.sloops, fixed = {};
+      used.forEach(function (u) { fixed[u.id] = Math.floor(u.x + 1e-6); budget -= fixed[u.id] * u.slots; });
+      used.slice().sort(function (a, b) { return (b.x % 1) - (a.x % 1); }).forEach(function (u) {
+        if (u.x - fixed[u.id] > 1e-6 && budget >= u.slots) { fixed[u.id]++; budget -= u.slots; }
+      });
+      // a machine that got no somersloops after rounding: leave it out and let the solver spend them elsewhere
+      var zeroed = used.filter(function (u) { return fixed[u.id] === 0; });
+      if (zeroed.length && (st._ampTry || 0) < 5) {
+        var ex = Object.assign({}, st._ampExclude); zeroed.forEach(function (u) { ex[u.id] = true; });
+        var retry = planWith(Object.assign({}, st, { _ampExclude: ex, _ampTry: (st._ampTry || 0) + 1 }), mode, noLoops);
+        if (retry.status === 'ok') return retry;
+      }
+      var st2 = Object.assign({}, st, { _ampFixed: fixed });
+      var again = planWith(st2, mode, noLoops);
+      if (again.status === 'ok') return again;
+      var plain = Object.assign({}, st, { sloops: 0 });
+      return planWith(plain, mode, noLoops);
     }
     return assemble(st, model, res, mode, tStar);
   }
@@ -822,7 +899,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (d.status === 'optimal') {
       dm.supplies.forEach(function (s, k) {
         var used = d.supX[k], have = model.haveCap[s.item] || 0;
-        if (used > have + 1e-6) out.missing.push({ item: s.item, need: used, have: have, raw: !!(D.items[s.item] || {}).raw });
+        if (used > have * (1 + 1e-5) + 1e-4) out.missing.push({ item: s.item, need: used, have: have, raw: !!(D.items[s.item] || {}).raw });
       });
       out.missing.sort(function (a, b) { return (b.need - b.have) - (a.need - a.have); });
     } else out.impossible = true;
@@ -833,11 +910,11 @@ details.mats[open] .chev { transform: rotate(180deg); }
     var steps = [];
     model.recs.forEach(function (r, j) {
       var x = res.recX[j];
-      if (x > 1e-7) steps.push({ recipe: r, x: x });
+      if (x > 1e-5) steps.push({ recipe: r, x: x });
     });
     // supplies used
     var supply = {};
-    model.supplies.forEach(function (s, k) { if (res.supX[k] > 1e-7) supply[s.item] = res.supX[k]; });
+    model.supplies.forEach(function (s, k) { if (res.supX[k] > 1e-5) supply[s.item] = Math.min(res.supX[k], isFinite(s.cap) ? s.cap : Infinity); });
     // targets
     var target = {}, shareItems = {};
     (st.want || []).forEach(function (w) {
@@ -883,14 +960,18 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
     steps.sort(function (a, b) { return a.depth - b.depth || itemName(a.recipe.out[0][0]).localeCompare(itemName(b.recipe.out[0][0])); });
 
-    var exp = 1.321929, factoryPower = 0, machineCount = 0, splitters = 0, mergers = 0;
+    var exp = 1.321929, factoryPower = 0, machineCount = 0, splitters = 0, mergers = 0, sloopsUsed = 0, shards = 0;
     var cost = {};
     function addCost(list, k) { list.forEach(function (p) { cost[p[0]] = (cost[p[0]] || 0) + p[1] * k; }); }
     steps.forEach(function (s, si) {
       var r = s.recipe, M = D.machines[r.m];
       var lockN = st.lockCount ? +st.lockCount[r.id] || 0 : 0;
+      if (r.amp && st._ampFixed && st._ampFixed[r.id]) lockN = st._ampFixed[r.id];
       var setup = machineSetup(s.x, st, lockN);
-      s.locked = lockN > 0;
+      s.locked = lockN > 0 && !r.amp;
+      s.amp = r.amp || 0;
+      if (s.amp) sloopsUsed += setup.n * s.amp;
+      setup.clocks.forEach(function (cl) { if (cl > 1 + 1e-9) shards += Math.ceil((cl - 1) / 0.5 - 1e-9); });
       s.machine = r.m; s.count = setup.n; s.clocks = setup.clocks; s.even = setup.even; s.altLayout = setup.alt;
       s.power = setup.clocks.reduce(function (a, cl) { return a + powerAt(recipePower(r), M.exp || exp, cl); }, 0);
       factoryPower += s.power; machineCount += s.count; addCost(M.cost, s.count);
@@ -952,7 +1033,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       status: 'ok', mode: mode, scale: tStar,
       outputs: outputs, steps: steps, supply: supplyRows, leftovers: leftovers, extraction: extraction,
       power: { factory: factoryPower, extraction: extractionPower, total: factoryPower + extractionPower },
-      machines: machineCount, splitters: splitters, mergers: mergers,
+      machines: machineCount, splitters: splitters, mergers: mergers, sloops: sloopsUsed, shards: shards,
       cost: Object.keys(cost).map(function (k) { return { item: k, amount: Math.ceil(cost[k] - 1e-9) }; }).sort(function (a, b) { return b.amount - a.amount; }),
       unusedHave: notUsed
     };
@@ -1018,11 +1099,12 @@ details.mats[open] .chev { transform: rotate(180deg); }
       want: [{ id: uid(), item: 'SteelPlate', rate: 1, fixed: false }, { id: uid(), item: 'SteelPipe', rate: 20, fixed: true }],
       limitToHave: true, goal: 'resources', split: 'even', easyCounts: true,
       recipeChoice: {}, lockCount: {}, view: 'compact', zoom: 0,
-      name: 'Steel example', built: {}, current: 'f1', factories: [{ id: 'f1', name: 'Steel example' }], saved: {}
+      name: 'Steel example', built: {}, current: 'f1', factories: [{ id: 'f1', name: 'Steel example' }], saved: {},
+      shards: 0, sloops: 0, lastOut: []
     };
   }
   // fields that belong to one factory (the rest, like tier and alternates, are shared)
-  var FF = ['name', 'have', 'want', 'recipeChoice', 'lockCount', 'waterUnlimited', 'limitToHave', 'goal', 'split', 'easyCounts', 'built', 'example'];
+  var FF = ['name', 'have', 'want', 'recipeChoice', 'lockCount', 'waterUnlimited', 'limitToHave', 'goal', 'split', 'easyCounts', 'built', 'example', 'lastOut'];
   function snapshot() { var o = {}; FF.forEach(function (k) { o[k] = JSON.parse(JSON.stringify(state[k])); }); return o; }
   function loadSnap(s) { FF.forEach(function (k) { if (s[k] !== undefined) state[k] = JSON.parse(JSON.stringify(s[k])); }); }
   function switchFactory(id) {
@@ -1033,7 +1115,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   }
   function blankFactory(name) {
     return { name: name, have: [{ id: uid(), item: null, kind: 'node', purity: 'normal', mk: state.miner, count: 1, clock: 100, rate: 60 }], want: [{ id: uid(), item: null, rate: 5, fixed: false }],
-      recipeChoice: {}, lockCount: {}, waterUnlimited: true, limitToHave: true, goal: 'resources', split: 'even', easyCounts: true, built: {}, example: false };
+      recipeChoice: {}, lockCount: {}, waterUnlimited: true, limitToHave: true, goal: 'resources', split: 'even', easyCounts: true, built: {}, example: false, lastOut: [] };
   }
   function addFactory(snap) {
     state.saved[state.current] = snapshot();
@@ -1061,8 +1143,31 @@ details.mats[open] .chev { transform: rotate(180deg); }
   }
   function loadLocal() { try { var raw = localStorage.getItem(KEY) || localStorage.getItem(OLDKEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } }
   function saveLocal() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  var undoStack = [], redoStack = [], committed = null, grouping = false, groupTimer = null;
+  function histSnap() { var o = JSON.parse(JSON.stringify(state)); delete o.savedAt; delete o.zoom; delete o.view; delete o.lastOut; return JSON.stringify(o); }
+  function recordHistory() {
+    if (committed == null) { committed = histSnap(); return; }
+    var now = histSnap(); if (now === committed) return;
+    if (!grouping) { undoStack.push(committed); if (undoStack.length > 60) undoStack.shift(); redoStack = []; }
+    grouping = true; clearTimeout(groupTimer); groupTimer = setTimeout(function () { grouping = false; }, 700);
+    committed = now; updateHistBtns();
+  }
+  function applyHist(json) {
+    var keep = { view: state.view, zoom: state.zoom, lastOut: state.lastOut };
+    state = normalize(JSON.parse(json)); state.view = keep.view; state.zoom = keep.zoom; state.lastOut = keep.lastOut; state.savedAt = Date.now();
+    committed = json; grouping = false; selected = null;
+    saveLocal(); queueSync(); renderSetup(); schedulePlan(); renderInspector(); updateHistBtns();
+  }
+  function undo() { if (!undoStack.length) return; redoStack.push(committed); applyHist(undoStack.pop()); }
+  function redo() { if (!redoStack.length) return; undoStack.push(committed); applyHist(redoStack.pop()); }
+  function updateHistBtns() {
+    var u = document.querySelector('[data-act="undo"]'), r = document.querySelector('[data-act="redo"]');
+    if (u) u.disabled = !undoStack.length;
+    if (r) r.disabled = !redoStack.length;
+  }
   function changed(structural, keepExample) {
     if (!keepExample) state.example = false;
+    recordHistory();
     state.savedAt = Date.now();
     saveLocal(); queueSync();
     if (structural) renderSetup();
@@ -1109,7 +1214,13 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (item === 'NitrogenGas') return 'well';
     var it = D.items[item]; return it && it.raw ? 'miner' : null;
   }
+  function linkRate(h) {
+    var f = state.saved[h.factory], lo = f && f.lastOut || [];
+    var o = lo.filter(function (x) { return x.item === h.item; })[0];
+    return o ? o.rate * (h.pct == null || h.pct === '' ? 100 : +h.pct) / 100 : 0;
+  }
   function rowRate(h) {
+    if (h.kind === 'link') return linkRate(h);
     if (h.kind !== 'node' || !nodeKind(h.item)) return Math.max(0, +h.rate || 0);
     var k = nodeKind(h.item), cl = Math.max(0, +h.clock || 0) / 100, cnt = Math.max(0, +h.count || 0), pur = PURITY[h.purity] || 1;
     if (k === 'water') return 120 * cnt * cl;
@@ -1132,16 +1243,46 @@ details.mats[open] .chev { transform: rotate(180deg); }
       have: state.have.filter(function (h) { return h.item; }).map(function (h) { return { item: h.item, rate: rowRate(h) }; }),
       want: state.want.filter(function (w) { return w.item; }).map(function (w) { return { item: w.item, rate: Math.max(0, +w.rate || 0), fixed: !!w.fixed }; }),
       limitToHave: state.limitToHave, goal: state.goal, split: state.split, easyCounts: state.easyCounts,
-      recipeChoice: state.recipeChoice, lockCount: state.lockCount
+      recipeChoice: state.recipeChoice, lockCount: state.lockCount, sloops: Math.max(0, Math.floor(+state.sloops || 0))
     };
   }
+  var worker = null, reqId = 0, busyTimer = null;
+  function startWorker(data) {
+    try {
+      var inline = document.getElementById('engine-src');
+      var srcP = inline && inline.textContent.trim() ? Promise.resolve(inline.textContent) : fetch('engine.js').then(function (r) { if (!r.ok) throw new Error('engine'); return r.text(); });
+      srcP.then(function (src) {
+        var glue = '\nvar PE = self.PlannerEngine; self.onmessage = function (e) { var m = e.data; if (m.t === "init") { PE.init(m.data); return; } var r; try { r = PE.plan(m.st); } catch (err) { r = { status: "error", message: String(err && err.message || err) }; } self.postMessage({ id: m.id, res: r }); };';
+        var w = new Worker(URL.createObjectURL(new Blob([src + glue], { type: 'text/javascript' })));
+        w.onmessage = function (e) { if (e.data.id !== reqId) return; res = e.data.res; afterPlan(); };
+        w.onerror = function () { if (worker === w) { worker = null; schedulePlan(); } };
+        w.postMessage({ t: 'init', data: data });
+        worker = w;
+      }).catch(function () {});
+    } catch (e) { worker = null; }
+  }
+  function setBusy(on) { var b = document.getElementById('busy'); if (b) b.classList.toggle('on', on); }
   function schedulePlan() {
     clearTimeout(planTimer);
     planTimer = setTimeout(function () {
+      var st = engineState();
+      if (worker) {
+        reqId++; worker.postMessage({ id: reqId, st: st });
+        clearTimeout(busyTimer); busyTimer = setTimeout(function () { setBusy(true); }, 200);
+        return;
+      }
       var r;
-      try { r = E.plan(engineState()); } catch (e) { r = { status: 'error', message: String(e && e.message || e) }; }
-      res = r; renderPlan(); renderInspector(); updateShareOut();
+      try { r = E.plan(st); } catch (e) { r = { status: 'error', message: String(e && e.message || e) }; }
+      res = r; afterPlan();
     }, 90);
+  }
+  function afterPlan() {
+    clearTimeout(busyTimer); setBusy(false);
+    if (res && res.status === 'ok') {
+      var lo = res.outputs.map(function (o) { return { item: o.item, rate: +o.rate.toFixed(4) }; });
+      if (JSON.stringify(lo) !== JSON.stringify(state.lastOut)) { state.lastOut = lo; saveLocal(); queueSync(); }
+    }
+    renderPlan(); renderInspector(); updateShareOut();
   }
 
   /* ---------------- setup panel ---------------- */
@@ -1151,7 +1292,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }).join('') + '</div>';
   }
   function pickerBtn(list, row, item) {
-    return '<button type="button" class="picker-btn' + (item ? '' : ' empty') + '" data-act="pick" data-list="' + list + '" data-row="' + row + '">' +
+    return '<button type="button" class="picker-btn' + (item ? '' : ' is-empty') + '" data-act="pick" data-list="' + list + '" data-row="' + row + '">' +
       (item ? chip(item) : '') + '<span class="nm">' + (item ? esc(nm(item)) : 'Choose an item') + '</span>' + ICON.chev + '</button>';
   }
   function numInput(list, row, field, value, u, label) {
@@ -1163,6 +1304,12 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }).join('') + '</div>';
   }
   function haveRow(h, i) {
+    if (h.kind === 'link') {
+      var src = state.factories.filter(function (f) { return f.id === h.factory; })[0];
+      return '<div class="rowbox"><div class="rowline">' + pickerBtn('have', i, h.item) + '<button class="icon-btn del" type="button" data-act="del" data-list="have" data-row="' + i + '" aria-label="Remove">' + ICON.x + '</button></div>' +
+        '<div class="rowline"><span class="link-tag">From ' + esc(src ? src.name : 'a deleted factory') + '</span>' + numInput('have', i, 'pct', h.pct == null ? 100 : h.pct, '%', 'Share of that factory output') +
+        '<span class="eq">= <b data-out="have-' + i + '">' + fmt(rowRate(h)) + '</b> ' + unit(h.item) + '</span></div></div>';
+    }
     var k = h.item ? nodeKind(h.item) : null;
     var html = '<div class="rowbox"><div class="rowline">' + pickerBtn('have', i, h.item);
     if (k) html += miniSeg('have', i, 'kind', [['node', k === 'miner' ? 'Miners' : k === 'well' ? 'Wells' : 'Extractors'], ['rate', '/min']], h.kind);
@@ -1203,6 +1350,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
       '<div class="row2"><div class="field"><span class="label">Miner</span>' + seg('miner', D.miners.map(function (m) { return [m.mk, 'Mk' + m.mk, m.rate + '/min on normal']; }), state.miner, 'full') + '</div>' +
       '<div class="field"><span class="label">Pipe</span>' + seg('pipe', D.pipes.map(function (p) { return [p.mk, 'Mk' + p.mk, p.rate + ' m³/min']; }), state.pipe, 'full') + '</div></div>' +
       '<div class="field"><span class="label">Max clock</span>' + seg('maxClock', [[100, '100%'], [150, '150%'], [200, '200%'], [250, '250%']], state.maxClock, 'full') + '</div>' +
+      '<div class="row2"><div class="field"><span class="label">Power shards</span><label class="num"><input type="number" inputmode="numeric" min="0" step="1" id="prog-shards" data-prog="shards" aria-label="Power shards you have" value="' + (state.shards || 0) + '"><span class="u">have</span></label></div>' +
+      '<div class="field"><span class="label">Somersloops</span><label class="num"><input type="number" inputmode="numeric" min="0" step="1" id="prog-sloops" data-prog="sloops" aria-label="Somersloops to use" value="' + (state.sloops || 0) + '"><span class="u">to use</span></label></div></div>' +
       '<div class="row2"><button class="btn" type="button" data-act="sheet" data-v="alts">Alternates <span class="count-pill">' + altCount + '</span></button>' +
       '<button class="btn" type="button" data-act="sheet" data-v="mam">MAM <span class="count-pill">' + mamCount + '</span></button></div></section>';
 
@@ -1277,7 +1426,26 @@ details.mats[open] .chev { transform: rotate(180deg); }
   }
 
   /* ---------------- graph + layout ---------------- */
-  var GAPX = 130, GAPY = 26, PAD = 28;
+  var GAPX = 150, GAPY = 26, PAD = 28, TOP = 58;
+  var SOLID_COLS = ['#f0a447', '#e6e1d3', '#a9d16f', '#ee8fd2', '#f27c68', '#c4a6ff', '#e9d35b', '#cfa57c', '#9cc9a8', '#ffb07a', '#d3d8e0', '#f5c2a0'];
+  var FLUID_COLS = ['#5cb5e8', '#8fa9ff', '#5fd6ea', '#a7cdf2'];
+  var ALL_COLS = SOLID_COLS.concat(FLUID_COLS);
+  var colorMap = {};
+  function buildColors() {
+    colorMap = {}; var si = 0, fi = 0;
+    function add(id) { if (colorMap[id]) return; colorMap[id] = fl(id) ? FLUID_COLS[fi++ % FLUID_COLS.length] : SOLID_COLS[si++ % SOLID_COLS.length]; }
+    res.supply.forEach(function (s) { add(s.item); });
+    res.steps.forEach(function (s) { s.inputs.forEach(function (g) { add(g.item); }); s.outputs.forEach(function (o) { add(o.item); }); });
+  }
+  function col(id) { return colorMap[id] || (fl(id) ? FLUID_COLS[0] : SOLID_COLS[0]); }
+  function capOf(id) { return fl(id) ? (D.pipes.filter(function (p) { return p.mk === state.pipe; })[0] || D.pipes[0]).rate : beltOf(state.belt).rate; }
+  function beltsFor(id, rate) { return Math.max(1, Math.ceil(rate / capOf(id) - 1e-6)); }
+  function linkSource(item) {
+    var r = state.have.filter(function (h) { return h.kind === 'link' && h.item === item; })[0];
+    if (!r) return null;
+    var f = state.factories.filter(function (x) { return x.id === r.factory; })[0];
+    return f ? f.name : null;
+  }
   function buildGraph() {
     var nodes = [], byId = {}, edges = [];
     function add(n) { nodes.push(n); byId[n.id] = n; return n; }
@@ -1302,11 +1470,11 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var fromSteps = edges.filter(function (e) { return e.to === 'out:' + o.item; }).reduce(function (a, e) { return a + e.rate; }, 0);
       if (o.rate - fromSteps > 1e-6) edges.push({ from: sp.id, to: 'out:' + o.item, item: o.item, rate: o.rate - fromSteps });
     });
-    return { nodes: nodes, byId: byId, edges: edges };
+    return { nodes: nodes, byId: byId, edges: edges, last: last };
   }
 
-  // detailed module geometry
-  var DM = { MW: 150, MH: 38, MG: 10, HEAD: 34 };
+  // detailed module geometry; very tall stacks are shortened to first 4 + last 2 machines
+  var DM = { MW: 150, MH: 38, MG: 10, HEAD: 34, LANE: 14 };
   function layoutsOf(g, s) {
     var n = s.count;
     if (g.fluid) return [{ type: n === 1 ? 'direct' : 'pipe', m: n }];
@@ -1314,30 +1482,36 @@ details.mats[open] .chev { transform: rotate(180deg); }
     return g.layouts.map(function (l) { return s.even || l.type !== 'tree' ? l : { type: 'manifold', m: l.m }; });
   }
   function moduleGeom(s) {
-    var n = s.count, k = s.inputs.length, ko = s.outputs.length;
+    var n = s.count, k = s.inputs.length, ko = s.outputs.length, collapsed = n > 10, vrows = [], i;
+    if (collapsed) vrows = [0, 1, 2, 3, -1, n - 2, n - 1]; else for (i = 0; i < n; i++) vrows.push(i);
     var bands = s.inputs.map(function (g) {
-      var L = layoutsOf(g, s), lv = 0, tree = false;
+      var L = layoutsOf(g, s);
+      if (collapsed) L = L.map(function (l) { return { type: g.fluid ? 'pipe' : 'manifold', m: l.m }; });
+      var lv = 0, tree = false;
       L.forEach(function (l) { if (l.type === 'tree') { tree = true; lv = Math.max(lv, l.factors.length); } });
-      return { g: g, L: L, levels: lv, tree: tree, w: tree ? lv * 28 + 26 : L.length * 14 + 18 };
+      return { g: g, L: L, levels: lv, tree: tree, w: tree ? lv * 30 + 26 : L.length * DM.LANE + 18 };
     });
     var x = 0; bands.forEach(function (b) { b.x = x; x += b.w; });
     var mL = x + 8, mR = mL + DM.MW;
-    var entryY = s.inputs.map(function (g, j) { return DM.HEAD + 6 + j * 12; });
-    var machTop = DM.HEAD + 6 + k * 12 + 10;
-    var rowsBottom = machTop + n * (DM.MH + DM.MG) - DM.MG;
-    var exitY = s.outputs.map(function (o, j) { return rowsBottom + 16 + j * 12; });
-    return { bands: bands, mL: mL, mR: mR, machTop: machTop, entryY: entryY, exitY: exitY, w: mR + 16 + ko * 16 + 12, h: rowsBottom + 16 + ko * 12 + 10, n: n, k: k, ko: ko };
+    var outs = s.outputs.map(function (o) { return { o: o, groups: o.fluid || !o.groups ? [n] : o.groups }; });
+    var lanesOut = 0; outs.forEach(function (q) { q.lane0 = lanesOut; lanesOut += q.groups.length; });
+    var entryY = s.inputs.map(function (g, j) { return DM.HEAD + 8 + j * 14; });
+    var machTop = DM.HEAD + 8 + k * 14 + 10;
+    var rowsBottom = machTop + vrows.length * (DM.MH + DM.MG) - DM.MG;
+    var exitY = [], ey = rowsBottom + 16;
+    outs.forEach(function (q) { q.exits = q.groups.map(function () { var y = ey; ey += 14; return y; }); exitY.push(q.exits[Math.floor((q.exits.length - 1) / 2)]); });
+    return { bands: bands, outs: outs, mL: mL, mR: mR, machTop: machTop, entryY: entryY, exitY: exitY, w: mR + 18 + lanesOut * DM.LANE + 12, h: ey + 6, n: n, k: k, ko: ko, vrows: vrows, collapsed: collapsed };
   }
-  function rowTop(G, i) { return G.machTop + i * (DM.MH + DM.MG); }
-  function inPY(G, i, j) { return rowTop(G, i) + DM.MH * (j + 1) / (G.k + 1); }
-  function outPY(G, i, j) { return rowTop(G, i) + DM.MH * (j + 1) / (G.ko + 1); }
+  function rowTop(G, v) { return G.machTop + v * (DM.MH + DM.MG); }
+  function inPY(G, v, j) { return rowTop(G, v) + DM.MH * (j + 1) / (G.k + 1); }
+  function outPY(G, v, j) { return rowTop(G, v) + DM.MH * (j + 1) / (G.ko + 1); }
 
   function sizeNodes(G, detailed) {
     G.nodes.forEach(function (n) {
       if (n.kind === 'step') {
-        if (detailed) { n.geo = moduleGeom(n.step); n.w = Math.max(220, n.geo.w); n.h = n.geo.h; n.geo.offX = 0; }
-        else { n.w = 214; n.h = 84; }
-      } else { n.w = 180; n.h = 58; }
+        if (detailed) { n.geo = moduleGeom(n.step); n.w = Math.max(230, n.geo.w); n.h = n.geo.h; }
+        else { n.w = 220; n.h = 86; }
+      } else { n.w = 184; n.h = n.kind === 'sup' && linkSource(n.item) ? 70 : 60; }
     });
   }
   function inPort(n, item) {
@@ -1360,15 +1534,15 @@ details.mats[open] .chev { transform: rotate(180deg); }
     var cols = {};
     G.nodes.forEach(function (n) { (cols[n.col] = cols[n.col] || []).push(n); });
     var keys = Object.keys(cols).map(Number).sort(function (a, b) { return a - b; });
-    var x = PAD;
-    keys.forEach(function (c) { var w = Math.max.apply(null, cols[c].map(function (n) { return n.w; })); cols[c].forEach(function (n) { n.x = x + (w - n.w) / 2; }); x += w + GAPX; });
+    var x = PAD; G.colsInfo = [];
+    keys.forEach(function (c) { var w = Math.max.apply(null, cols[c].map(function (n) { return n.w; })); cols[c].forEach(function (n) { n.x = x + (w - n.w) / 2; }); G.colsInfo.push({ c: c, x: x, w: w, nodes: cols[c] }); x += w + GAPX; });
     G.width = x - GAPX + PAD;
     var preds = {}, succs = {};
     G.edges.forEach(function (e) { (preds[e.to] = preds[e.to] || []).push(e); (succs[e.from] = succs[e.from] || []).push(e); });
     function place(list, key) {
       list.forEach(function (n, i) { n._k = key(n); n._i = i; });
       list.sort(function (a, b) { return (a._k === b._k ? a._i - b._i : (a._k === Infinity ? 1 : b._k === Infinity ? -1 : a._k - b._k)); });
-      var y = PAD;
+      var y = TOP;
       list.forEach(function (n) { var want = isFinite(n._k) ? n._k - n.h / 2 : y; n.y = Math.max(y, want); y = n.y + n.h + GAPY; });
     }
     function cIn(n) { return avg((preds[n.id] || []).map(function (e) { return outPort(G.byId[e.from], e.item).y; })); }
@@ -1380,139 +1554,182 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
     keys.slice(1).forEach(function (c) { place(cols[c], cIn); });
     var minY = Math.min.apply(null, G.nodes.map(function (n) { return n.y; }));
-    G.nodes.forEach(function (n) { n.y += PAD - minY; });
+    G.nodes.forEach(function (n) { n.y += TOP - minY; });
     G.height = Math.max.apply(null, G.nodes.map(function (n) { return n.y + n.h; })) + PAD;
   }
 
   /* ---------------- svg drawing ---------------- */
   function P(pts) { return 'M' + pts.map(function (p) { return p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' L'); }
-  function line(d, fluid, arrow, halo, flow) {
-    var c = fluid ? 'f' : 's';
-    return (halo === false ? '' : '<path d="' + d + '" class="halo"/>') + '<path d="' + d + '" class="ln ln-' + c + '"' + (arrow ? ' marker-end="url(#ah-' + c + ')"' : '') + '/>' + (flow ? '<path d="' + d + '" class="flow"/>' : '');
+  function marker(c) { var i = ALL_COLS.indexOf(c); return 'url(#ah-' + (i < 0 ? 0 : i) + ')'; }
+  function line(d, c, arrow, halo, flow) {
+    return (halo === false ? '' : '<path d="' + d + '" class="halo"/>') + '<path d="' + d + '" class="ln" style="stroke:' + c + '"' + (arrow ? ' marker-end="' + marker(c) + '"' : '') + '/>' + (flow ? '<path d="' + d + '" class="flow"/>' : '');
   }
-  function glyph(x, y, kind) {
-    if (kind === 'j') return '<circle cx="' + x + '" cy="' + y + '" r="4.5" class="jn"/>';
-    return '<g><rect x="' + (x - 8) + '" y="' + (y - 8) + '" width="16" height="16" rx="4" class="' + (kind === 'S' ? 'sp' : 'mg') + '"/><text x="' + x + '" y="' + (y + 3.3) + '" class="gl" text-anchor="middle">' + kind + '</text></g>';
+  // a line that needs several belts is drawn as two rails
+  function rails(d, c, n, w, arrow) {
+    if (n < 2) return '<path d="' + d + '" class="ln" style="stroke:' + c + ';stroke-width:' + w + '"' + (arrow ? ' marker-end="' + marker(c) + '"' : '') + '/>';
+    var ow = Math.max(7, w + 4);
+    return '<path d="' + d + '" class="ln" style="stroke:' + c + ';stroke-width:' + ow + '"' + (arrow ? ' marker-end="' + marker(c) + '"' : '') + '/><path d="' + d + '" class="ln rail-gap" style="stroke-width:' + (ow - 4) + '"/>';
+  }
+  function glyph(x, y, kind, c, txt) {
+    if (kind === 'j') return '<circle cx="' + x + '" cy="' + y + '" r="4.5" class="jn" style="fill:' + c + '"/>';
+    var t = txt || kind, w = Math.max(16, t.length * 6.2 + 6);
+    return '<g><rect x="' + (x - w / 2) + '" y="' + (y - 8) + '" width="' + w + '" height="16" rx="4" class="' + (kind === 'M' ? 'mg' : 'sp') + '"' + (kind === 'M' ? '' : ' style="stroke:' + c + '"') + '/><text x="' + x + '" y="' + (y + 3.3) + '" class="gl" text-anchor="middle">' + esc(t) + '</text></g>';
   }
   function badge(x, y, txt, cls) {
     var w = txt.length * 6.4 + 10;
     return '<g class="badge ' + (cls || '') + '"><rect x="' + (x - w) + '" y="' + y + '" width="' + w + '" height="16" rx="4"/><text x="' + (x - w / 2) + '" y="' + (y + 11.5) + '" text-anchor="middle">' + esc(txt) + '</text></g>';
   }
+  function nodeCls(n, extra) {
+    var c = 'node ' + extra;
+    if (selected === n.key) c += ' sel';
+    if (n.dim) c += ' dim';
+    if (n.kind === 'step' && state.built[n.step.recipe.id]) c += ' built';
+    return c;
+  }
   function drawCompact(n) {
     var s = n.step, r = s.recipe, main = r.out[0][0], clocks = uniq(s.clocks.map(clockShort));
-    var h = '<g class="node n-step' + (selected === n.key ? ' sel' : '') + (state.built[r.id] ? ' built' : '') + '" data-node="' + n.id + '" transform="translate(' + n.x + ',' + n.y + ')">' +
+    var line2 = s.count + ' × ' + mNames(r.m, s.count) + (s.amp ? ' · ' + s.amp + ' sloops each' : '');
+    var h = '<g class="' + nodeCls(n, 'n-step') + '" data-node="' + n.id + '" transform="translate(' + n.x + ',' + n.y + ')">' +
       '<rect class="box" width="' + n.w + '" height="' + n.h + '" rx="12"/>' +
-      '<rect class="accent-bar' + (fl(main) ? ' f' : '') + '" x="0" y="14" width="3" height="' + (n.h - 28) + '" rx="1.5"/>' +
-      '<text x="16" y="25" class="t1">' + esc(clip(nm(main), 20)) + '</text>' +
-      '<text x="16" y="46" class="t2">' + s.count + ' × ' + esc(mNames(r.m, s.count)) + '</text>' +
-      '<text x="16" y="68" class="tc">' + (clocks.length === 1 ? clocks[0] + '%' : clocks.join(' / ') + '%') + '</text>' +
-      '<text x="' + (n.w - 14) + '" y="68" text-anchor="end">' + trim(s.power, 1) + ' MW</text>';
+      '<rect x="0" y="14" width="3" height="' + (n.h - 28) + '" rx="1.5" style="fill:' + col(main) + '"/>' +
+      '<text x="16" y="25" class="t1">' + esc(clip(nm(main), 19)) + '</text>' +
+      '<text x="16" y="46" class="t2">' + esc(clip(line2, 30)) + '</text>' +
+      '<text x="16" y="70" class="tc">' + (clocks.length === 1 ? clocks[0] + '%' : clocks.join(' / ') + '%') + '</text>' +
+      '<text x="' + (n.w - 14) + '" y="70" text-anchor="end">' + trim(s.power, 1) + ' MW</text>';
     var bx = n.w - 10;
     function addBadge(t, cls) { h += badge(bx, 12, t, cls); bx -= t.length * 6.4 + 14; }
     if (state.built[r.id]) addBadge('BUILT', 'done');
+    if (s.amp) addBadge('×2 OUT', 'amp');
     if (s.locked) addBadge('LOCKED', 'lock');
     if (r.alt) addBadge('ALT');
-    s.inputs.forEach(function (g) { var p = inPort(n, g.item); h += '<circle cx="0" cy="' + (p.y - n.y) + '" r="3.5" class="port-' + (g.fluid ? 'f' : 's') + '"/>'; });
-    s.outputs.forEach(function (o) { var p = outPort(n, o.item); h += '<circle cx="' + n.w + '" cy="' + (p.y - n.y) + '" r="3.5" class="port-' + (o.fluid ? 'f' : 's') + '"/>'; });
+    s.inputs.forEach(function (g) { var p = inPort(n, g.item); h += '<circle cx="0" cy="' + (p.y - n.y) + '" r="3.5" style="fill:' + col(g.item) + '"/>'; });
+    s.outputs.forEach(function (o) { var p = outPort(n, o.item); h += '<circle cx="' + n.w + '" cy="' + (p.y - n.y) + '" r="3.5" style="fill:' + col(o.item) + '"/>'; });
     return h + '</g>';
   }
   function drawSimple(n) {
-    var cls = n.kind === 'sup' ? 'n-sup' : n.kind === 'out' ? 'n-out' : 'n-left', h, sub = '', extra = '';
+    var cls = n.kind === 'sup' ? 'n-sup' : n.kind === 'out' ? 'n-out' : 'n-left', h, sub = '', extra = '', src = n.kind === 'sup' ? linkSource(n.item) : null;
     if (n.kind === 'sup') {
       var s = n.s, pct = s.have ? Math.min(1, s.used / s.have) : 1;
       sub = fmt(s.used) + (s.have ? ' / ' + fmt(s.have) : '') + ' ' + unit(n.item);
-      extra = '<rect class="ubar" x="14" y="' + (n.h - 11) + '" width="' + (n.w - 28) + '" height="3" rx="1.5"/><rect class="ubar-f" x="14" y="' + (n.h - 11) + '" width="' + ((n.w - 28) * pct).toFixed(1) + '" height="3" rx="1.5" style="fill:' + (s.extra > 1e-6 ? 'var(--bad)' : fl(n.item) ? 'var(--fluid)' : 'var(--belt)') + '"/>';
+      extra = (src ? '<text x="14" y="' + (n.h - 22) + '" class="t2">from ' + esc(clip(src, 18)) + '</text>' : '') +
+        '<rect class="ubar" x="14" y="' + (n.h - 11) + '" width="' + (n.w - 28) + '" height="3" rx="1.5"/><rect x="14" y="' + (n.h - 11) + '" width="' + ((n.w - 28) * pct).toFixed(1) + '" height="3" rx="1.5" style="fill:' + (s.extra > 1e-3 ? 'var(--bad)' : col(n.item)) + '"/>';
     } else if (n.kind === 'out') {
       sub = fmt(n.o.rate) + ' ' + unit(n.item);
       extra = badge(n.w - 10, 10, n.o.share ? 'MAX' : 'FIXED');
     } else { sub = 'Leftover ' + fmt(n.l.rate) + ' ' + unit(n.item); }
-    h = '<g class="node ' + cls + (selected === n.id ? ' sel' : '') + '" data-node="' + n.id + '" transform="translate(' + n.x + ',' + n.y + ')">' +
+    h = '<g class="' + nodeCls(n, cls) + '" data-node="' + n.id + '" transform="translate(' + n.x + ',' + n.y + ')">' +
       '<rect class="box" width="' + n.w + '" height="' + n.h + '" rx="12"/>' +
       '<text x="14" y="24" class="t1">' + esc(clip(nm(n.item), n.kind === 'out' ? 15 : 18)) + '</text>' +
-      '<text x="14" y="' + (n.kind === 'sup' ? 40 : 44) + '" class="' + (n.kind === 'out' ? 'tg' : n.kind === 'left' ? 'tw' : '') + '">' + esc(sub) + '</text>' + extra;
-    if (n.kind !== 'sup') h += '<circle cx="0" cy="' + (n.h / 2) + '" r="3.5" class="port-' + (fl(n.item) ? 'f' : 's') + '"/>';
-    else h += '<circle cx="' + n.w + '" cy="' + (n.h / 2) + '" r="3.5" class="port-' + (fl(n.item) ? 'f' : 's') + '"/>';
+      '<text x="14" y="42" class="' + (n.kind === 'out' ? 'tg' : n.kind === 'left' ? 'tw' : '') + '">' + esc(sub) + '</text>' + extra;
+    h += '<circle cx="' + (n.kind === 'sup' ? n.w : 0) + '" cy="' + (n.h / 2) + '" r="3.5" style="fill:' + col(n.item) + '"/>';
     return h + '</g>';
   }
   function drawModule(n) {
     var s = n.step, G = n.geo, r = s.recipe, main = r.out[0][0];
     var paths = '', glyphs = '', mach = '';
     var clocks = uniq(s.clocks.map(clockShort));
-    // outputs: merge lanes on the right
-    s.outputs.forEach(function (o, j) {
-      var lx = G.mR + 14 + j * 16, fluid = o.fluid;
-      paths += line(P([[lx, outPY(G, 0, j)], [lx, G.exitY[j]], [n.w, G.exitY[j]]]), fluid, false);
-      for (var i = 0; i < G.n; i++) {
-        var y = outPY(G, i, j);
-        paths += line(P([[G.mR, y], [lx, y]]), fluid, false);
-        if (i > 0) glyphs += glyph(lx, y, fluid ? 'j' : 'M');
-      }
+    var lastV = G.vrows.length - 1;
+    // outputs: one merge lane per output belt, on the right
+    G.outs.forEach(function (q, j) {
+      var c = col(q.o.item), fluid = q.o.fluid, start = 0;
+      q.groups.forEach(function (gsize, gi) {
+        var lx = G.mR + 16 + (q.lane0 + gi) * DM.LANE, ex = q.exits[gi];
+        var vlist = [];
+        if (G.collapsed) vlist = G.vrows.map(function (m, v) { return v; });
+        else for (var m = start; m < start + gsize; m++) vlist.push(m);
+        start += gsize;
+        var firstY = outPY(G, vlist[0], j);
+        paths += line(P([[lx, firstY], [lx, ex], [n.w, ex]]), c, false);
+        vlist.forEach(function (v, idx) {
+          if (G.vrows[v] < 0) return;
+          var y = outPY(G, v, j);
+          paths += line(P([[G.mR, y], [lx, y]]), c, false);
+          if (idx > 0) glyphs += glyph(lx, y, fluid ? 'j' : 'M', c);
+        });
+      });
     });
     // inputs: right-most band first so the left bands' stubs bridge over
     for (var j = G.bands.length - 1; j >= 0; j--) {
-      var b = G.bands[j], ey = G.entryY[j], fluid = b.g.fluid, start = 0;
+      var b = G.bands[j], ey = G.entryY[j], c = col(b.g.item), fluid = b.g.fluid, start = 0;
       b.L.forEach(function (L, gi) {
         var lo = start, hi = start + L.m; start = hi;
-        if (L.type === 'tree') {
+        if (L.type === 'tree' && !G.collapsed) {
           var f = L.factors;
           var cy = function (a, z) { var t = 0; for (var q = a; q < z; q++) t += inPY(G, q, j); return t / (z - a); };
-          var rx = b.x + 12, ry = b.L.length === 1 ? ey : cy(lo, hi);
-          if (b.L.length === 1) paths += line(P([[0, ey], [rx, ey]]), fluid, false);
-          else paths += line(P([[0, ey], [b.x + 4, ey], [b.x + 4, ry], [rx, ry]]), fluid, false);
+          var rx = b.x + 14, ry = b.L.length === 1 ? ey : cy(lo, hi);
+          if (b.L.length === 1) paths += line(P([[0, ey], [rx, ey]]), c, false);
+          else paths += line(P([[0, ey], [b.x + 4, ey], [b.x + 4, ry], [rx, ry]]), c, false);
           (function node(level, a, z, x, y) {
-            glyphs += glyph(x, y, 'S');
+            glyphs += glyph(x, y, 'S', c, '÷' + f[level]);
             var size = (z - a) / f[level];
-            for (var c = 0; c < f[level]; c++) {
-              var ca = a + c * size, cz = ca + size;
+            for (var cc = 0; cc < f[level]; cc++) {
+              var ca = a + cc * size, cz = ca + size;
               if (level + 1 < f.length) {
-                var xc = b.x + 12 + (level + 1) * 28, yc = cy(ca, cz);
-                paths += line(P([[x, y], [x + 14, y], [x + 14, yc], [xc, yc]]), fluid, false);
+                var xc = b.x + 14 + (level + 1) * 30, yc = cy(ca, cz);
+                paths += line(P([[x, y], [x + 15, y], [x + 15, yc], [xc, yc]]), c, false);
                 node(level + 1, ca, cz, xc, yc);
               } else {
                 var py = inPY(G, ca, j);
-                paths += line(P([[x, y], [x + 14, y], [x + 14, py], [G.mL, py]]), fluid, true);
+                paths += line(P([[x, y], [x + 15, y], [x + 15, py], [G.mL, py]]), c, true);
               }
             }
           })(0, lo, hi, rx, ry);
         } else {
-          var lx = b.x + 10 + gi * 14, lastY = inPY(G, hi - 1, j);
-          paths += line(P([[0, ey], [lx, ey], [lx, lastY], [G.mL, lastY]]), fluid, true);
-          for (var i = lo; i < hi - 1; i++) {
-            var y = inPY(G, i, j);
-            paths += line(P([[lx, y], [G.mL, y]]), fluid, true);
-            glyphs += glyph(lx, y, fluid ? 'j' : 'S');
-          }
+          var lx = b.x + 10 + gi * DM.LANE;
+          var vl = [];
+          if (G.collapsed) G.vrows.forEach(function (m, v) { vl.push(v); });
+          else for (var m = lo; m < hi; m++) vl.push(m);
+          var lastY = inPY(G, vl[vl.length - 1], j);
+          paths += line(P([[0, ey], [lx, ey], [lx, lastY], [G.mL, lastY]]), c, true);
+          vl.slice(0, -1).forEach(function (v) {
+            if (G.vrows[v] < 0) return;
+            var y = inPY(G, v, j);
+            paths += line(P([[lx, y], [G.mL, y]]), c, true);
+            glyphs += glyph(lx, y, fluid ? 'j' : 'S', c);
+          });
         }
       });
     }
-    for (var i = 0; i < G.n; i++) {
-      var t = rowTop(G, i);
-      mach += '<rect class="mach" x="' + G.mL + '" y="' + t + '" width="' + DM.MW + '" height="' + DM.MH + '" rx="7"/>' +
-        '<text x="' + (G.mL + 11) + '" y="' + (t + 23.5) + '" class="t2">' + esc(clip(mName(r.m), 13)) + '</text>' +
-        '<text x="' + (G.mR - 10) + '" y="' + (t + 23.5) + '" class="tc" text-anchor="end">' + clockShort(s.clocks[i]) + '%</text>';
-    }
+    G.vrows.forEach(function (mi, v) {
+      var t = rowTop(G, v);
+      if (mi < 0) {
+        mach += '<text x="' + (G.mL + DM.MW / 2) + '" y="' + (t + 24) + '" text-anchor="middle" class="t2">⋮ ' + (G.n - 6) + ' more, same as above</text>';
+        return;
+      }
+      mach += '<rect class="mach' + (s.amp ? ' amp' : '') + '" x="' + G.mL + '" y="' + t + '" width="' + DM.MW + '" height="' + DM.MH + '" rx="7"/>' +
+        '<text x="' + (G.mL + 11) + '" y="' + (t + 23.5) + '" class="t2">' + esc(clip((G.collapsed ? '#' + (mi + 1) + ' ' : '') + mName(r.m), 14)) + '</text>' +
+        '<text x="' + (G.mR - 10) + '" y="' + (t + 23.5) + '" class="tc" text-anchor="end">' + clockShort(s.clocks[mi]) + '%</text>';
+    });
     var head = '<text x="12" y="22" class="t1">' + esc(clip(nm(main), 22)) + '</text>' +
-      '<text x="' + (n.w - 12) + '" y="22" text-anchor="end" class="t2">' + s.count + ' × ' + (clocks.length === 1 ? clocks[0] + '%' : '') + '</text>';
-    return '<g class="node mod' + (selected === n.key ? ' sel' : '') + (state.built[r.id] ? ' built' : '') + '" data-node="' + n.id + '" transform="translate(' + n.x + ',' + n.y + ')">' +
+      '<text x="' + (n.w - 12) + '" y="22" text-anchor="end" class="t2">' + s.count + ' × ' + (clocks.length === 1 ? clocks[0] + '%' : '') + (s.amp ? ' · sloops' : '') + '</text>';
+    return '<g class="' + nodeCls(n, 'mod') + '" data-node="' + n.id + '" transform="translate(' + n.x + ',' + n.y + ')">' +
       '<rect class="box" x="-6" y="0" width="' + (n.w + 12) + '" height="' + n.h + '" rx="12"/>' + head + paths + mach + glyphs + '</g>';
   }
-  function edgeSvg(G) {
+  function edgeSvg(G, focus) {
     var out = '', labels = '', maxRate = Math.max.apply(null, G.edges.map(function (e) { return e.rate; }).concat([1]));
     var fromGroups = {}, toGroups = {};
-    G.edges.forEach(function (e) { (fromGroups[e.from + '|' + e.item] = fromGroups[e.from + '|' + e.item] || []).push(e); (toGroups[e.to + '|' + e.item] = toGroups[e.to + '|' + e.item] || []).push(e); });
+    G.edges.forEach(function (e) {
+      e.hl = focus && (e.from === focus || e.to === focus); e.dim = focus && !e.hl;
+      (fromGroups[e.from + '|' + e.item] = fromGroups[e.from + '|' + e.item] || []).push(e); (toGroups[e.to + '|' + e.item] = toGroups[e.to + '|' + e.item] || []).push(e);
+    });
     var stems = '', glyphs = '';
+    function grpCls(list) { return focus ? (list.some(function (x) { return x.hl; }) ? ' hl' : ' dim') : ''; }
     Object.keys(fromGroups).forEach(function (k) {
       var list = fromGroups[k]; if (list.length < 2) return;
-      var e = list[0], p = outPort(G.byId[e.from], e.item), sx = p.x + 26;
-      stems += line(P([[p.x, p.y], [sx, p.y]]), fl(e.item), false, true, true);
-      glyphs += glyph(sx, p.y, fl(e.item) ? 'j' : 'S');
+      var e = list[0], p = outPort(G.byId[e.from], e.item), sx = p.x + 28, c = col(e.item);
+      var tot = list.reduce(function (a, x) { return a + x.rate; }, 0), nb = beltsFor(e.item, tot);
+      var d = P([[p.x, p.y], [sx, p.y]]);
+      stems += '<g class="edge' + grpCls(list) + '"><path d="' + d + '" class="halo"/>' + rails(d, c, nb, 3, false) + '</g>';
+      glyphs += '<g class="edge' + grpCls(list) + '">' + glyph(sx, p.y, fl(e.item) ? 'j' : 'S', c, nb > 1 ? 'S×' + nb : null) + '</g>';
       list.forEach(function (x) { x.sx = sx; x.sy = p.y; });
     });
     Object.keys(toGroups).forEach(function (k) {
       var list = toGroups[k]; if (list.length < 2) return;
-      var e = list[0], p = inPort(G.byId[e.to], e.item), mx = p.x - 26;
-      stems += line(P([[mx, p.y], [p.x, p.y]]), fl(e.item), true, true, true);
-      glyphs += glyph(mx, p.y, fl(e.item) ? 'j' : 'M');
+      var e = list[0], p = inPort(G.byId[e.to], e.item), mx = p.x - 28, c = col(e.item);
+      var tot = list.reduce(function (a, x) { return a + x.rate; }, 0), nb = beltsFor(e.item, tot);
+      var d = P([[mx, p.y], [p.x, p.y]]);
+      stems += '<g class="edge' + grpCls(list) + '"><path d="' + d + '" class="halo"/>' + rails(d, c, nb, 3, true) + '</g>';
+      glyphs += '<g class="edge' + grpCls(list) + '">' + glyph(mx, p.y, fl(e.item) ? 'j' : 'M', c, nb > 1 ? 'M×' + nb : null) + '</g>';
       list.forEach(function (x) { x.mx = mx; x.my = p.y; });
     });
     G.edges.forEach(function (e) {
@@ -1521,19 +1738,35 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var x2 = e.mx != null ? e.mx : b.x, y2 = e.mx != null ? e.my : b.y;
       var dx = Math.max(30, (x2 - x1) * 0.5);
       var d = 'M' + x1.toFixed(1) + ' ' + y1.toFixed(1) + ' C' + (x1 + dx).toFixed(1) + ' ' + y1.toFixed(1) + ' ' + (x2 - dx).toFixed(1) + ' ' + y2.toFixed(1) + ' ' + x2.toFixed(1) + ' ' + y2.toFixed(1);
-      var c = fl(e.item) ? 'f' : 's', w = (1.6 + 2.6 * Math.sqrt(e.rate / maxRate)).toFixed(2);
-      out += '<path d="' + d + '" class="halo" style="stroke-width:' + (+w + 5) + '"/>' +
-        '<path d="' + d + '" class="ln ln-' + c + '" style="stroke-width:' + w + '"' + (e.mx == null ? ' marker-end="url(#ah-' + c + ')"' : '') + '/>' +
-        '<path d="' + d + '" class="flow"/>';
-      // label sits a bit past the middle, so labels of a split fan apart instead of piling up at the splitter
+      var c = col(e.item), w = +(1.8 + 2.4 * Math.sqrt(e.rate / maxRate)).toFixed(2), nb = beltsFor(e.item, e.rate);
+      var cls = 'edge' + (e.hl ? ' hl' : '') + (e.dim ? ' dim' : '');
+      out += '<g class="' + cls + '"><path d="' + d + '" class="halo" style="stroke-width:' + (Math.max(w, nb > 1 ? 7 : 0) + 6) + '"/>' + rails(d, c, nb, w, e.mx == null) + '<path d="' + d + '" class="flow"/></g>';
       var t = e.sx != null ? 0.62 : e.mx != null ? 0.38 : 0.5, u = 1 - t;
       var mxp = u * u * u * x1 + 3 * u * u * t * (x1 + dx) + 3 * u * t * t * (x2 - dx) + t * t * t * x2;
       var myp = u * u * u * y1 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y2;
-      var txt = fmt(e.rate) + ' ' + clip(nm(e.item), 16), tw = txt.length * 6.3 + 12;
-      labels += '<g><rect class="lbl-bg" x="' + (mxp - tw / 2).toFixed(1) + '" y="' + (myp - 9).toFixed(1) + '" width="' + tw.toFixed(1) + '" height="18" rx="9"/>' +
-        '<text class="lbl" x="' + mxp.toFixed(1) + '" y="' + (myp + 3.6).toFixed(1) + '" text-anchor="middle"><tspan class="r">' + fmt(e.rate) + '</tspan><tspan class="i"> ' + esc(clip(nm(e.item), 16)) + '</tspan></text></g>';
+      var name = clip(nm(e.item), 15), extra = nb > 1 ? ' · ' + nb + ' belts' : '';
+      var tw = (fmt(e.rate).length + 1 + name.length + extra.length) * 6.3 + 14;
+      labels += '<g class="' + cls + '"><rect class="lbl-bg" x="' + (mxp - tw / 2).toFixed(1) + '" y="' + (myp - 9).toFixed(1) + '" width="' + tw.toFixed(1) + '" height="18" rx="9" style="stroke:' + c + '"/>' +
+        '<text class="lbl" x="' + mxp.toFixed(1) + '" y="' + (myp + 3.6).toFixed(1) + '" text-anchor="middle"><tspan class="r">' + fmt(e.rate) + '</tspan><tspan class="i"> ' + esc(name) + '</tspan>' + (extra ? '<tspan class="w">' + esc(extra) + '</tspan>' : '') + '</text></g>';
     });
     return out + stems + glyphs + labels;
+  }
+  function stageHeaders(G) {
+    var h = '';
+    G.colsInfo.forEach(function (ci) {
+      var label, sub = '';
+      if (ci.c === 0) label = 'RESOURCES';
+      else if (ci.c === G.last) label = 'OUTPUT';
+      else {
+        label = 'STAGE ' + ci.c;
+        var mc = Object.create(null);   // machine ids include "constructor", so no plain {}
+        ci.nodes.forEach(function (n) { if (n.kind === 'step') mc[n.step.recipe.m] = (mc[n.step.recipe.m] || 0) + n.step.count; });
+        sub = Object.keys(mc).map(function (k) { return mc[k] + ' ' + mNames(k, mc[k]); }).join(', ');
+      }
+      h += '<rect class="stage-bg" x="' + (ci.x - 12) + '" y="8" width="' + (ci.w + 24) + '" height="' + (G.height - 16) + '" rx="14"/>' +
+        '<text x="' + ci.x + '" y="27" class="stage-t">' + label + '</text>' + (sub ? '<text x="' + ci.x + '" y="43" class="t2">' + esc(clip(sub, Math.floor(ci.w / 6.6))) + '</text>' : '');
+    });
+    return h;
   }
   function mapSvg() {
     var detailed = state.view === 'detailed';
@@ -1541,10 +1774,18 @@ details.mats[open] .chev { transform: rotate(180deg); }
     sizeNodes(G, detailed);
     G.nodes.forEach(function (n) { n.key = n.kind === 'step' ? 'rec:' + n.step.recipe.id : n.id; });
     layoutGraph(G);
+    var focus = null;
+    G.nodes.forEach(function (n) { if (selected && n.key === selected) focus = n.id; });
+    if (focus) {
+      var linked = {}; linked[focus] = true;
+      G.edges.forEach(function (e) { if (e.from === focus) linked[e.to] = true; if (e.to === focus) linked[e.from] = true; });
+      G.nodes.forEach(function (n) { n.dim = !linked[n.id]; });
+    }
+    var edges = edgeSvg(G, focus);
     var nodesSvg = G.nodes.map(function (n) { return n.kind === 'step' ? (detailed ? drawModule(n) : drawCompact(n)) : drawSimple(n); }).join('');
     var z = state.zoom || 1;
-    var defs = '<defs>' + ['s', 'f'].map(function (c) { return '<marker id="ah-' + c + '" viewBox="0 0 10 10" refX="8.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto"><path d="M0,0.5 L10,5 L0,9.5 z" class="ah-' + c + '"/></marker>'; }).join('') + '</defs>';
-    return { svg: '<svg class="dg" id="map-svg" width="' + Math.round(G.width * z) + '" height="' + Math.round(G.height * z) + '" viewBox="0 0 ' + G.width.toFixed(0) + ' ' + G.height.toFixed(0) + '" xmlns="http://www.w3.org/2000/svg">' + defs + edgeSvg(G) + nodesSvg + '</svg>', G: G };
+    var defs = '<defs>' + ALL_COLS.map(function (c, i) { return '<marker id="ah-' + i + '" viewBox="0 0 10 10" refX="8.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto"><path d="M0,0.5 L10,5 L0,9.5 z" style="fill:' + c + '"/></marker>'; }).join('') + '</defs>';
+    return { svg: '<svg class="dg' + (focus ? ' focus' : '') + '" id="map-svg" width="' + Math.round(G.width * z) + '" height="' + Math.round(G.height * z) + '" viewBox="0 0 ' + G.width.toFixed(0) + ' ' + G.height.toFixed(0) + '" xmlns="http://www.w3.org/2000/svg">' + defs + stageHeaders(G) + edges + nodesSvg + '</svg>', G: G };
   }
 
   /* ---------------- plan view ---------------- */
@@ -1618,11 +1859,12 @@ details.mats[open] .chev { transform: rotate(180deg); }
       return;
     }
     // summary
+    var shardOver = res.shards > (state.shards || 0);
     html += '<div class="summary"><div class="sum-main"><span class="label">Output</span><div class="outs">' + res.outputs.map(function (o) { return '<span class="o">' + fmt(o.rate) + ' ' + esc(nm(o.item)) + '<small>' + unit(o.item) + '</small></span>'; }).join('') + '</div></div>' +
       '<div class="stat"><span class="label">Machines</span><div class="v">' + res.machines + '</div></div>' +
       '<div class="stat"><span class="label">Power</span><div class="v">' + trim(res.power.total, res.power.total >= 100 ? 0 : 1) + '<small> MW</small></div><div class="gen">' + esc(genHint(res.power.total)) + '</div></div>' +
-      '<div class="stat"><span class="label">Splitters</span><div class="v">' + res.splitters + '</div></div>' +
-      '<div class="stat"><span class="label">Mergers</span><div class="v">' + res.mergers + '</div></div></div>';
+      '<div class="stat"><span class="label">Split · Merge</span><div class="v">' + res.splitters + '<small> · </small>' + res.mergers + '</div></div>' +
+      '<div class="stat' + (shardOver ? ' over' : '') + '"><span class="label">Shards · Sloops</span><div class="v">' + res.shards + '<small> · </small>' + res.sloops + '</div>' + (shardOver ? '<div class="gen" style="color:var(--bad)">You have ' + (state.shards || 0) + ' shards</div>' : '') + '</div></div>';
     if (res.supply.length) html += '<div class="usage">' + res.supply.map(function (s) {
       var pct = s.have ? Math.min(1, s.used / s.have) : 1, over = s.extra > 1e-6;
       var note = '';
@@ -1631,13 +1873,18 @@ details.mats[open] .chev { transform: rotate(180deg); }
       return '<div class="use"><div class="use-top">' + chip(s.item) + '<span class="nm">' + esc(nm(s.item)) + '</span><span class="q"><b>' + fmt(s.used) + '</b>' + (s.have ? ' / ' + fmt(s.have) : '') + ' ' + unit(s.item) + '</span></div><div class="bar"><i class="' + (over ? 'over' : fl(s.item) ? 'fluid' : '') + '" style="width:' + (pct * 100).toFixed(1) + '%"></i></div>' + (note ? '<div class="note">' + esc(note) + '</div>' : '') + '</div>';
     }).join('') + '</div>';
     // map
-    var M = mapSvg();
+    buildColors(); var M = mapSvg();
+    var legendItems = Object.keys(colorMap).slice(0, 12).map(function (id) { return '<span class="it"><i style="background:' + colorMap[id] + '"></i>' + esc(nm(id)) + '</span>'; }).join('');
     html += '<section class="card map-card"><div class="map-bar">' + seg('view', [['compact', 'Compact'], ['detailed', 'Every machine']], state.view) +
       '<div class="seg" role="group"><button type="button" data-act="zoom" data-v="-" aria-label="Zoom out">−</button><button type="button" data-act="zoom" data-v="fit">Fit</button><button type="button" data-act="zoom" data-v="+" aria-label="Zoom in">+</button></div>' +
       (canShare() ? '<button type="button" class="btn sm" data-act="share">Share plan</button>' : '') + '<span class="grow"></span>' +
-      '<div class="legend"><span><i class="lg-b"></i>Belt</span><span><i class="lg-p"></i>Pipe</span><span><i class="lg-s"></i>Splitter</span><span><i class="lg-m"></i>Merger</span></div></div>' +
-      '<div class="map-scroll" id="map-scroll">' + M.svg + '</div><div class="map-hint">Click any box to change its recipe or machine count. Drag to move around.</div></section>';
-    if (res.leftovers.length) html += '<div class="banner warn"><span><b>Leftover:</b> ' + res.leftovers.map(function (l) { return fmt(l.rate) + ' ' + esc(nm(l.item)) + (fl(l.item) ? ' m³' : '') + '/min'; }).join(', ') + '</span></div>';
+      '<div class="legend"><span><i class="lg-s"></i>Splitter</span><span><i class="lg-m"></i>Merger</span><span>Double line = more than 1 belt</span></div></div>' +
+      '<div class="map-bar legend" style="padding-block:8px">' + legendItems + '</div>' +
+      '<div class="map-scroll" id="map-scroll">' + M.svg + '</div><div class="map-hint">Click a box to follow only its belts and to change its recipe or machine count. Drag to move around.</div></section>';
+    if (res.leftovers.length) {
+      var pts = res.leftovers.reduce(function (a, l) { return a + (fl(l.item) ? 0 : l.rate * (l.sink || 0)); }, 0);
+      html += '<div class="banner warn"><span><b>Leftover:</b> ' + res.leftovers.map(function (l) { return fmt(l.rate) + ' ' + esc(nm(l.item)) + (fl(l.item) ? ' m³' : '') + '/min'; }).join(', ') + (pts > 0 ? ' · worth ' + Math.round(pts).toLocaleString('en') + ' sink points/min' : '') + '</span></div>';
+    }
     // build list
     var builtN = res.steps.filter(function (s) { return state.built[s.recipe.id]; }).length;
     html += '<section class="card"><div class="card-h"><h2>Build list</h2><span class="tiny">' + (builtN ? builtN + ' of ' + res.steps.length + ' steps built' : 'Tick each step once it’s built') + '</span></div>' +
@@ -1648,8 +1895,9 @@ details.mats[open] .chev { transform: rotate(180deg); }
         var clocks = uniq(s.clocks.map(clockShort));
         var feed = [];
         s.inputs.forEach(function (g) { splitTags(g, s).forEach(function (t) { feed.push(t); }); });
-        return '<tr class="r' + (selected === key ? ' sel' : '') + (done ? ' done' : '') + '" data-act="select" data-v="' + key + '"><td class="ck"><button type="button" class="tick' + (done ? ' on' : '') + '" data-act="built" data-v="' + esc(s.recipe.id) + '" aria-pressed="' + done + '" aria-label="Built"></button></td><td class="n">' + String(i + 1).padStart(2, '0') + '</td><td class="it">' + esc(nm(main)) + (s.recipe.alt || s.recipe.name !== nm(main) ? '<small>' + esc(s.recipe.name) + '</small>' : '') + '</td>' +
-          '<td class="m">' + s.count + ' × ' + esc(mName(s.recipe.m)) + (s.locked ? ' <span class="tag">locked</span>' : '') + '</td><td class="c">' + clocks.join(' / ') + '%</td><td class="hide-s">' + tagsHtml(uniq(feed.map(function (t) { return t.join('|'); })).map(function (x) { return x.split('|'); })) + '</td><td class="p hide-s">' + trim(s.power, 1) + ' MW</td></tr>';
+        var hdr = (i === 0 || res.steps[i - 1].depth !== s.depth) ? '<tr class="stage-h"><td colspan="7">Stage ' + (s.depth + 1) + '</td></tr>' : '';
+        return hdr + '<tr class="r' + (selected === key ? ' sel' : '') + (done ? ' done' : '') + '" data-act="select" data-v="' + key + '"><td class="ck"><button type="button" class="tick' + (done ? ' on' : '') + '" data-act="built" data-v="' + esc(s.recipe.id) + '" aria-pressed="' + done + '" aria-label="Built"></button></td><td class="n">' + String(i + 1).padStart(2, '0') + '</td><td class="it">' + esc(nm(main)) + (s.recipe.alt || s.recipe.name !== nm(main) ? '<small>' + esc(s.recipe.name) + '</small>' : '') + '</td>' +
+          '<td class="m">' + s.count + ' × ' + esc(mName(s.recipe.m)) + (s.amp ? ' <span class="tag amp">' + s.amp + ' sloops each</span>' : '') + (s.locked ? ' <span class="tag">locked</span>' : '') + '</td><td class="c">' + clocks.join(' / ') + '%</td><td class="hide-s">' + tagsHtml(uniq(feed.map(function (t) { return t.join('|'); })).map(function (x) { return x.split('|'); })) + '</td><td class="p hide-s">' + trim(s.power, 1) + ' MW</td></tr>';
       }).join('') + '</tbody></table></div></section>';
     if (res.cost.length) html += '<section class="card"><details class="mats"><summary><h2>Build materials</h2>' + ICON.chev + '</summary><div class="list2">' + res.cost.map(function (c) { return '<div><span>' + esc(nm(c.item)) + '</span><span class="v">' + c.amount + '</span></div>'; }).join('') + '</div></details></section>';
     var sc = document.getElementById('map-scroll'), keep = sc ? [sc.scrollLeft, sc.scrollTop] : null;
@@ -1712,6 +1960,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var clocks = uniq(s.clocks.map(clockTxt));
       head = '<h3>' + esc(nm(main)) + '</h3><div class="sub">Step ' + (n.idx + 1) + ' · ' + esc(r.name) + (r.alt ? ' (alternate)' : '') + '</div>';
       body += '<div class="big"><span class="cnt">' + s.count + ' <span>× ' + esc(mNames(r.m, s.count)) + '</span></span>' + clocks.map(function (c) { return '<span class="clock">' + c + '%<button type="button" data-act="copy" data-v="' + c + '">Copy</button></span>'; }).join('') + '</div>';
+      if (s.amp) body += '<div><span class="tag amp">Put ' + s.amp + ' somersloops in each machine: double output, 4× power</span></div>';
       body += '<div class="field"><span class="label">Machines</span><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><div class="stepper"><button type="button" data-act="lock" data-v="-1" aria-label="One fewer">−</button><span>' + s.count + '</span><button type="button" data-act="lock" data-v="1" aria-label="One more">+</button></div>' +
         (s.locked ? '<span class="tag">Locked at 100%</span><button class="btn sm" type="button" data-act="lock" data-v="auto">Auto</button>' : '<span class="tiny">Auto. Use − / + to set your own count.</span>') + '</div></div>';
       if (choices.length > 1) {
@@ -1748,7 +1997,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
     host.innerHTML = '<aside class="insp" role="dialog" aria-label="Details"><div class="insp-h"><div class="t">' + head + '</div><button class="icon-btn" type="button" data-act="close-insp" aria-label="Close">' + ICON.x + '</button></div><div class="insp-b">' + body + '</div></aside>';
   }
-  function select(key) { selected = key; renderPlanSel(); renderInspector(); updateShareOut(); }
+  function select(key) { selected = key; renderPlan(); renderInspector(); updateShareOut(); }
   function renderPlanSel() {
     document.querySelectorAll('.dg .node').forEach(function (g) { g.classList.remove('sel'); });
     document.querySelectorAll('.blist tr.r').forEach(function (tr) { tr.classList.toggle('sel', tr.getAttribute('data-v') === selected); });
@@ -1768,7 +2017,12 @@ details.mats[open] .chev { transform: rotate(180deg); }
     var byName = function (a, b) { return nm(a).localeCompare(nm(b)); };
     var groups;
     if (list === 'have') {
-      groups = [['Raw resources', D.raw.slice().sort(byName)],
+      var linkIds = [];
+      state.factories.forEach(function (f) {
+        if (f.id === state.current) return;
+        ((state.saved[f.id] || {}).lastOut || []).forEach(function (o) { linkIds.push('link|' + f.id + '|' + o.item); });
+      });
+      groups = [['From your other factories', linkIds], ['Raw resources', D.raw.slice().sort(byName)],
         ['Spare parts', Object.keys(D.items).filter(function (id) { return !D.items[id].raw && E.producers(id).length; }).sort(byName)],
         ['Found in the world', Object.keys(D.items).filter(function (id) { return !D.items[id].raw && !E.producers(id).length; }).sort(byName)]];
     } else {
@@ -1787,13 +2041,18 @@ details.mats[open] .chev { transform: rotate(180deg); }
     function draw() {
       var term = q.value.trim().toLowerCase(), html = '', idx = 0;
       groups.forEach(function (g) {
-        var items = g[1].filter(function (id) { return !term || nm(id).toLowerCase().indexOf(term) >= 0; });
+        var items = g[1].filter(function (id) { var base = id.indexOf('link|') === 0 ? id.split('|')[2] : id; return !term || nm(base).toLowerCase().indexOf(term) >= 0; });
         if (!items.length) return;
         html += '<div class="pop-group">' + esc(g[0]) + '</div>';
         items.forEach(function (id) {
           var lk = '';
           if (list === 'want' && !avail[id]) { var how = null; E.producers(id).forEach(function (r) { r.unlock.forEach(function (u) { if (u[0] === 't') { var t = Math.max(u[1], D.machines[r.m].tier); if (how == null || t < how) how = t; } }); }); lk = how != null ? 'Tier ' + how : 'Alt / MAM'; }
-          html += '<button type="button" class="pop-item' + (idx === hl ? ' hl' : '') + '" data-pick="' + esc(id) + '">' + chip(id) + '<span>' + esc(nm(id)) + '</span>' + (lk ? '<span class="lk">' + lk + '</span>' : '') + '</button>';
+          var shown = id;
+          if (id.indexOf('link|') === 0) {
+            var pp = id.split('|'), fac = state.factories.filter(function (f) { return f.id === pp[1]; })[0], lo = ((state.saved[pp[1]] || {}).lastOut || []).filter(function (o) { return o.item === pp[2]; })[0];
+            shown = pp[2]; lk = (fac ? fac.name : '') + (lo ? ' · ' + fmt(lo.rate) : '');
+          }
+          html += '<button type="button" class="pop-item' + (idx === hl ? ' hl' : '') + '" data-pick="' + esc(id) + '">' + chip(shown) + '<span>' + esc(nm(shown)) + '</span>' + (lk ? '<span class="lk">' + esc(lk) + '</span>' : '') + '</button>';
           idx++;
         });
       });
@@ -1811,8 +2070,13 @@ details.mats[open] .chev { transform: rotate(180deg); }
     listEl.addEventListener('click', function (e) {
       var b = e.target.closest('[data-pick]'); if (!b) return;
       var id = b.getAttribute('data-pick'), r = state[list][row];
+      if (id.indexOf('link|') === 0) {
+        var pp = id.split('|'); r.item = pp[2]; r.kind = 'link'; r.factory = pp[1]; r.pct = 100;
+        closePop(); changed(true); return;
+      }
       r.item = id;
       if (list === 'have') {
+        if (r.kind === 'link') r.kind = 'node';
         if (nodeKind(id) && r.kind !== 'rate') { r.kind = 'node'; r.mk = r.mk || state.miner; }
         else if (!nodeKind(id)) r.kind = 'rate';
         if (r.kind === 'rate' && !(+r.rate > 0)) r.rate = 60;
@@ -1901,6 +2165,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
     } else if (act === 'del') { state[b.getAttribute('data-list')].splice(+b.getAttribute('data-row'), 1); changed(true); }
     else if (act === 'pick') { if (pop) { closePop(); return; } openPicker(b, b.getAttribute('data-list'), +b.getAttribute('data-row')); }
     else if (act === 'sheet') openSheet(v);
+    else if (act === 'undo') undo();
+    else if (act === 'redo') redo();
     else if (act === 'fac-menu') { if (pop) { closePop(); return; } openFactoryMenu(b); }
     else if (act === 'built') { if (state.built[v]) delete state.built[v]; else state.built[v] = true; changed(false); }
     else if (act === 'share') {
@@ -1938,6 +2204,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   });
   document.addEventListener('input', function (e) {
     var t = e.target;
+    if (t.matches('input[data-prog]')) { state[t.getAttribute('data-prog')] = Math.max(0, Math.floor(+t.value || 0)); changed(false); return; }
     if (t.matches('input[data-list][data-f]')) {
       var list = t.getAttribute('data-list'), row = +t.getAttribute('data-row'), f = t.getAttribute('data-f');
       state[list][row][f] = t.value === '' ? '' : +t.value;
@@ -1948,7 +2215,15 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   document.addEventListener('change', function (e) { var t = e.target; if (t.matches('input[data-opt]')) { state[t.getAttribute('data-opt')] = t.checked; changed(true); } });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && selected && !document.querySelector('.scrim')) select(null); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && selected && !document.querySelector('.scrim')) select(null);
+    var typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
+    if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
+      var k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) { undo(); e.preventDefault(); }
+      else if (k === 'y' || (k === 'z' && e.shiftKey)) { redo(); e.preventDefault(); }
+    }
+  });
   window.addEventListener('resize', function () { closePop(); if (!state || !state.zoom) fitZoom(true); });
   function toast(msg) {
     var t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
@@ -1995,10 +2270,12 @@ details.mats[open] .chev { transform: rotate(180deg); }
   var dataP = window.PLANNER_DATA ? Promise.resolve(window.PLANNER_DATA) : fetch('data.json').then(function (r) { if (!r.ok) throw new Error('data.json ' + r.status); return r.json(); });
   dataP.then(function (data) {
     D = E.init(data);
+    startWorker(data);
     state = normalize(loadLocal());
-    document.getElementById('meta').innerHTML = '<span class="pill">Game v' + esc(D.game.version) + ' · ' + D.recipes.length + ' recipes</span><span class="pill" id="sync"><i class="dot"></i>Saved here</span>';
+    committed = histSnap();
+    document.getElementById('meta').innerHTML = '<span class="pill">Game v' + esc(D.game.version) + ' · ' + D.recipes.length + ' recipes</span><span class="pill" id="busy"><i class="dot"></i>Planning…</span><span class="hist"><button type="button" data-act="undo" aria-label="Undo" title="Undo (Ctrl+Z)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4L3 7l3 3"/><path d="M3 7h6.5a3.5 3.5 0 010 7H8"/></svg></button><button type="button" data-act="redo" aria-label="Redo" title="Redo (Ctrl+Y)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4l3 3-3 3"/><path d="M13 7H6.5a3.5 3.5 0 000 7H8"/></svg></button></span><span class="pill" id="sync"><i class="dot"></i>Saved here</span>';
     var shared = importShared();
-    renderSetup(); applyPane(); schedulePlan(); initSync();
+    renderSetup(); applyPane(); schedulePlan(); initSync(); updateHistBtns();
     if (shared) toast(shared);
   }).catch(function (err) {
     document.getElementById('plan').innerHTML = '<div class="banner bad">Couldn’t load the recipe data (' + esc(err.message) + '). Reload to try again.</div>';
