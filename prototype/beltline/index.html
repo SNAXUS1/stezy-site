@@ -7,6 +7,7 @@
 <meta property="og:title" content="Beltline - Satisfactory planner">
 <meta property="og:description" content="Machine counts, clock speeds and a map of every splitter and merger, from what you have.">
 <meta name="theme-color" content="#17191c">
+<meta name="robots" content="noindex, nofollow">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
 </head>
 <body>
@@ -158,6 +159,24 @@ button { cursor: pointer; }
 .share .lab { font-size: 11.5px; color: var(--faint); }
 .share-out { font: 600 12.5px var(--mono); color: var(--belt); white-space: nowrap; margin-left: auto; }
 
+/* factory switcher */
+.fac-btn { display: inline-flex; align-items: center; gap: 9px; margin-left: 8px; border: 1px solid var(--line-2); background: var(--panel); border-radius: 10px; padding: 7px 10px 7px 12px; font: 600 14px var(--display); max-width: 260px; }
+.fac-btn:hover { border-color: var(--muted); }
+.fac-btn .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fac-btn .chev { width: 14px; height: 14px; color: var(--faint); flex: none; }
+.fac-btn .k { font: 600 10px var(--mono); letter-spacing: .12em; color: var(--faint); text-transform: uppercase; }
+.fac-pop { padding: 10px; gap: 8px; }
+.fac-pop .searchbox input { font-weight: 600; }
+.fac-list { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; }
+.fac-item { display: flex; align-items: center; gap: 9px; border: 0; background: transparent; text-align: left; padding: 8px 9px; border-radius: 8px; font-size: 13.5px; width: 100%; }
+.fac-item:hover { background: var(--panel-3); }
+.fac-item .d { width: 7px; height: 7px; border-radius: 50%; background: var(--line-2); flex: none; }
+.fac-item.on .d { background: var(--fg); }
+.fac-item.on { font-weight: 600; }
+.fac-acts { display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 9px; }
+.btn.danger:hover { border-color: var(--bad); color: var(--bad); }
+.btn.danger.armed { border-color: var(--bad); color: var(--bad); background: var(--bad-soft); }
+
 /* popover */
 .pop { position: fixed; z-index: 60; width: min(340px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line-2); border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,.55); display: flex; flex-direction: column; overflow: hidden; }
 .pop-search { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
@@ -278,6 +297,19 @@ button { cursor: pointer; }
 .dg .ubar { fill: var(--panel-3); }
 .dg .ubar-f { fill: var(--muted); }
 
+.stat .gen { font-size: 11.5px; color: var(--faint); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dg .badge.done rect { fill: var(--good-soft); }
+.dg .badge.done text { fill: var(--good); }
+.dg .node.built rect.box { stroke: var(--good); }
+.tick { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--line-2); background: transparent; display: grid; place-items: center; padding: 0; }
+.tick:hover { border-color: var(--muted); }
+.tick.on { background: var(--good); border-color: var(--good); }
+.tick.on::after { content: ""; width: 9px; height: 5px; border-left: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: rotate(-45deg) translate(1px, -1px); }
+.blist .ck { width: 34px; padding-right: 0; }
+.blist tr.done .it, .blist tr.done .m { color: var(--muted); }
+.toast { position: fixed; z-index: 70; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--ink); font-weight: 600; font-size: 13.5px; padding: 10px 16px; border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,.4); animation: pop .2s ease-out; transition: opacity .35s; max-width: calc(100vw - 32px); }
+.toast.out { opacity: 0; }
+
 /* build list */
 .blist { width: 100%; border-collapse: collapse; font-size: 13px; }
 .blist th { text-align: left; font: 600 10px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); padding: 0 10px 8px; white-space: nowrap; }
@@ -347,7 +379,21 @@ details.mats[open] .chev { transform: rotate(180deg); }
   [data-pane][hidden-pane] { display: none; }
   .insp { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 72vh; border-radius: 16px 16px 0 0; padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
 }
-@media (max-width: 560px) { .brand-t b span { display: none; } .blist .hide-s { display: none; } }
+@media (max-width: 560px) {
+  .brand-t b span { display: none; } .blist .hide-s { display: none; }
+  .brand { flex-wrap: wrap; width: 100%; }
+  #fac-slot { flex-basis: 100%; }
+  .fac-btn { margin-left: 0; width: 100%; max-width: none; }
+  .fac-btn .nm { flex: 1; text-align: left; }
+  .picker-btn { flex-basis: 110px; }
+  .summary { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .stat { padding: 8px 9px; }
+  .stat .v { font-size: 17px; }
+  .stat .label { font-size: 9px; letter-spacing: .08em; }
+  .stat .gen { display: none; }
+  .sum-main .o { font-size: 18px; }
+  .map-scroll { max-height: 62vh; }
+}
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 
@@ -358,6 +404,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     <div class="brand">
       <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h7v10h11" stroke="#f0a447"/><path d="M10 12h11" stroke="#eceef1"/><rect x="2" y="5" width="4" height="4" rx="1" fill="#eceef1" stroke="none"/></svg></div>
       <div class="brand-t"><small>STEZY</small><b>Beltline<span>Satisfactory planner</span></b></div>
+      <div id="fac-slot"></div>
     </div>
     <div class="meta" id="meta"><span class="pill">Loading game data…</span></div>
   </header>
@@ -970,21 +1017,53 @@ details.mats[open] .chev { transform: rotate(180deg); }
       waterUnlimited: true,
       want: [{ id: uid(), item: 'SteelPlate', rate: 1, fixed: false }, { id: uid(), item: 'SteelPipe', rate: 20, fixed: true }],
       limitToHave: true, goal: 'resources', split: 'even', easyCounts: true,
-      recipeChoice: {}, lockCount: {}, view: 'compact', zoom: 0
+      recipeChoice: {}, lockCount: {}, view: 'compact', zoom: 0,
+      name: 'Steel example', built: {}, current: 'f1', factories: [{ id: 'f1', name: 'Steel example' }], saved: {}
     };
   }
+  // fields that belong to one factory (the rest, like tier and alternates, are shared)
+  var FF = ['name', 'have', 'want', 'recipeChoice', 'lockCount', 'waterUnlimited', 'limitToHave', 'goal', 'split', 'easyCounts', 'built', 'example'];
+  function snapshot() { var o = {}; FF.forEach(function (k) { o[k] = JSON.parse(JSON.stringify(state[k])); }); return o; }
+  function loadSnap(s) { FF.forEach(function (k) { if (s[k] !== undefined) state[k] = JSON.parse(JSON.stringify(s[k])); }); }
+  function switchFactory(id) {
+    if (id === state.current || !state.saved[id]) return;
+    state.saved[state.current] = snapshot();
+    loadSnap(state.saved[id]); delete state.saved[id];
+    state.current = id; selected = null; closePop(); changed(true, true);
+  }
+  function blankFactory(name) {
+    return { name: name, have: [{ id: uid(), item: null, kind: 'node', purity: 'normal', mk: state.miner, count: 1, clock: 100, rate: 60 }], want: [{ id: uid(), item: null, rate: 5, fixed: false }],
+      recipeChoice: {}, lockCount: {}, waterUnlimited: true, limitToHave: true, goal: 'resources', split: 'even', easyCounts: true, built: {}, example: false };
+  }
+  function addFactory(snap) {
+    state.saved[state.current] = snapshot();
+    var id = uid();
+    state.factories.push({ id: id, name: snap.name });
+    loadSnap(snap); state.current = id; selected = null; closePop(); changed(true, true);
+  }
+  function deleteFactory(id) {
+    if (state.factories.length < 2) return;
+    if (id === state.current) { var other = state.factories.filter(function (f) { return f.id !== id; })[0]; switchFactory(other.id); }
+    delete state.saved[id];
+    state.factories = state.factories.filter(function (f) { return f.id !== id; });
+    closePop(); changed(true, true);
+  }
+  function syncName() { state.factories.forEach(function (f) { if (f.id === state.current) f.name = state.name; }); }
   function normalize(s) {
     var d = defaults();
     if (!s || typeof s !== 'object') return d;
+    if (s.name === undefined && !s.example) { s.name = 'My factory'; s.factories = [{ id: 'f1', name: 'My factory' }]; s.current = 'f1'; }
     Object.keys(d).forEach(function (k) { if (s[k] === undefined) s[k] = d[k]; });
     s.have = (s.have || []).map(function (h) { return Object.assign({ id: uid(), kind: 'rate', purity: 'normal', mk: 1, count: 1, clock: 100, rate: 0 }, h); });
     s.want = (s.want || []).map(function (w) { var r = Object.assign({ id: uid(), rate: 1 }, w); if (r.fixed === undefined) r.fixed = s.mode !== 'max'; return r; });
+    if (!s.factories.some(function (f) { return f.id === s.current; })) s.factories.push({ id: s.current, name: s.name });
     return s;
   }
   function loadLocal() { try { var raw = localStorage.getItem(KEY) || localStorage.getItem(OLDKEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } }
   function saveLocal() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
-  function changed(structural) {
-    state.example = false; state.savedAt = Date.now();
+  function changed(structural, keepExample) {
+    if (!keepExample) state.example = false;
+    state.savedAt = Date.now();
     saveLocal(); queueSync();
     if (structural) renderSetup();
     schedulePlan();
@@ -1141,7 +1220,32 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (state.split === 'even') html += '<label class="toggle"><input type="checkbox" id="opt-easy" data-opt="easyCounts"' + (state.easyCounts ? ' checked' : '') + '><span class="box"></span><span>Easy-split counts (2, 3, 4, 6, 8, 9…)</span></label>';
     html += '</section>';
     document.getElementById('setup').innerHTML = html;
+    document.getElementById('fac-slot').innerHTML = '<button type="button" class="fac-btn" data-act="fac-menu" aria-label="Switch factory"><span class="k">Factory</span><span class="nm">' + esc(state.name) + '</span>' + ICON.chev + '</button>';
     updateShareOut();
+  }
+  function openFactoryMenu(btn) {
+    closePop();
+    pop = document.createElement('div');
+    pop.className = 'pop fac-pop';
+    pop.innerHTML = '<label class="searchbox"><input type="text" id="fac-name" aria-label="Factory name" value="' + esc(state.name) + '" maxlength="40"></label>' +
+      '<div class="fac-list">' + state.factories.map(function (f) { return '<button type="button" class="fac-item' + (f.id === state.current ? ' on' : '') + '" data-fac="' + esc(f.id) + '"><i class="d"></i>' + esc(f.id === state.current ? state.name : f.name) + '</button>'; }).join('') + '</div>' +
+      '<div class="fac-acts"><button type="button" class="btn sm" data-fac-act="new">' + ICON.plus + 'New</button><button type="button" class="btn sm" data-fac-act="dup">Duplicate</button>' +
+      (state.factories.length > 1 ? '<button type="button" class="btn sm danger" data-fac-act="del">Delete</button>' : '') + '</div>';
+    document.body.appendChild(pop);
+    var rect = btn.getBoundingClientRect();
+    pop.style.left = Math.min(Math.max(16, rect.left), window.innerWidth - pop.offsetWidth - 16) + 'px';
+    pop.style.top = (rect.bottom + 6) + 'px';
+    var inp = pop.querySelector('#fac-name');
+    inp.addEventListener('input', function () { state.name = inp.value.slice(0, 40) || 'Untitled'; syncName(); var nmEl = document.querySelector('.fac-btn .nm'); if (nmEl) nmEl.textContent = state.name; state.savedAt = Date.now(); saveLocal(); queueSync(); });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === 'Escape') closePop(); });
+    pop.addEventListener('click', function (e) {
+      var f = e.target.closest('[data-fac]'); if (f) { switchFactory(f.getAttribute('data-fac')); return; }
+      var a = e.target.closest('[data-fac-act]'); if (!a) return;
+      var what = a.getAttribute('data-fac-act');
+      if (what === 'new') addFactory(blankFactory('Factory ' + (state.factories.length + 1)));
+      else if (what === 'dup') { var s = snapshot(); s.name = state.name + ' copy'; s.example = false; addFactory(s); }
+      else if (what === 'del') { if (a.classList.contains('armed')) deleteFactory(state.current); else { a.classList.add('armed'); a.textContent = 'Delete “' + clip(state.name, 14) + '”?'; } }
+    });
   }
   function updateShareOut() {
     if (!res || res.status !== 'ok') { document.querySelectorAll('[data-share-out]').forEach(function (el) { el.textContent = ''; }); return; }
@@ -1296,7 +1400,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   }
   function drawCompact(n) {
     var s = n.step, r = s.recipe, main = r.out[0][0], clocks = uniq(s.clocks.map(clockShort));
-    var h = '<g class="node n-step' + (selected === n.key ? ' sel' : '') + '" data-node="' + n.id + '" transform="translate(' + n.x + ',' + n.y + ')">' +
+    var h = '<g class="node n-step' + (selected === n.key ? ' sel' : '') + (state.built[r.id] ? ' built' : '') + '" data-node="' + n.id + '" transform="translate(' + n.x + ',' + n.y + ')">' +
       '<rect class="box" width="' + n.w + '" height="' + n.h + '" rx="12"/>' +
       '<rect class="accent-bar' + (fl(main) ? ' f' : '') + '" x="0" y="14" width="3" height="' + (n.h - 28) + '" rx="1.5"/>' +
       '<text x="16" y="25" class="t1">' + esc(clip(nm(main), 20)) + '</text>' +
@@ -1304,8 +1408,10 @@ details.mats[open] .chev { transform: rotate(180deg); }
       '<text x="16" y="68" class="tc">' + (clocks.length === 1 ? clocks[0] + '%' : clocks.join(' / ') + '%') + '</text>' +
       '<text x="' + (n.w - 14) + '" y="68" text-anchor="end">' + trim(s.power, 1) + ' MW</text>';
     var bx = n.w - 10;
-    if (s.locked) { h += badge(bx, 12, 'LOCKED', 'lock'); bx -= 66; }
-    if (r.alt) h += badge(bx, 12, 'ALT');
+    function addBadge(t, cls) { h += badge(bx, 12, t, cls); bx -= t.length * 6.4 + 14; }
+    if (state.built[r.id]) addBadge('BUILT', 'done');
+    if (s.locked) addBadge('LOCKED', 'lock');
+    if (r.alt) addBadge('ALT');
     s.inputs.forEach(function (g) { var p = inPort(n, g.item); h += '<circle cx="0" cy="' + (p.y - n.y) + '" r="3.5" class="port-' + (g.fluid ? 'f' : 's') + '"/>'; });
     s.outputs.forEach(function (o) { var p = outPort(n, o.item); h += '<circle cx="' + n.w + '" cy="' + (p.y - n.y) + '" r="3.5" class="port-' + (o.fluid ? 'f' : 's') + '"/>'; });
     return h + '</g>';
@@ -1387,7 +1493,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
     var head = '<text x="12" y="22" class="t1">' + esc(clip(nm(main), 22)) + '</text>' +
       '<text x="' + (n.w - 12) + '" y="22" text-anchor="end" class="t2">' + s.count + ' × ' + (clocks.length === 1 ? clocks[0] + '%' : '') + '</text>';
-    return '<g class="node mod' + (selected === n.key ? ' sel' : '') + '" data-node="' + n.id + '" transform="translate(' + n.x + ',' + n.y + ')">' +
+    return '<g class="node mod' + (selected === n.key ? ' sel' : '') + (state.built[r.id] ? ' built' : '') + '" data-node="' + n.id + '" transform="translate(' + n.x + ',' + n.y + ')">' +
       '<rect class="box" x="-6" y="0" width="' + (n.w + 12) + '" height="' + n.h + '" rx="12"/>' + head + paths + mach + glyphs + '</g>';
   }
   function edgeSvg(G) {
@@ -1419,7 +1525,10 @@ details.mats[open] .chev { transform: rotate(180deg); }
       out += '<path d="' + d + '" class="halo" style="stroke-width:' + (+w + 5) + '"/>' +
         '<path d="' + d + '" class="ln ln-' + c + '" style="stroke-width:' + w + '"' + (e.mx == null ? ' marker-end="url(#ah-' + c + ')"' : '') + '/>' +
         '<path d="' + d + '" class="flow"/>';
-      var mxp = (x1 + 3 * (x1 + dx) + 3 * (x2 - dx) + x2) / 8, myp = (y1 + 3 * y1 + 3 * y2 + y2) / 8;
+      // label sits a bit past the middle, so labels of a split fan apart instead of piling up at the splitter
+      var t = e.sx != null ? 0.62 : e.mx != null ? 0.38 : 0.5, u = 1 - t;
+      var mxp = u * u * u * x1 + 3 * u * u * t * (x1 + dx) + 3 * u * t * t * (x2 - dx) + t * t * t * x2;
+      var myp = u * u * u * y1 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y2;
       var txt = fmt(e.rate) + ' ' + clip(nm(e.item), 16), tw = txt.length * 6.3 + 12;
       labels += '<g><rect class="lbl-bg" x="' + (mxp - tw / 2).toFixed(1) + '" y="' + (myp - 9).toFixed(1) + '" width="' + tw.toFixed(1) + '" height="18" rx="9"/>' +
         '<text class="lbl" x="' + mxp.toFixed(1) + '" y="' + (myp + 3.6).toFixed(1) + '" text-anchor="middle"><tspan class="r">' + fmt(e.rate) + '</tspan><tspan class="i"> ' + esc(clip(nm(e.item), 16)) + '</tspan></text></g>';
@@ -1445,6 +1554,38 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (how.kind === 'alt') return 'Needs alternate: ' + how.recipe.name + '.';
     if (how.kind === 'mam') return 'Needs MAM research.';
     return '';
+  }
+  var GENS = [{ n: 'biomass burner', mw: 30, t: 0 }, { n: 'coal generator', mw: 75, t: 3 }, { n: 'fuel generator', mw: 250, t: 5 }, { n: 'nuclear plant', mw: 2500, t: 8 }];
+  function genHint(mw) {
+    var g = GENS[0]; GENS.forEach(function (x) { if (x.t <= state.tier) g = x; });
+    var k = Math.ceil(mw / g.mw - 1e-9); return '≈ ' + k + ' ' + g.n + (k === 1 ? '' : 's');
+  }
+  function b64e(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function b64d(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return decodeURIComponent(escape(atob(s))); }
+  function canShare() { try { return /^https?:$/.test(location.protocol) && window.top === window; } catch (e) { return false; } }
+  function shareUrl() {
+    var snap = snapshot(); delete snap.built; snap.example = false;
+    var payload = { v: 1, p: { tier: state.tier, belt: state.belt, pipe: state.pipe, miner: state.miner, maxClock: state.maxClock, alts: Object.keys(state.alts), mam: Object.keys(state.mam) }, f: snap };
+    return location.origin + location.pathname + '#p=' + b64e(JSON.stringify(payload));
+  }
+  function importShared() {
+    var m = /^#p=(.+)$/.exec(location.hash || ''); if (!m) return null;
+    try {
+      var data = JSON.parse(b64d(m[1])), f = data.f, fresh = !(state.savedAt > 0);
+      history.replaceState(null, '', location.pathname);
+      if (fresh && data.p) {
+        ['tier', 'belt', 'pipe', 'miner', 'maxClock'].forEach(function (k) { if (data.p[k] != null) state[k] = data.p[k]; });
+        state.alts = {}; (data.p.alts || []).forEach(function (id) { state.alts[id] = true; });
+        state.mam = {}; (data.p.mam || []).forEach(function (id) { state.mam[id] = true; });
+      }
+      f.name = 'Shared: ' + (f.name || 'plan');
+      f.have = (f.have || []).map(function (h) { h.id = uid(); return h; });
+      f.want = (f.want || []).map(function (w) { w.id = uid(); return w; });
+      f.built = {};
+      if (fresh && state.example) { loadSnap(f); syncName(); changed(true, true); }
+      else addFactory(f);
+      return fresh ? 'Opened a shared plan.' : 'Opened a shared plan as a new factory. It uses your own tier and alternates.';
+    } catch (e) { history.replaceState(null, '', location.pathname); return 'That share link is broken.'; }
   }
   function minerHint(item, amount) {
     var k = nodeKind(item);
@@ -1479,7 +1620,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     // summary
     html += '<div class="summary"><div class="sum-main"><span class="label">Output</span><div class="outs">' + res.outputs.map(function (o) { return '<span class="o">' + fmt(o.rate) + ' ' + esc(nm(o.item)) + '<small>' + unit(o.item) + '</small></span>'; }).join('') + '</div></div>' +
       '<div class="stat"><span class="label">Machines</span><div class="v">' + res.machines + '</div></div>' +
-      '<div class="stat"><span class="label">Power</span><div class="v">' + trim(res.power.total, res.power.total >= 100 ? 0 : 1) + '<small> MW</small></div></div>' +
+      '<div class="stat"><span class="label">Power</span><div class="v">' + trim(res.power.total, res.power.total >= 100 ? 0 : 1) + '<small> MW</small></div><div class="gen">' + esc(genHint(res.power.total)) + '</div></div>' +
       '<div class="stat"><span class="label">Splitters</span><div class="v">' + res.splitters + '</div></div>' +
       '<div class="stat"><span class="label">Mergers</span><div class="v">' + res.mergers + '</div></div></div>';
     if (res.supply.length) html += '<div class="usage">' + res.supply.map(function (s) {
@@ -1492,18 +1633,22 @@ details.mats[open] .chev { transform: rotate(180deg); }
     // map
     var M = mapSvg();
     html += '<section class="card map-card"><div class="map-bar">' + seg('view', [['compact', 'Compact'], ['detailed', 'Every machine']], state.view) +
-      '<div class="seg" role="group"><button type="button" data-act="zoom" data-v="-" aria-label="Zoom out">−</button><button type="button" data-act="zoom" data-v="fit">Fit</button><button type="button" data-act="zoom" data-v="+" aria-label="Zoom in">+</button></div><span class="grow"></span>' +
+      '<div class="seg" role="group"><button type="button" data-act="zoom" data-v="-" aria-label="Zoom out">−</button><button type="button" data-act="zoom" data-v="fit">Fit</button><button type="button" data-act="zoom" data-v="+" aria-label="Zoom in">+</button></div>' +
+      (canShare() ? '<button type="button" class="btn sm" data-act="share">Share plan</button>' : '') + '<span class="grow"></span>' +
       '<div class="legend"><span><i class="lg-b"></i>Belt</span><span><i class="lg-p"></i>Pipe</span><span><i class="lg-s"></i>Splitter</span><span><i class="lg-m"></i>Merger</span></div></div>' +
       '<div class="map-scroll" id="map-scroll">' + M.svg + '</div><div class="map-hint">Click any box to change its recipe or machine count. Drag to move around.</div></section>';
     if (res.leftovers.length) html += '<div class="banner warn"><span><b>Leftover:</b> ' + res.leftovers.map(function (l) { return fmt(l.rate) + ' ' + esc(nm(l.item)) + (fl(l.item) ? ' m³' : '') + '/min'; }).join(', ') + '</span></div>';
     // build list
-    html += '<section class="card"><div class="card-h"><h2>Build list</h2><span class="tiny">In order, from ore to product</span></div><div class="tbl-wrap"><table class="blist"><thead><tr><th></th><th>Make</th><th>Machines</th><th>Clock</th><th class="hide-s">Feed</th><th class="hide-s" style="text-align:right">Power</th></tr></thead><tbody>' +
+    var builtN = res.steps.filter(function (s) { return state.built[s.recipe.id]; }).length;
+    html += '<section class="card"><div class="card-h"><h2>Build list</h2><span class="tiny">' + (builtN ? builtN + ' of ' + res.steps.length + ' steps built' : 'Tick each step once it’s built') + '</span></div>' +
+      (builtN ? '<div class="bar"><i style="width:' + (builtN / res.steps.length * 100).toFixed(1) + '%;background:var(--good)"></i></div>' : '') +
+      '<div class="tbl-wrap"><table class="blist"><thead><tr><th></th><th></th><th>Make</th><th>Machines</th><th>Clock</th><th class="hide-s">Feed</th><th class="hide-s" style="text-align:right">Power</th></tr></thead><tbody>' +
       res.steps.map(function (s, i) {
-        var key = 'rec:' + s.recipe.id, main = s.recipe.out[0][0];
+        var key = 'rec:' + s.recipe.id, main = s.recipe.out[0][0], done = !!state.built[s.recipe.id];
         var clocks = uniq(s.clocks.map(clockShort));
         var feed = [];
         s.inputs.forEach(function (g) { splitTags(g, s).forEach(function (t) { feed.push(t); }); });
-        return '<tr class="r' + (selected === key ? ' sel' : '') + '" data-act="select" data-v="' + key + '"><td class="n">' + String(i + 1).padStart(2, '0') + '</td><td class="it">' + esc(nm(main)) + (s.recipe.alt || s.recipe.name !== nm(main) ? '<small>' + esc(s.recipe.name) + '</small>' : '') + '</td>' +
+        return '<tr class="r' + (selected === key ? ' sel' : '') + (done ? ' done' : '') + '" data-act="select" data-v="' + key + '"><td class="ck"><button type="button" class="tick' + (done ? ' on' : '') + '" data-act="built" data-v="' + esc(s.recipe.id) + '" aria-pressed="' + done + '" aria-label="Built"></button></td><td class="n">' + String(i + 1).padStart(2, '0') + '</td><td class="it">' + esc(nm(main)) + (s.recipe.alt || s.recipe.name !== nm(main) ? '<small>' + esc(s.recipe.name) + '</small>' : '') + '</td>' +
           '<td class="m">' + s.count + ' × ' + esc(mName(s.recipe.m)) + (s.locked ? ' <span class="tag">locked</span>' : '') + '</td><td class="c">' + clocks.join(' / ') + '%</td><td class="hide-s">' + tagsHtml(uniq(feed.map(function (t) { return t.join('|'); })).map(function (x) { return x.split('|'); })) + '</td><td class="p hide-s">' + trim(s.power, 1) + ' MW</td></tr>';
       }).join('') + '</tbody></table></div></section>';
     if (res.cost.length) html += '<section class="card"><details class="mats"><summary><h2>Build materials</h2>' + ICON.chev + '</summary><div class="list2">' + res.cost.map(function (c) { return '<div><span>' + esc(nm(c.item)) + '</span><span class="v">' + c.amount + '</span></div>'; }).join('') + '</div></details></section>';
@@ -1518,7 +1663,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   }
   function fitZoom(silent) {
     var sc = document.getElementById('map-scroll'), svg = document.getElementById('map-svg'); if (!sc || !svg) return;
-    var vb = svg.viewBox.baseVal, z = Math.max(0.45, Math.min(1, (sc.clientWidth - 4) / vb.width));
+    var vb = svg.viewBox.baseVal, z = Math.max(0.6, Math.min(1.1, (sc.clientWidth - 4) / vb.width));
     svg.setAttribute('width', Math.round(vb.width * z)); svg.setAttribute('height', Math.round(vb.height * z));
     if (!silent) { state.zoom = 0; saveLocal(); }
   }
@@ -1720,7 +1865,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
 
   /* ---------------- events ---------------- */
   document.addEventListener('click', function (e) {
-    if (pop && !e.target.closest('.pop') && !e.target.closest('[data-act="pick"]')) closePop();
+    if (pop && !e.target.closest('.pop') && !e.target.closest('[data-act="pick"]') && !e.target.closest('[data-act="fac-menu"]')) closePop();
     var nodeEl = e.target.closest('.dg .node');
     if (nodeEl) {
       var sc = document.getElementById('map-scroll'); if (sc && sc._justDragged) return;
@@ -1756,13 +1901,21 @@ details.mats[open] .chev { transform: rotate(180deg); }
     } else if (act === 'del') { state[b.getAttribute('data-list')].splice(+b.getAttribute('data-row'), 1); changed(true); }
     else if (act === 'pick') { if (pop) { closePop(); return; } openPicker(b, b.getAttribute('data-list'), +b.getAttribute('data-row')); }
     else if (act === 'sheet') openSheet(v);
+    else if (act === 'fac-menu') { if (pop) { closePop(); return; } openFactoryMenu(b); }
+    else if (act === 'built') { if (state.built[v]) delete state.built[v]; else state.built[v] = true; changed(false); }
+    else if (act === 'share') {
+      var url = shareUrl(), lbl = b.textContent;
+      var ok = function () { b.textContent = 'Link copied'; setTimeout(function () { b.textContent = lbl; }, 1500); };
+      try { navigator.clipboard.writeText(url).then(ok, function () { b.textContent = 'Copy failed'; }); } catch (err) { b.textContent = 'Copy failed'; }
+    }
     else if (act === 'copy') {
       var done = function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1200); };
       try { navigator.clipboard.writeText(v).then(done, function () { b.textContent = v; }); } catch (err) { b.textContent = v; }
     } else if (act === 'clear-example') {
       state.have = [{ id: uid(), item: null, kind: 'node', purity: 'normal', mk: state.miner, count: 1, clock: 100, rate: 60 }];
       state.want = [{ id: uid(), item: null, rate: 5, fixed: false }];
-      state.recipeChoice = {}; state.lockCount = {}; selected = null;
+      state.recipeChoice = {}; state.lockCount = {}; state.built = {}; selected = null;
+      if (state.name === 'Steel example') { state.name = 'My factory'; syncName(); }
       changed(true); pane = 'setup'; applyPane();
     } else if (act === 'select') { select(selected === v ? null : v); }
     else if (act === 'close-insp') { select(null); }
@@ -1797,6 +1950,10 @@ details.mats[open] .chev { transform: rotate(180deg); }
   document.addEventListener('change', function (e) { var t = e.target; if (t.matches('input[data-opt]')) { state[t.getAttribute('data-opt')] = t.checked; changed(true); } });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && selected && !document.querySelector('.scrim')) select(null); });
   window.addEventListener('resize', function () { closePop(); if (!state || !state.zoom) fitZoom(true); });
+  function toast(msg) {
+    var t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
+    document.body.appendChild(t); setTimeout(function () { t.classList.add('out'); setTimeout(function () { t.remove(); }, 400); }, 4200);
+  }
   function applyPane() {
     document.querySelectorAll('[data-pane]').forEach(function (p) { if (p.getAttribute('data-pane') === pane) p.removeAttribute('hidden-pane'); else p.setAttribute('hidden-pane', ''); });
     document.querySelectorAll('.tabs button').forEach(function (b) { b.setAttribute('aria-selected', String(b.getAttribute('data-v') === pane)); });
@@ -1840,7 +1997,9 @@ details.mats[open] .chev { transform: rotate(180deg); }
     D = E.init(data);
     state = normalize(loadLocal());
     document.getElementById('meta').innerHTML = '<span class="pill">Game v' + esc(D.game.version) + ' · ' + D.recipes.length + ' recipes</span><span class="pill" id="sync"><i class="dot"></i>Saved here</span>';
+    var shared = importShared();
     renderSetup(); applyPane(); schedulePlan(); initSync();
+    if (shared) toast(shared);
   }).catch(function (err) {
     document.getElementById('plan').innerHTML = '<div class="banner bad">Couldn’t load the recipe data (' + esc(err.message) + '). Reload to try again.</div>';
   });
