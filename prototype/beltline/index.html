@@ -336,6 +336,45 @@ button { cursor: pointer; }
 .toast { position: fixed; z-index: 70; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--ink); font-weight: 600; font-size: 13.5px; padding: 10px 16px; border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,.4); animation: pop .2s ease-out; transition: opacity .35s; max-width: calc(100vw - 32px); }
 .toast.out { opacity: 0; }
 
+/* zoomable map */
+.vp { position: relative; height: 72vh; min-height: 340px; overflow: hidden; touch-action: none; cursor: grab;
+  background: radial-gradient(circle at 1px 1px, rgba(255,255,255,.06) 1px, transparent 1.4px) 0 0 / 20px 20px, var(--bg); }
+.vp.dragging { cursor: grabbing; user-select: none; }
+.vp > svg { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.zoom-pct { font: 12px var(--mono); color: var(--muted); min-width: 42px; text-align: center; }
+/* step-by-step guide */
+.guide { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+.gchips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.gchip { flex: none; display: inline-flex; gap: 7px; align-items: center; border: 1px solid var(--line); background: var(--panel-2); border-radius: 30px; padding: 5px 12px 5px 6px; font: 600 12.5px var(--display); color: var(--muted); }
+.gchip:hover { color: var(--fg); border-color: var(--line-2); }
+.gchip b { width: 22px; height: 22px; border-radius: 50%; background: var(--panel-3); display: grid; place-items: center; font: 600 11px var(--mono); color: var(--fg); }
+.gchip.on { border-color: var(--fg); color: var(--fg); background: var(--panel-3); }
+.gchip.on b { background: var(--fg); color: var(--ink); }
+.gchip.done b { background: var(--good); color: var(--ink); }
+.ghead { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.ghead h3 { margin: 4px 0 0; font: 700 26px/1.1 var(--display); }
+.ghead h3 small { font: 500 13px var(--body); color: var(--muted); margin-left: 6px; }
+.gbuild { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.gbuild .cnt { font: 700 20px var(--display); }
+.gdiag { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+  background: radial-gradient(circle at 1px 1px, rgba(255,255,255,.05) 1px, transparent 1.4px) 0 0 / 20px 20px, var(--bg); }
+.gdiag svg { display: block; height: auto; }
+.gdg .gl2 { font-size: 11px; font-weight: 700; fill: var(--fg); font-family: var(--mono); }
+.gdg .gm { fill: var(--panel-2); stroke: var(--line-2); stroke-width: 1.4; }
+.gdg .gm.amp { stroke: #c4a6ff; }
+.gdg .cardbox { fill: var(--panel); stroke: var(--line-2); stroke-width: 1.2; }
+.gdg .t1 { font-size: 15px; }
+.gdg .t2 { font-size: 12.5px; }
+.gdg .t3 { fill: var(--faint); font-size: 11.5px; font-family: var(--body); }
+.gdg .tc2 { fill: var(--belt); font: 600 16px var(--mono); }
+.gsteps { margin: 0; padding-left: 24px; display: flex; flex-direction: column; gap: 8px; font-size: 14.5px; color: var(--muted); line-height: 1.55; }
+.gsteps b { color: var(--fg); }
+.gsteps li::marker { color: var(--fg); font-weight: 700; font-family: var(--mono); }
+.gsteps .bad { color: var(--bad); }
+.gnav { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.ok { background: var(--good); border-color: var(--good); color: var(--ink); }
+
 /* build list */
 .blist { width: 100%; border-collapse: collapse; font-size: 13px; }
 .blist th { text-align: left; font: 600 10px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); padding: 0 10px 8px; white-space: nowrap; }
@@ -418,7 +457,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
   .stat .label { font-size: 9px; letter-spacing: .08em; }
   .stat .gen { display: none; }
   .sum-main .o { font-size: 18px; }
-  .map-scroll { max-height: 62vh; }
+  .vp { height: 60vh; }
+  .ghead h3 { font-size: 21px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
@@ -1077,7 +1117,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function clockShort(c) { return trim(c * 100, 2); }
   function plural(n, a, b) { return n === 1 ? a : (b || a + 's'); }
   function mName(m) { return D.machines[m].name; }
-  function mNames(m, n) { var s = mName(m); return n === 1 ? s : s + 's'; }
+  function mNames(m, n) { var s = mName(m); if (n === 1) return s; return /[^aeiou]y$/.test(s) ? s.slice(0, -1) + 'ies' : s + 's'; }
   function chip(id) { var it = D.items[id] || {}; return '<i class="chip' + (it.fluid ? ' fluid' : it.raw ? ' raw' : '') + '"></i>'; }
   function uid() { return Math.random().toString(36).slice(2, 9); }
   function beltOf(mk) { return D.belts.filter(function (b) { return b.mk === mk; })[0]; }
@@ -1098,7 +1138,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       waterUnlimited: true,
       want: [{ id: uid(), item: 'SteelPlate', rate: 1, fixed: false }, { id: uid(), item: 'SteelPipe', rate: 20, fixed: true }],
       limitToHave: true, goal: 'resources', split: 'even', easyCounts: true,
-      recipeChoice: {}, lockCount: {}, view: 'compact', zoom: 0,
+      recipeChoice: {}, lockCount: {}, view: 'overview', zoom: 0, guideStep: null,
       name: 'Steel example', built: {}, current: 'f1', factories: [{ id: 'f1', name: 'Steel example' }], saved: {},
       shards: 0, sloops: 0, lastOut: []
     };
@@ -1139,6 +1179,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
     s.have = (s.have || []).map(function (h) { return Object.assign({ id: uid(), kind: 'rate', purity: 'normal', mk: 1, count: 1, clock: 100, rate: 0 }, h); });
     s.want = (s.want || []).map(function (w) { var r = Object.assign({ id: uid(), rate: 1 }, w); if (r.fixed === undefined) r.fixed = s.mode !== 'max'; return r; });
     if (!s.factories.some(function (f) { return f.id === s.current; })) s.factories.push({ id: s.current, name: s.name });
+    if (s.view === 'compact') s.view = 'overview';
+    if (s.view === 'detailed') s.view = 'guide';
     return s;
   }
   function loadLocal() { try { var raw = localStorage.getItem(KEY) || localStorage.getItem(OLDKEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } }
@@ -1365,7 +1407,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       '<button class="btn ghost" type="button" data-act="add" data-list="want">' + ICON.plus + 'Add item</button>';
     if (allFixed) html += '<label class="toggle"><input type="checkbox" id="opt-limit" data-opt="limitToHave"' + (state.limitToHave ? ' checked' : '') + '><span class="box"></span><span>Only use what I have</span></label>';
     html += '<div class="field"><span class="label">Best means</span>' + seg('goal', [['resources', 'Least ore'], ['machines', 'Fewest machines'], ['power', 'Least power']], state.goal, 'full') + '</div>' +
-      '<div class="field"><span class="label">Machine speeds</span>' + seg('split', [['even', 'All the same'], ['fill', 'Full + 1 slower']], state.split, 'full') + '</div>';
+      '<div class="field"><span class="label">Machine speeds</span>' + seg('split', [['even', 'All same speed'], ['fill', '100% + 1 slower']], state.split, 'full') + '<div class="tiny">' + (state.split === 'fill' ? 'As many machines at 100% as possible, the rest on one slower machine (e.g. 5 at 100% + 1 at 50%).' : 'Every machine at the same clock, so splitters share evenly.') + '</div></div>';
     if (state.split === 'even') html += '<label class="toggle"><input type="checkbox" id="opt-easy" data-opt="easyCounts"' + (state.easyCounts ? ' checked' : '') + '><span class="box"></span><span>Easy-split counts (2, 3, 4, 6, 8, 9…)</span></label>';
     html += '</section>';
     document.getElementById('setup').innerHTML = html;
@@ -1769,7 +1811,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     return h;
   }
   function mapSvg() {
-    var detailed = state.view === 'detailed';
+    var detailed = false;
     var G = buildGraph();
     sizeNodes(G, detailed);
     G.nodes.forEach(function (n) { n.key = n.kind === 'step' ? 'rec:' + n.step.recipe.id : n.id; });
@@ -1785,7 +1827,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     var nodesSvg = G.nodes.map(function (n) { return n.kind === 'step' ? (detailed ? drawModule(n) : drawCompact(n)) : drawSimple(n); }).join('');
     var z = state.zoom || 1;
     var defs = '<defs>' + ALL_COLS.map(function (c, i) { return '<marker id="ah-' + i + '" viewBox="0 0 10 10" refX="8.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto"><path d="M0,0.5 L10,5 L0,9.5 z" style="fill:' + c + '"/></marker>'; }).join('') + '</defs>';
-    return { svg: '<svg class="dg' + (focus ? ' focus' : '') + '" id="map-svg" width="' + Math.round(G.width * z) + '" height="' + Math.round(G.height * z) + '" viewBox="0 0 ' + G.width.toFixed(0) + ' ' + G.height.toFixed(0) + '" xmlns="http://www.w3.org/2000/svg">' + defs + stageHeaders(G) + edges + nodesSvg + '</svg>', G: G };
+    return { svg: '<svg class="dg' + (focus ? ' focus' : '') + '" id="map-svg" width="' + Math.round(G.width) + '" height="' + Math.round(G.height) + '" viewBox="0 0 ' + G.width.toFixed(0) + ' ' + G.height.toFixed(0) + '" xmlns="http://www.w3.org/2000/svg">' + defs + stageHeaders(G) + edges + nodesSvg + '</svg>', G: G };
   }
 
   /* ---------------- plan view ---------------- */
@@ -1873,14 +1915,21 @@ details.mats[open] .chev { transform: rotate(180deg); }
       return '<div class="use"><div class="use-top">' + chip(s.item) + '<span class="nm">' + esc(nm(s.item)) + '</span><span class="q"><b>' + fmt(s.used) + '</b>' + (s.have ? ' / ' + fmt(s.have) : '') + ' ' + unit(s.item) + '</span></div><div class="bar"><i class="' + (over ? 'over' : fl(s.item) ? 'fluid' : '') + '" style="width:' + (pct * 100).toFixed(1) + '%"></i></div>' + (note ? '<div class="note">' + esc(note) + '</div>' : '') + '</div>';
     }).join('') + '</div>';
     // map
-    buildColors(); var M = mapSvg();
-    var legendItems = Object.keys(colorMap).slice(0, 12).map(function (id) { return '<span class="it"><i style="background:' + colorMap[id] + '"></i>' + esc(nm(id)) + '</span>'; }).join('');
-    html += '<section class="card map-card"><div class="map-bar">' + seg('view', [['compact', 'Compact'], ['detailed', 'Every machine']], state.view) +
-      '<div class="seg" role="group"><button type="button" data-act="zoom" data-v="-" aria-label="Zoom out">−</button><button type="button" data-act="zoom" data-v="fit">Fit</button><button type="button" data-act="zoom" data-v="+" aria-label="Zoom in">+</button></div>' +
-      (canShare() ? '<button type="button" class="btn sm" data-act="share">Share plan</button>' : '') + '<span class="grow"></span>' +
-      '<div class="legend"><span><i class="lg-s"></i>Splitter</span><span><i class="lg-m"></i>Merger</span><span>Double line = more than 1 belt</span></div></div>' +
-      '<div class="map-bar legend" style="padding-block:8px">' + legendItems + '</div>' +
-      '<div class="map-scroll" id="map-scroll">' + M.svg + '</div><div class="map-hint">Click a box to follow only its belts and to change its recipe or machine count. Drag to move around.</div></section>';
+    buildColors();
+    var view = state.view === 'guide' ? 'guide' : 'overview';
+    html += '<section class="card map-card"><div class="map-bar">' + seg('view', [['overview', 'Overview'], ['guide', 'Step by step']], view);
+    if (view === 'overview') {
+      var M = mapSvg();
+      var legendItems = Object.keys(colorMap).slice(0, 12).map(function (id) { return '<span class="it"><i style="background:' + colorMap[id] + '"></i>' + esc(nm(id)) + '</span>'; }).join('');
+      html += '<div class="seg" role="group"><button type="button" data-act="zoom" data-v="-" aria-label="Zoom out">−</button><span class="zoom-pct" id="zoom-pct">100%</span><button type="button" data-act="zoom" data-v="+" aria-label="Zoom in">+</button><button type="button" data-act="zoom" data-v="fit">Fit</button></div>' +
+        (canShare() ? '<button type="button" class="btn sm" data-act="share">Share plan</button>' : '') + '<span class="grow"></span>' +
+        '<div class="legend"><span><i class="lg-s"></i>Splitter</span><span><i class="lg-m"></i>Merger</span><span>Double line = 2+ belts</span></div></div>' +
+        '<div class="map-bar legend" style="padding-block:8px">' + legendItems + '</div>' +
+        '<div class="vp" id="vp">' + M.svg + '</div><div class="map-hint">Scroll or pinch to zoom · drag to move · click a box to see and change it · <b>Step by step</b> shows how to wire each part.</div>';
+    } else {
+      html += (canShare() ? '<button type="button" class="btn sm" data-act="share">Share plan</button>' : '') + '</div>' + guideHtml();
+    }
+    html += '</section>';
     if (res.leftovers.length) {
       var pts = res.leftovers.reduce(function (a, l) { return a + (fl(l.item) ? 0 : l.rate * (l.sink || 0)); }, 0);
       html += '<div class="banner warn"><span><b>Leftover:</b> ' + res.leftovers.map(function (l) { return fmt(l.rate) + ' ' + esc(nm(l.item)) + (fl(l.item) ? ' m³' : '') + '/min'; }).join(', ') + (pts > 0 ? ' · worth ' + Math.round(pts).toLocaleString('en') + ' sink points/min' : '') + '</span></div>';
@@ -1900,39 +1949,251 @@ details.mats[open] .chev { transform: rotate(180deg); }
           '<td class="m">' + s.count + ' × ' + esc(mName(s.recipe.m)) + (s.amp ? ' <span class="tag amp">' + s.amp + ' sloops each</span>' : '') + (s.locked ? ' <span class="tag">locked</span>' : '') + '</td><td class="c">' + clocks.join(' / ') + '%</td><td class="hide-s">' + tagsHtml(uniq(feed.map(function (t) { return t.join('|'); })).map(function (x) { return x.split('|'); })) + '</td><td class="p hide-s">' + trim(s.power, 1) + ' MW</td></tr>';
       }).join('') + '</tbody></table></div></section>';
     if (res.cost.length) html += '<section class="card"><details class="mats"><summary><h2>Build materials</h2>' + ICON.chev + '</summary><div class="list2">' + res.cost.map(function (c) { return '<div><span>' + esc(nm(c.item)) + '</span><span class="v">' + c.amount + '</span></div>'; }).join('') + '</div></details></section>';
-    var sc = document.getElementById('map-scroll'), keep = sc ? [sc.scrollLeft, sc.scrollTop] : null;
     el.innerHTML = html;
-    sc = document.getElementById('map-scroll');
-    if (sc) {
-      if (!state.zoom) fitZoom(true);
-      if (keep) { sc.scrollLeft = keep[0]; sc.scrollTop = keep[1]; }
-      enableDrag(sc);
-    }
+    initViewport();
   }
-  function fitZoom(silent) {
-    var sc = document.getElementById('map-scroll'), svg = document.getElementById('map-svg'); if (!sc || !svg) return;
-    var vb = svg.viewBox.baseVal, z = Math.max(0.6, Math.min(1.1, (sc.clientWidth - 4) / vb.width));
-    svg.setAttribute('width', Math.round(vb.width * z)); svg.setAttribute('height', Math.round(vb.height * z));
-    if (!silent) { state.zoom = 0; saveLocal(); }
+
+  /* ---------------- zoomable map viewport ---------------- */
+  var vpT = null, vpFor = null, vpUser = false;
+  function vpEls() { return { vp: document.getElementById('vp'), svg: document.getElementById('map-svg') }; }
+  function fitT() {
+    var e = vpEls(); if (!e.vp || !e.svg) return null;
+    var W = +e.svg.getAttribute('width'), H = +e.svg.getAttribute('height'), cw = e.vp.clientWidth, ch = e.vp.clientHeight;
+    if (!cw || !ch) return null;
+    var sc = Math.max(0.2, Math.min(1.25, Math.min((cw - 32) / W, (ch - 32) / H)));
+    return { s: sc, x: Math.round((cw - W * sc) / 2), y: 16 };
   }
-  function setZoom(z) {
-    var svg = document.getElementById('map-svg'); if (!svg) return;
-    var vb = svg.viewBox.baseVal; z = Math.max(0.35, Math.min(1.8, z));
-    state.zoom = z; saveLocal();
-    svg.setAttribute('width', Math.round(vb.width * z)); svg.setAttribute('height', Math.round(vb.height * z));
+  function applyT() {
+    var e = vpEls();
+    if (e.svg && vpT) e.svg.style.transform = 'translate(' + vpT.x + 'px,' + vpT.y + 'px) scale(' + vpT.s + ')';
+    var z = document.getElementById('zoom-pct'); if (z && vpT) z.textContent = Math.round(vpT.s * 100) + '%';
   }
-  function currentZoom() { var svg = document.getElementById('map-svg'); if (!svg) return 1; return +svg.getAttribute('width') / svg.viewBox.baseVal.width; }
-  function enableDrag(sc) {
-    var down = null, moved = false;
-    sc.addEventListener('pointerdown', function (e) { if (e.pointerType === 'touch') return; down = { x: e.clientX, y: e.clientY, l: sc.scrollLeft, t: sc.scrollTop }; moved = false; });
-    sc.addEventListener('pointermove', function (e) {
-      if (!down) return;
-      var dx = e.clientX - down.x, dy = e.clientY - down.y;
-      if (!moved && Math.abs(dx) + Math.abs(dy) > 5) { moved = true; sc.classList.add('dragging'); }
-      if (moved) { sc.scrollLeft = down.l - dx; sc.scrollTop = down.t - dy; }
+  function zoomAt(px, py, f) {
+    if (!vpT) return;
+    var ns = Math.max(0.15, Math.min(3, vpT.s * f));
+    vpT.x = px - (px - vpT.x) * ns / vpT.s; vpT.y = py - (py - vpT.y) * ns / vpT.s; vpT.s = ns; vpUser = true; applyT();
+  }
+  function refit() { var t = fitT(); if (t) { vpT = t; vpUser = false; applyT(); } }
+  function initViewport() {
+    var e = vpEls(); if (!e.vp || !e.svg) return;
+    var key = state.current;
+    if (!vpT || vpFor !== key || !vpUser) { var t = fitT(); if (t) { vpT = t; vpFor = key; } }
+    applyT();
+    var vp = e.vp, ptrs = {}, start = null, moved = false, pinch = null;
+    vp.addEventListener('wheel', function (ev) {
+      ev.preventDefault();
+      var r = vp.getBoundingClientRect();
+      zoomAt(ev.clientX - r.left, ev.clientY - r.top, Math.exp(-ev.deltaY * (ev.deltaMode === 1 ? 0.05 : 0.0016)));
+    }, { passive: false });
+    vp.addEventListener('pointerdown', function (ev) {
+      ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
+      var ids = Object.keys(ptrs);
+      if (ids.length === 1) { start = { x: ev.clientX, y: ev.clientY, tx: vpT ? vpT.x : 0, ty: vpT ? vpT.y : 0 }; moved = false; }
+      if (ids.length === 2) { var a = ptrs[ids[0]], b = ptrs[ids[1]]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) }; moved = true; }
     });
-    function up() { if (down && moved) { sc._justDragged = true; setTimeout(function () { sc._justDragged = false; }, 50); } down = null; sc.classList.remove('dragging'); }
-    sc.addEventListener('pointerup', up); sc.addEventListener('pointerleave', up);
+    vp.addEventListener('pointermove', function (ev) {
+      if (!ptrs[ev.pointerId] || !vpT) return;
+      ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
+      var ids = Object.keys(ptrs), r = vp.getBoundingClientRect();
+      if (ids.length >= 2 && pinch) {
+        var a = ptrs[ids[0]], b = ptrs[ids[1]], d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinch.d > 0) zoomAt((a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top, d / pinch.d);
+        pinch.d = d; return;
+      }
+      if (!start) return;
+      var dx = ev.clientX - start.x, dy = ev.clientY - start.y;
+      if (!moved && Math.abs(dx) + Math.abs(dy) > 5) { moved = true; vp.classList.add('dragging'); }
+      if (moved) { vpT.x = start.tx + dx; vpT.y = start.ty + dy; vpUser = true; applyT(); }
+    });
+    function up(ev) {
+      delete ptrs[ev.pointerId];
+      if (Object.keys(ptrs).length < 2) pinch = null;
+      if (!Object.keys(ptrs).length) {
+        if (moved) { vp._justDragged = true; setTimeout(function () { vp._justDragged = false; }, 60); }
+        start = null; vp.classList.remove('dragging');
+      }
+    }
+    vp.addEventListener('pointerup', up); vp.addEventListener('pointercancel', up);
+    vp.addEventListener('pointerleave', function (ev) { if (ev.pointerType === 'mouse') up(ev); });
+    vp.addEventListener('dblclick', function (ev) { if (ev.target.closest('.node')) return; var r = vp.getBoundingClientRect(); zoomAt(ev.clientX - r.left, ev.clientY - r.top, 1.6); });
+  }
+
+  /* ---------------- step by step guide ---------------- */
+  function guideIndex() {
+    var i = -1; res.steps.forEach(function (x, k) { if ('rec:' + x.recipe.id === state.guideStep) i = k; });
+    return i < 0 ? 0 : i;
+  }
+  function clockChips(s) {
+    var cs = uniq(s.clocks.map(clockTxt));
+    if (cs.length === 1) return '<span class="clock">' + cs[0] + '%<button type="button" data-act="copy" data-v="' + cs[0] + '">Copy</button></span>';
+    var full = s.clocks.filter(function (c) { return Math.abs(c - s.clocks[0]) < 1e-9; }).length, last = clockTxt(s.clocks[s.clocks.length - 1]);
+    return '<span class="sub">' + full + ' at</span><span class="clock">' + clockTxt(s.clocks[0]) + '%</span><span class="sub">+ 1 at</span><span class="clock">' + last + '%<button type="button" data-act="copy" data-v="' + last + '">Copy</button></span>';
+  }
+  function guideHtml() {
+    var steps = res.steps; if (!steps.length) return '';
+    var idx = guideIndex(), s = steps[idx], r = s.recipe, main = r.out[0][0], done = !!state.built[r.id];
+    var chips = '<div class="gchips">' + steps.map(function (x, i) {
+      return '<button type="button" class="gchip' + (i === idx ? ' on' : '') + (state.built[x.recipe.id] ? ' done' : '') + '" data-act="gstep" data-v="rec:' + esc(x.recipe.id) + '"><b>' + (i + 1) + '</b>' + esc(clip(nm(x.recipe.out[0][0]), 20)) + (x.amp ? ' +sloops' : '') + '</button>';
+    }).join('') + '</div>';
+    var head = '<div class="ghead"><div><span class="label">Step ' + (idx + 1) + ' of ' + steps.length + ' · Stage ' + (s.depth + 1) + '</span><h3>' + esc(nm(main)) + (r.alt || r.name !== nm(main) ? '<small>' + esc(r.name) + '</small>' : '') + '</h3></div>' +
+      '<div class="gbuild"><span class="cnt">' + s.count + ' × ' + esc(mNames(r.m, s.count)) + '</span>' + clockChips(s) + '</div></div>';
+    var nav = '<div class="gnav"><button class="btn" type="button" data-act="gprev"' + (idx === 0 ? ' disabled' : '') + '>← Previous</button>' +
+      '<button class="btn' + (done ? ' ok' : '') + '" type="button" data-act="built" data-v="' + esc(r.id) + '">' + (done ? 'Built ✓' : 'Mark as built') + '</button>' +
+      '<button class="btn light" type="button" data-act="gnext"' + (idx === steps.length - 1 ? ' disabled' : '') + '>Next →</button></div>';
+    return '<div class="guide">' + chips + head + '<div class="gdiag">' + stepDiagram(s) + '</div><ol class="gsteps">' + guideText(s).map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ol>' + nav + '</div>';
+  }
+  function usesTree(s) {
+    var g = s.inputs[0], L0 = g && g.layouts && g.layouts[0];
+    return s.inputs.length === 1 && !g.fluid && s.even && s.count <= 16 && g.layouts && g.layouts.length === 1 && L0 && L0.type === 'tree';
+  }
+  function treeWords(L) {
+    var f = L.factors;
+    if (f.length === 1) return 'one splitter into ' + f[0];
+    return 'one splitter into ' + f[0] + ', then ' + f.slice(1).map(function (x) { return 'each of those into ' + x; }).join(', then ') + ' (' + L.splitters + ' splitters)';
+  }
+  function stepName(i) { return 'step ' + (i + 1) + ' (' + esc(nm(res.steps[i].recipe.out[0][0])) + ')'; }
+  function guideText(s) {
+    var r = s.recipe, mn = mName(r.m), out = [], n = s.count;
+    s.inputs.forEach(function (g) {
+      var froms = g.from.filter(function (f) { return f.rate > 1e-6; }).map(function (f) { return stepName(f.step); });
+      if (g.fromSupply > 1e-6) froms.unshift('what you have');
+      var t = 'Bring in <b>' + fmt(g.total) + ' ' + unit(g.item) + ' ' + esc(nm(g.item)) + '</b>' + (froms.length ? ' from ' + froms.join(' and ') : '') + '.';
+      if (g.fluid) t += n > 1 ? ' Run one pipe past all ' + n + ' machines and connect each one.' + (g.lines > 1 ? ' It needs ' + g.lines + ' pipes.' : '') : '';
+      else if (g.layout && g.layout.type === 'over') t += ' <span class="bad">One machine needs more than a Mk' + g.mk + ' belt carries: use a faster belt or a lower clock.</span>';
+      else {
+        if (g.lines > 1) t += ' That needs <b>' + g.lines + ' belts</b> (a Mk' + g.mk + ' belt carries ' + g.cap + '/min), each feeding ' + uniq(g.groups).join(' or ') + ' machines.';
+        var L = (g.layouts || [])[0];
+        if (n === 1) t += ' Belt goes straight in.';
+        else if (usesTree(s)) t += ' Split it evenly: ' + treeWords(L) + '. Every machine gets exactly <b>' + fmt(g.per[0]) + '/min</b>.';
+        else t += ' Run the belt past the machines with <b>a splitter in front of each one</b>. They fill up, then each takes ' + fmt(g.per[0]) + '/min.';
+      }
+      out.push(t);
+    });
+    var cs = uniq(s.clocks.map(clockTxt));
+    if (cs.length === 1) out.push('Set ' + (n === 1 ? 'the ' + mn : 'all ' + n + ' ' + mNames(r.m, n)) + ' to <b>' + cs[0] + '%</b>.' + (s.amp ? ' Put <b>' + s.amp + ' somersloops</b> in each one.' : ''));
+    else {
+      var full = s.clocks.filter(function (c) { return Math.abs(c - s.clocks[0]) < 1e-9; }).length;
+      out.push('Set ' + full + ' ' + mNames(r.m, full) + ' to <b>' + clockTxt(s.clocks[0]) + '%</b> and the last one to <b>' + clockTxt(s.clocks[s.clocks.length - 1]) + '%</b>.');
+    }
+    s.outputs.forEach(function (o) {
+      var t = n > 1 ? (o.fluid ? 'Join the outputs into ' : 'Merge the outputs (one merger under each machine after the first) onto ') + (o.lines > 1 ? '<b>' + o.lines + ' ' + (o.fluid ? 'pipes' : 'belts') + '</b>' : 'one ' + (o.fluid ? 'pipe' : 'Mk' + o.mk + ' belt')) + ': <b>' + fmt(o.total) + ' ' + unit(o.item) + ' ' + esc(nm(o.item)) + '</b>.'
+        : 'Out comes <b>' + fmt(o.total) + ' ' + unit(o.item) + ' ' + esc(nm(o.item)) + '</b>.';
+      var dest = o.to.filter(function (x) { return x.rate > 1e-6; }).map(function (x) { return stepName(x.step) + ' ' + fmt(x.rate); });
+      if (o.toOutput > 1e-6) dest.push('your final output ' + fmt(o.toOutput));
+      if (o.toLeftover > 1e-4) dest.push('leftover ' + fmt(o.toLeftover));
+      if (dest.length) t += ' It goes to ' + dest.join(', ') + '.';
+      if (dest.length > 1 && !o.fluid) t += ' Run it past those machines, or split it there.';
+      out.push(t);
+    });
+    return out;
+  }
+  function stepDiagram(s) {
+    var r = s.recipe, n = s.count, ins = s.inputs, outs = s.outputs, k = ins.length, ko = outs.length, i;
+    var MW = 220, MH = 54, ROW = 74, CW = 220, CH = 64, LANE = 46;
+    var collapsed = n > 16, vrows = [];
+    if (collapsed) { for (i = 0; i < 6; i++) vrows.push(i); vrows.push(-1); vrows.push(n - 2, n - 1); } else for (i = 0; i < n; i++) vrows.push(i);
+    var L0 = ins[0] && ins[0].layouts && ins[0].layouts[0];
+    var tree = usesTree(s);
+    var lanes = [];
+    ins.forEach(function (g, j) {
+      var groups = !g.fluid && g.groups && !collapsed ? g.groups : [n], st = 0;
+      groups.forEach(function (m, gi) { lanes.push({ g: g, j: j, gi: gi, lo: st, hi: st + m, ng: groups.length }); st += m; });
+    });
+    var olanes = [];
+    outs.forEach(function (o, j) {
+      var groups = !o.fluid && o.groups && !collapsed ? o.groups : [n], st = 0;
+      groups.forEach(function (m, gi) { olanes.push({ o: o, j: j, gi: gi, lo: st, hi: st + m, ng: groups.length }); st += m; });
+    });
+    var x0 = 12, inX = x0 + CW + 40;
+    var laneW = tree ? L0.factors.length * 88 + 30 : lanes.length * LANE + 14;
+    var mL = inX + laneW + 20, mR = mL + MW;
+    var oX = mR + 44, cardOX = oX + olanes.length * LANE + 26, W = cardOX + CW + 12;
+    var top = 12, cardY = ins.map(function (g, j) { return top + j * (CH + 14); });
+    var machTop = top + k * (CH + 14) + 26;
+    function rowTopV(v) { return machTop + v * ROW; }
+    function pin(v, j) { return rowTopV(v) + MH * (j + 1) / (k + 1); }
+    function pout(v, j) { return rowTopV(v) + MH * (j + 1) / (ko + 1); }
+    function vOf(m) { return collapsed ? vrows.indexOf(m) : m; }
+    var rowsBottom = machTop + vrows.length * ROW - (ROW - MH);
+    var exitY = olanes.map(function (q, qi) { return rowsBottom + 34 + qi * (CH + 14) + CH / 2; });
+    var H = Math.max(rowsBottom, olanes.length ? exitY[exitY.length - 1] + CH / 2 : 0) + 14;
+    var paths = '', glyphs = '', boxes = '';
+    function ln(pts, c, arrow) { var d = P(pts); return '<path d="' + d + '" class="halo" style="stroke-width:10"/><path d="' + d + '" class="ln" style="stroke:' + c + ';stroke-width:3"' + (arrow ? ' marker-end="' + marker(c) + '"' : '') + '/>'; }
+    function sG(x, y, c, t) { var txt = t || 'S', w = Math.max(26, txt.length * 8 + 12); return '<g><rect x="' + (x - w / 2) + '" y="' + (y - 13) + '" width="' + w + '" height="26" rx="7" class="sp" style="stroke:' + c + ';stroke-width:2.2"/><text x="' + x + '" y="' + (y + 4) + '" class="gl2" text-anchor="middle">' + esc(txt) + '</text></g>'; }
+    function mG(x, y) { return '<g><circle cx="' + x + '" cy="' + y + '" r="13" class="mg" style="stroke-width:2.2"/><text x="' + x + '" y="' + (y + 4) + '" class="gl2" text-anchor="middle">M</text></g>'; }
+    function jG(x, y, c) { return '<circle cx="' + x + '" cy="' + y + '" r="6.5" class="jn" style="fill:' + c + '"/>'; }
+    function card(x, y, c, t1, t2, t3) {
+      return '<g><rect x="' + x + '" y="' + y + '" width="' + CW + '" height="' + CH + '" rx="11" class="cardbox"/><rect x="' + x + '" y="' + (y + 10) + '" width="4" height="' + (CH - 20) + '" rx="2" style="fill:' + c + '"/>' +
+        '<text x="' + (x + 16) + '" y="' + (y + 22) + '" class="t1">' + esc(clip(t1, 22)) + '</text><text x="' + (x + 16) + '" y="' + (y + 40) + '" class="t2">' + esc(clip(t2, 28)) + '</text>' +
+        (t3 ? '<text x="' + (x + 16) + '" y="' + (y + 56) + '" class="t3">' + esc(clip(t3, 32)) + '</text>' : '') + '</g>';
+    }
+    // input cards
+    ins.forEach(function (g, j) {
+      var froms = g.from.filter(function (f) { return f.rate > 1e-6; }).map(function (f) { return 'step ' + (f.step + 1); });
+      if (g.fromSupply > 1e-6) froms.unshift('what you have');
+      boxes += card(x0, cardY[j], col(g.item), nm(g.item), fmt(g.total) + ' ' + unit(g.item) + (g.lines > 1 ? ' · ' + g.lines + (g.fluid ? ' pipes' : ' belts') : ''), froms.length ? 'from ' + froms.join(' + ') : '');
+    });
+    // input belts
+    if (tree) {
+      var g0 = ins[0], c0 = col(g0.item), f = L0.factors, ey = cardY[0] + CH / 2;
+      var cy = function (a, z) { var t = 0; for (var q = a; q < z; q++) t += pin(q, 0); return t / (z - a); };
+      var rootX = inX + 18, rootY = cy(0, n);
+      paths += ln([[x0 + CW, ey], [inX, ey], [inX, rootY], [rootX, rootY]], c0, false);
+      (function node(level, a, z, x, y) {
+        var size = (z - a) / f[level];
+        for (var cc = 0; cc < f[level]; cc++) {
+          var ca = a + cc * size, cz = ca + size;
+          if (level + 1 < f.length) {
+            var xc = inX + 18 + (level + 1) * 88, yc = cy(ca, cz);
+            paths += ln([[x, y], [x + 44, y], [x + 44, yc], [xc, yc]], c0, false);
+            node(level + 1, ca, cz, xc, yc);
+          } else {
+            var py = pin(ca, 0);
+            paths += ln([[x, y], [x + 44, y], [x + 44, py], [mL, py]], c0, true);
+          }
+        }
+        glyphs += sG(x, y, c0, 'S ÷' + f[level]);
+      })(0, 0, n, rootX, rootY);
+    } else {
+      for (var li = lanes.length - 1; li >= 0; li--) {
+        var q = lanes[li], g = q.g, c = col(g.item), lx = inX + 12 + li * LANE;
+        var ey2 = cardY[q.j] + CH / 2 + (q.ng > 1 ? (q.gi - (q.ng - 1) / 2) * 12 : 0);
+        var rows = [];
+        if (collapsed) vrows.forEach(function (m, v) { if (m >= 0) rows.push(v); }); else for (var m = q.lo; m < q.hi; m++) rows.push(vOf(m));
+        var lastV = rows[rows.length - 1];
+        paths += ln([[x0 + CW, ey2], [lx, ey2], [lx, pin(lastV, q.j)], [mL, pin(lastV, q.j)]], c, true);
+        rows.slice(0, -1).forEach(function (v) {
+          var y = pin(v, q.j);
+          paths += ln([[lx, y], [mL, y]], c, true);
+          glyphs += g.fluid ? jG(lx, y, c) : sG(lx, y, c);
+        });
+      }
+    }
+    // machines
+    vrows.forEach(function (mi, v) {
+      var t = rowTopV(v);
+      if (mi < 0) { boxes += '<text x="' + (mL + MW / 2) + '" y="' + (t + MH / 2 + 5) + '" text-anchor="middle" class="t2">⋮  ' + (n - 8) + ' more, built the same way</text>'; return; }
+      boxes += '<g><rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="10" class="gm' + (s.amp ? ' amp' : '') + '"/>' +
+        '<text x="' + (mL + 16) + '" y="' + (t + (s.amp ? 23 : 32)) + '" class="t1">' + esc(clip(mName(r.m), 14)) + ' ' + (mi + 1) + '</text>' +
+        (s.amp ? '<text x="' + (mL + 16) + '" y="' + (t + 41) + '" class="t3">' + s.amp + ' somersloops</text>' : '') +
+        '<text x="' + (mR - 14) + '" y="' + (t + 33) + '" class="tc2" text-anchor="end">' + clockShort(s.clocks[mi]) + '%</text></g>';
+    });
+    // output belts
+    olanes.forEach(function (q, qi) {
+      var o = q.o, c = col(o.item), lx = oX + qi * LANE, ey = exitY[qi];
+      var rows = [];
+      if (collapsed) vrows.forEach(function (m, v) { if (m >= 0) rows.push(v); }); else for (var m = q.lo; m < q.hi; m++) rows.push(vOf(m));
+      var firstY = pout(rows[0], q.j);
+      paths += ln([[mR, firstY], [lx, firstY], [lx, ey], [cardOX, ey]], c, true);
+      rows.slice(1).forEach(function (v) { var y = pout(v, q.j); paths += ln([[mR, y], [lx, y]], c, false); glyphs += o.fluid ? jG(lx, y, c) : mG(lx, y); });
+      var dest = o.to.filter(function (x) { return x.rate > 1e-6; }).map(function (x) { return 'step ' + (x.step + 1); });
+      if (o.toOutput > 1e-6) dest.push('final output');
+      if (o.toLeftover > 1e-4) dest.push('leftover');
+      var rate = o.total * (q.hi - q.lo) / n;
+      boxes += card(cardOX, ey - CH / 2, c, nm(o.item), fmt(rate) + ' ' + unit(o.item) + (q.ng > 1 ? ' · belt ' + (q.gi + 1) + ' of ' + q.ng : o.fluid ? '' : ' · Mk' + o.mk + ' belt'), dest.length ? 'to ' + dest.join(', ') : '');
+    });
+    var defs = '<defs>' + ALL_COLS.map(function (c, ix) { return '<marker id="ah-' + ix + '" viewBox="0 0 10 10" refX="8.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M0,0.5 L10,5 L0,9.5 z" style="fill:' + c + '"/></marker>'; }).join('') + '</defs>';
+    return '<svg class="dg gdg" viewBox="0 0 ' + Math.round(W) + ' ' + Math.round(H) + '" style="width:100%;min-width:' + Math.round(W * 0.62) + 'px;max-width:' + Math.round(W) + 'px" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="How to wire this step">' + defs + paths + boxes + glyphs + '</svg>';
   }
 
   /* ---------------- inspector ---------------- */
@@ -1981,6 +2242,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
         if (o.toLeftover > 1e-4) t.push(['w', fmt(o.toLeftover) + ' leftover']);
         return '<div class="io"><div class="io-top">' + chip(o.item) + '<span class="nm">' + esc(nm(o.item)) + '</span><span class="rate">' + fmt(o.total) + '<small> ' + unit(o.item) + '</small></span></div><div class="tags">' + tagsHtml(t) + '</div></div>';
       }).join('') + '</div></div>';
+      body += '<button class="btn light" type="button" data-act="guide-open" data-v="rec:' + esc(r.id) + '">Show how to wire this step</button>';
       body += '<div class="tiny">' + trim(s.power, 1) + ' MW · exact need ' + trim(s.x, 3) + ' machines at 100%' + (s.altLayout ? ' · or ' + s.altLayout.n + ' at ' + clockShort(s.altLayout.clock) + '%' : '') + '</div>';
     } else if (n.kind === 'out') {
       var wi = -1; state.want.forEach(function (w, i) { if (w.item === n.item && wi < 0) wi = i; });
@@ -2132,7 +2394,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (pop && !e.target.closest('.pop') && !e.target.closest('[data-act="pick"]') && !e.target.closest('[data-act="fac-menu"]')) closePop();
     var nodeEl = e.target.closest('.dg .node');
     if (nodeEl) {
-      var sc = document.getElementById('map-scroll'); if (sc && sc._justDragged) return;
+      var vpe = document.getElementById('vp'); if (vpe && vpe._justDragged) return;
       var id = nodeEl.getAttribute('data-node'), key = id;
       if (id.indexOf('st:') === 0) key = 'rec:' + res.steps[+id.slice(3)].recipe.id;
       select(selected === key ? null : key); return;
@@ -2145,7 +2407,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var f = b.getAttribute('data-f'), num = ['tier', 'belt', 'pipe', 'miner', 'maxClock'].indexOf(f) >= 0;
       state[f] = num ? +v : v;
       if (f === 'tier') { state.belt = bestAt(D.belts, state.tier); state.pipe = bestAt(D.pipes, state.tier); state.miner = bestAt(D.miners, state.tier); }
-      if (f === 'view') { state.zoom = 0; saveLocal(); renderPlan(); renderPlanSel(); return; }
+      if (f === 'view') { saveLocal(); renderPlan(); return; }
       changed(true);
     } else if (act === 'rowset') {
       var list = b.getAttribute('data-list'), row = +b.getAttribute('data-row'), fld = b.getAttribute('data-f'), r = state[list][row];
@@ -2185,7 +2447,16 @@ details.mats[open] .chev { transform: rotate(180deg); }
       changed(true); pane = 'setup'; applyPane();
     } else if (act === 'select') { select(selected === v ? null : v); }
     else if (act === 'close-insp') { select(null); }
-    else if (act === 'zoom') { if (v === 'fit') fitZoom(false); else setZoom(currentZoom() + (v === '+' ? 0.15 : -0.15)); }
+    else if (act === 'zoom') {
+      var vpz = document.getElementById('vp');
+      if (v === 'fit') refit(); else if (vpz) zoomAt(vpz.clientWidth / 2, vpz.clientHeight / 2, v === '+' ? 1.25 : 0.8);
+    }
+    else if (act === 'gstep') { state.guideStep = v; saveLocal(); renderPlan(); }
+    else if (act === 'gprev' || act === 'gnext') {
+      var gi = guideIndex() + (act === 'gnext' ? 1 : -1);
+      if (res && res.steps[gi]) { state.guideStep = 'rec:' + res.steps[gi].recipe.id; saveLocal(); renderPlan(); }
+    }
+    else if (act === 'guide-open') { state.view = 'guide'; state.guideStep = v; selected = null; saveLocal(); renderPlan(); renderInspector(); var pc = document.getElementById('plan'); if (pc) pc.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     else if (act === 'recipe') {
       var n = findNode(); if (!n || n.kind !== 'step') return;
       var main = n.step.recipe.out[0][0];
@@ -2224,7 +2495,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       else if (k === 'y' || (k === 'z' && e.shiftKey)) { redo(); e.preventDefault(); }
     }
   });
-  window.addEventListener('resize', function () { closePop(); if (!state || !state.zoom) fitZoom(true); });
+  window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
   function toast(msg) {
     var t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
     document.body.appendChild(t); setTimeout(function () { t.classList.add('out'); setTimeout(function () { t.remove(); }, 400); }, 4200);
@@ -2232,7 +2503,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function applyPane() {
     document.querySelectorAll('[data-pane]').forEach(function (p) { if (p.getAttribute('data-pane') === pane) p.removeAttribute('hidden-pane'); else p.setAttribute('hidden-pane', ''); });
     document.querySelectorAll('.tabs button').forEach(function (b) { b.setAttribute('aria-selected', String(b.getAttribute('data-v') === pane)); });
-    if (pane === 'plan' && state && !state.zoom) fitZoom(true);
+    if (pane === 'plan' && !vpUser) refit();
   }
 
   /* ---------------- moving grid lines ---------------- */
