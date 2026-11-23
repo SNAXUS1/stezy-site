@@ -463,6 +463,25 @@ details.mats[open] .chev { transform: rotate(180deg); }
 .hdr-btn { border: 1px solid var(--line-2); background: var(--panel-2); color: var(--fg); border-radius: 999px; padding: 5px 12px; font: 600 12px var(--display); display: inline-flex; gap: 6px; align-items: center; }
 .hdr-btn:hover { border-color: var(--muted); }
 @media (max-width: 520px) { .sm-ctl { grid-template-columns: 1fr 1fr; } }
+.scrim.center { justify-content: center; align-items: center; padding: 12px; }
+.sheet.wide { width: min(1180px, 100%); height: min(94vh, 100%); border: 1px solid var(--line-2); border-radius: 16px; overflow: hidden; animation: pop .2s ease-out; }
+.sm-top { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 18px; }
+.sm-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.sm-rows { display: flex; flex-direction: column; gap: 6px; }
+.sm-row { display: flex; gap: 8px; align-items: center; }
+.sm-row .num { flex: 1; min-width: 0; }
+.sm-of { font-size: 13px; color: var(--muted); }
+.sm-outf .num { width: 100%; }
+.sm-view { margin: 0 0 10px; }
+.sm-sum .st { border-left: 3px solid var(--c, var(--line-2)); }
+.sm-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; margin-top: 14px; align-items: start; }
+.sm-list { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; }
+.sm-out { display: inline-flex; align-items: baseline; gap: 4px; padding: 1px 8px; border-radius: 6px; border: 1.5px solid var(--c); font-size: 13px; white-space: nowrap; }
+.sm-out b { color: var(--c); }
+.sm-unit { margin: 0 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 10px 12px; }
+.sm-unit figcaption { font: 600 11px var(--mono); letter-spacing: .06em; color: var(--faint); text-transform: uppercase; margin-bottom: 6px; }
+.muted { color: var(--muted); }
+@media (max-width: 760px) { .sm-top, .sm-cols { grid-template-columns: 1fr; } .sheet.wide { height: 100%; border-radius: 0; } .scrim.center { padding: 0; } }
 .glist { display: flex; flex-direction: column; gap: 3px; margin: 7px 0 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font: 12.5px/1.5 var(--mono); color: var(--muted); }
 .glist b { color: var(--fg); font-weight: 600; }
 .glist i { font-style: normal; display: inline-block; min-width: 26px; text-align: center; border-radius: 5px; padding: 0 5px; margin-right: 6px; color: var(--ink); font-weight: 700; }
@@ -1273,8 +1292,10 @@ details.mats[open] .chev { transform: rotate(180deg); }
     };
   }
   // fields that belong to one factory (the rest, like tier and alternates, are shared)
-  var FF = ['name', 'have', 'want', 'recipeChoice', 'lockCount', 'waterUnlimited', 'limitToHave', 'goal', 'split', 'easyCounts', 'built', 'example', 'lastOut', 'selfPower', 'kind', 'powerHave', 'itemsWant', 'powerWant', 'geoI', 'geoN', 'geoP'];
-  var FF_DEF = { selfPower: false, kind: 'items', powerHave: 0, itemsWant: null, powerWant: null, geoI: 0, geoN: 0, geoP: 0 };
+  var FF = ['name', 'have', 'want', 'recipeChoice', 'lockCount', 'waterUnlimited', 'limitToHave', 'goal', 'split', 'easyCounts', 'built', 'example', 'lastOut', 'selfPower', 'kind', 'powerHave', 'itemsWant', 'powerWant', 'geoI', 'geoN', 'geoP', 'kindSnap'];
+  var FF_DEF = { selfPower: false, kind: 'items', powerHave: 0, itemsWant: null, powerWant: null, geoI: 0, geoN: 0, geoP: 0, kindSnap: null };
+  // Items and Power keep separate plans inside one factory
+  var KF = ['have', 'want', 'recipeChoice', 'lockCount', 'built', 'limitToHave', 'selfPower', 'powerHave', 'geoI', 'geoN', 'geoP', 'guideStep', 'lastOut'];
   function snapshot() { var o = {}; FF.forEach(function (k) { var v = state[k] === undefined ? (k in FF_DEF ? FF_DEF[k] : null) : state[k]; o[k] = JSON.parse(JSON.stringify(v)); }); return o; }
   function loadSnap(s) { FF.forEach(function (k) { if (s[k] !== undefined) state[k] = JSON.parse(JSON.stringify(s[k])); else if (k in FF_DEF) state[k] = FF_DEF[k]; }); }
   function switchFactory(id) {
@@ -1673,21 +1694,113 @@ details.mats[open] .chev { transform: rotate(180deg); }
   }
   function mergeCount(m) { return m <= 1 ? 0 : Math.ceil((m - 1) / 2); }
   function treeWordsS(f) { return 'a splitter into ' + f[0] + (f.length > 1 ? ', then ' + f.slice(1).map(function (x) { return 'each of those into ' + x; }).join(', then ') : ''); }
-
-  // parse "60, 60, 120" or "12x60, 2×30"
-  function parseBelts(txt) {
-    var out = [];
-    String(txt || '').split(/[,;\s]+/).forEach(function (tok) {
-      if (!tok) return;
-      var m = tok.match(/^(\d+)\s*[x×*]\s*(\d*\.?\d+)$/i);
-      if (m) { for (var i = 0; i < Math.min(64, +m[1]); i++) out.push(+m[2]); return; }
-      var v = parseFloat(tok); if (v > 0) out.push(v);
-    });
-    return out.slice(0, 64);
+  var OUTC = ['#f0a447', '#5cb5e8', '#5fd0b8', '#d98cf0', '#f2d85a', '#ef7f6e', '#8fd16f', '#a8a2ff', '#f59fc6', '#7fd4e8'];
+  function outCol(k) { return OUTC[k % OUTC.length]; }
+  function fracWords(p, q) {
+    var g = gcd(p, q); p /= g; q /= g;
+    if (p === 1 && q === 2) return 'half of';
+    if (p === 1 && q === 3) return 'a third of';
+    if (p === 1 && q === 4) return 'a quarter of';
+    if (p === 3 && q === 4) return 'three quarters of';
+    return p + '/' + q + ' of';
   }
 
-  // Build a network that turns the inputs into P equal parts.
-  // lines: belts after the first merge/split, each split into Mp equal pieces; lines are in groups of Gp, each group feeds Mp parts.
+  function uniquePerms(a) {
+    var out = [], seen = {};
+    (function go(pre, rest) {
+      if (!rest.length) { var k = pre.join(','); if (!seen[k]) { seen[k] = 1; out.push(pre); } return; }
+      for (var i = 0; i < rest.length; i++) go(pre.concat([rest[i]]), rest.slice(0, i).concat(rest.slice(i + 1)));
+    })([], a);
+    return out;
+  }
+  function buildTree(f, assign, level, a, z) {
+    var first = assign[a], pure = true;
+    for (var i = a + 1; i < z; i++) if (assign[i] !== first) { pure = false; break; }
+    if (pure) return { leaf: true, out: first, count: z - a };
+    var size = (z - a) / f[level], kids = [];
+    for (var c = 0; c < f[level]; c++) kids.push(buildTree(f, assign, level + 1, a + c * size, a + (c + 1) * size));
+    return { leaf: false, f: f[level], kids: kids };
+  }
+  function treeStats(t, st) {
+    st = st || { splitters: 0, lanes: {} };
+    if (t.leaf) st.lanes[t.out] = (st.lanes[t.out] || 0) + 1;
+    else { st.splitters++; t.kids.forEach(function (k) { treeStats(k, st); }); }
+    return st;
+  }
+  // split one belt into the given portions, skipping branches that all go to the same place
+  function cutTree(q, portions) {
+    var su = splitUnit(q), assign = [];
+    portions.forEach(function (p) { for (var t = 0; t < p.n; t++) assign.push(p.out); });
+    for (var b = 0; b < su.back; b++) assign.push(-1);
+    var best = null;
+    uniquePerms(su.factors).forEach(function (f) {
+      var tree = buildTree(f, assign, 0, 0, assign.length), stt = treeStats(tree);
+      var lanes = 0; Object.keys(stt.lanes).forEach(function (k) { lanes += stt.lanes[k]; });
+      var score = stt.splitters + lanes * 0.5;
+      if (!best || score < best.score - 1e-9) best = { score: score, factors: f, tree: tree, splitters: stt.splitters, lanes: stt.lanes };
+    });
+    best.su = su; best.loopMergers = su.back ? mergeCount(1 + (best.lanes[-1] || 0)) : 0;
+    return best;
+  }
+  // "Whole belts first": lay the belts end to end, cut where each output is full.
+  // Belts that fit go straight in; only belts that sit on a cut get split.
+  function ribbonTry(ins, order, targets, C) {
+    var T = ins.reduce(function (a, b) { return a + b; }, 0), eps = 1e-7 * Math.max(1, T);
+    var k = 0, rem = targets[0].rate, whole = [], cuts = [];
+    for (var oi = 0; oi < order.length; oi++) {
+      var i = order[oi], r = ins[i], left = r, parts = [];
+      while (left > eps) {
+        if (k >= targets.length) return null;
+        var take = Math.min(left, rem);
+        if (take > eps) parts.push({ out: k, rate: take });
+        left -= take; rem -= take;
+        if (rem <= eps) { k++; rem = k < targets.length ? targets[k].rate : 0; }
+      }
+      if (parts.length === 1) { whole.push({ i: i, out: parts[0].out }); continue; }
+      var q = 0;
+      for (var qq = 2; qq <= 64 && !q; qq++) {
+        if (parts.every(function (p) { var v = p.rate / r * qq; return Math.abs(v - Math.round(v)) < 1e-6 && Math.round(v) >= 1; })) q = qq;
+      }
+      if (!q) return null;
+      var su = splitUnit(q);
+      if (r * su.load > C + 1e-9) return null;
+      var portions = parts.map(function (p) { return { out: p.out, n: Math.round(p.rate / r * q), rate: p.rate }; });
+      cuts.push({ i: i, rate: r, q: q, su: su, portions: portions, ct: cutTree(q, portions) });
+    }
+    var outs = targets.map(function (t, kk) { return { name: t.name, rate: t.rate, take: t.take, k: kk, whole: [], pieces: [], lanes: 0 }; });
+    whole.forEach(function (w) { outs[w.out].whole.push(w.i); outs[w.out].lanes++; });
+    cuts.forEach(function (c) { c.portions.forEach(function (p) { outs[p.out].pieces.push({ i: c.i, n: p.n, q: c.q, rate: p.rate }); outs[p.out].lanes += c.ct.lanes[p.out] || 0; }); });
+    var splitters = 0, mergers = 0, loops = 0;
+    cuts.forEach(function (c) { splitters += c.ct.splitters; mergers += c.ct.loopMergers; if (c.su.back) loops++; });
+    outs.forEach(function (o) { o.mergers = mergeCount(o.lanes); mergers += o.mergers; });
+    return { method: 'ribbon', ins: ins, outs: outs, whole: whole, cuts: cuts, splitters: splitters, mergers: mergers, loops: loops, T: T,
+      cost: splitters + mergers + 0.5 * loops + 0.3 * cuts.length };
+  }
+  function ribbonPlan(ins, targets, C) {
+    var idx = ins.map(function (v, i) { return i; });
+    var desc = idx.slice().sort(function (a, b) { return ins[b] - ins[a] || a - b; });
+    var asc = idx.slice().sort(function (a, b) { return ins[a] - ins[b] || a - b; });
+    // fit whole belts into each output first, cut a belt only when nothing else fits
+    var unused = desc.slice(), fit = [], eps = 1e-7;
+    targets.forEach(function (t) {
+      var rem = t.rate - (fit._carry || 0); fit._carry = 0;
+      while (rem > eps && unused.length) {
+        var pick = -1;
+        for (var u = 0; u < unused.length; u++) if (ins[unused[u]] <= rem + eps) { pick = u; break; }
+        if (pick < 0) { pick = unused.length - 1; fit._carry = ins[unused[pick]] - rem; }
+        var i = unused.splice(pick, 1)[0]; fit.push(i); rem -= ins[i];
+      }
+    });
+    fit = fit.concat(unused);
+    var best = null;
+    [idx, desc, asc, fit].forEach(function (order) {
+      var r = ribbonTry(ins, order, targets, C);
+      if (r && (!best || r.cost < best.cost - 1e-9)) best = r;
+    });
+    return best;
+  }
+
+  // "Fewest parts": put belts on lines, split every line into P, part k takes piece k of every line
   function partsNet(ins, P, C) {
     var K = ins.length, T = ins.reduce(function (a, b) { return a + b; }, 0), same = ins.every(function (v) { return Math.abs(v - ins[0]) < 1e-9; });
     var best = null;
@@ -1708,11 +1821,10 @@ details.mats[open] .chev { transform: rotate(180deg); }
             lines.push({ from: from, rate: R });
           }
           consider({ T: T, C: C, P: P, ins: ins, sN: sN, preSplitOf: sN > 1 ? ins.map(function () { return sN; }) : null, lines: lines, Gp: Gp, Mp: Mp, g: g, su: su,
-            pre: (sN > 1 ? 0 : G * mergeCount(K / G)) , splitters: (sN > 1 ? K * treeCount(E.easyFactors(sN)) : 0) + G * su.splitters, mergers: G * su.mergers + P * mergeCount(Gp) });
+            pre: (sN > 1 ? 0 : G * mergeCount(K / G)), splitters: (sN > 1 ? K * treeCount(E.easyFactors(sN)) : 0) + G * su.splitters, mergers: G * su.mergers + P * mergeCount(Gp) });
         }
       });
     }
-    // any belts: pack them onto lines (first fit, biggest first), split every line into P, part k takes piece k of every line
     var su2 = splitUnit(P), capEff = C / su2.load, pieces = [], preSplitOf = ins.map(function () { return 1; }), preSpl = 0;
     ins.forEach(function (v, i) {
       var sN = 1; while (v / sN > capEff + 1e-9 && sN < 64) sN = nextEasy(sN + 1);
@@ -1732,177 +1844,290 @@ details.mats[open] .chev { transform: rotate(180deg); }
       consider({ T: T, C: C, P: P, ins: ins, sN: 1, preSplitOf: preSpl ? preSplitOf : null, lines: bins, Gp: Gn, Mp: P, g: 1, su: su2,
         pre: bins.reduce(function (a, b) { return a + mergeCount(b.from.length); }, 0), splitters: preSpl + Gn * su2.splitters, mergers: Gn * su2.mergers + (Gn > 1 ? P * mergeCount(Gn) : 0) });
     }
+    if (best) best.method = 'lines';
     return best;
   }
-  // a fraction p/q close to x, q up to 54
   function frac(x) {
     var bestF = null;
     for (var q = 1; q <= 54; q++) { var p = Math.round(x * q); if (p < 1 || p >= q) continue; var err = Math.abs(p / q - x); if (!bestF || err < bestF.err - 1e-9) bestF = { p: p, q: q, err: err }; if (err < 1e-9) break; }
     return bestF;
   }
+  // returns { err } or { ribbon, lines, targets }
   function splitPlan(ins, mode, M, X, C) {
     var T = ins.reduce(function (a, b) { return a + b; }, 0);
-    if (!ins.length) return { err: 'Type your belts, e.g. <b>12×60</b> or <b>60, 60, 120</b>.' };
+    if (!ins.length || !(T > 0)) return { err: 'Add at least one belt.' };
     var tooBig = ins.filter(function (v) { return v > C + 1e-9; });
-    if (tooBig.length) return { err: 'A belt can’t carry ' + fmt(tooBig[0]) + '/min on this Mk (max ' + C + ').' };
+    if (tooBig.length) return { err: 'One belt can’t carry ' + fmt(tooBig[0]) + '/min on Mk' + state.belt + ' (max ' + C + '). Pick a faster belt in Progress.' };
+    var targets, lines = null, approx = null;
     if (mode === 'equal') {
-      if (M * C < T - 1e-9) return { err: 'Each output would carry <b>' + fmt(T / M) + '/min</b>, more than one belt (' + C + '). Use at least <b>' + Math.ceil(T / C - 1e-9) + ' outputs</b>, or a faster belt.' };
-      if (M === ins.length && ins.every(function (v) { return Math.abs(v - ins[0]) < 1e-9; })) return { err: 'Your belts are already ' + M + ' equal belts. Nothing to do.' };
-      var n = partsNet(ins, M, C); if (!n) return { err: 'No clean layout fits this belt. Try a faster belt.' };
-      n.outs = []; for (var k = 0; k < M; k++) n.outs.push({ name: 'Out ' + (k + 1), parts: [k], rate: T / M });
-      n.outMergers = 0; return n;
+      if (M * C < T - 1e-9) return { err: 'Each output would carry <b>' + fmt(T / M) + '/min</b>, more than one belt (' + C + '). Use at least <b>' + Math.ceil(T / C - 1e-9) + ' belts out</b>, or a faster belt.' };
+      if (M === ins.length && ins.every(function (v) { return Math.abs(v - ins[0]) < 1e-9; })) return { err: 'Your belts are already ' + M + ' equal belts. Nothing to do.', info: true };
+      targets = []; for (var k = 0; k < M; k++) targets.push({ name: 'Out ' + (k + 1), rate: T / M });
+      lines = partsNet(ins, M, C);
+      if (lines) { lines.outs = targets.map(function (t, kk) { return { name: t.name, rate: t.rate, parts: [kk] }; }); }
+    } else {
+      if (!(X > 0) || X >= T - 1e-9) return { err: 'Take out an amount between 0 and your total (' + fmt(T) + '/min).' };
+      if (X > C + 1e-9) return { err: 'The amount you take (' + fmt(X) + '/min) is more than one belt carries (' + C + ').' };
+      var mk = function (x) { var rest = T - x, nr = Math.max(1, Math.ceil(rest / C - 1e-9)), t = [{ name: 'Take', rate: x, take: true }]; for (var j = 0; j < nr; j++) t.push({ name: nr > 1 ? 'Rest ' + (j + 1) : 'Rest', rate: rest / nr }); return t; };
+      targets = mk(X);
+      if (!ribbonPlan(ins, targets, C)) { var f = frac(X / T); approx = T * f.p / f.q; targets = mk(approx); }
     }
-    if (!(X > 0) || X >= T - 1e-9) return { err: 'Take out an amount between 0 and your total (' + fmt(T) + '/min).' };
-    if (X > C + 1e-9) return { err: 'The amount you take (' + fmt(X) + '/min) is more than one belt carries (' + C + ').' };
-    var f = frac(X / T), q = f.q, p = f.p, part = T / q;
-    var n2 = partsNet(ins, q, C); if (!n2) return { err: 'No clean layout fits this belt. Try a faster belt.' };
-    var outs = [], aParts = []; for (var a = 0; a < p; a++) aParts.push(a);
-    outs.push({ name: 'Take', parts: aParts, rate: part * p, take: true });
-    var restParts = [], per = Math.max(1, Math.floor(C / part + 1e-9)); for (var b = p; b < q; b++) restParts.push(b);
-    for (var st = 0, idx = 1; st < restParts.length; st += per, idx++) { var ch = restParts.slice(st, st + per); outs.push({ name: 'Rest' + (restParts.length > per ? ' ' + idx : ''), parts: ch, rate: part * ch.length }); }
-    n2.outs = outs; n2.frac = f; n2.X = X;
-    n2.outMergers = outs.reduce(function (a2, o) { return a2 + mergeCount(o.parts.length); }, 0);
-    n2.mergers += n2.outMergers;
-    return n2;
+    var ribbon = ribbonPlan(ins, targets, C);
+    if (!ribbon && !lines) return { err: 'No clean layout fits a Mk' + state.belt + ' belt here. Try a faster belt in Progress.' };
+    return { ribbon: ribbon, lines: lines, targets: targets, approx: approx, T: T, X: X };
   }
-  function splitWords(n, bm) {
-    var out = [], u = '/min', K = n.ins.length, G = n.lines.length;
-    var splitIns = n.preSplitOf ? n.preSplitOf.map(function (s, i) { return [i, s]; }).filter(function (x) { return x[1] > 1; }) : [];
-    if (splitIns.length) {
-      if (splitIns.length === K && splitIns.every(function (x) { return x[1] === splitIns[0][1]; })) out.push('<b>Split first:</b> split ' + (K === 1 ? 'the belt' : 'each of your ' + K + ' belts') + ' into <b>' + splitIns[0][1] + '</b> (' + treeWordsS(E.easyFactors(splitIns[0][1])) + '). That keeps the loop-back below under the belt limit.');
-      else out.push('<b>Split first:</b> ' + splitIns.map(function (x) { return 'belt ' + (x[0] + 1) + ' (' + fmt(n.ins[x[0]]) + u + ') into ' + x[1]; }).join(', ') + ', so no belt below goes over the limit.');
+
+  /* ----- drawing: whole belts first ----- */
+  function ribbonSvg(n) {
+    var K = n.ins.length, O = n.outs.length, ROW = 50, top = 40;
+    var inX = 20, inW = 150, spX = 400, spW = 130, oX = 760, oW = 190, W = oX + oW + 20;
+    var H = Math.max(K, O, n.cuts.length) * ROW + top + 20;
+    var body = '', over = '';
+    var cutOf = {}; n.cuts.forEach(function (c) { cutOf[c.i] = c; });
+    function yIn(i) { return top + (i + 0.5) * (H - top - 10) / K; }
+    function yOut(k) { return top + (k + 0.5) * (H - top - 10) / O; }
+    function yCut(j) { return top + (j + 0.5) * (H - top - 10) / Math.max(1, n.cuts.length); }
+    function curve(x1, y1, x2, y2, c, w, dash) { var mx = (x1 + x2) / 2; return '<path d="M' + x1 + ' ' + y1 + ' C' + mx + ' ' + y1 + ' ' + mx + ' ' + y2 + ' ' + x2 + ' ' + y2 + '" style="fill:none;stroke:' + c + ';stroke-width:' + (w || 3) + (dash ? ';stroke-dasharray:6 5' : '') + ';stroke-linecap:round"/>'; }
+    function box(x, y, w, h, t1, t2, c, fillTint) {
+      return '<rect x="' + x + '" y="' + (y - h / 2) + '" width="' + w + '" height="' + h + '" rx="9" style="fill:' + (fillTint || 'var(--panel-2)') + ';stroke:' + c + ';stroke-width:2"/>' +
+        '<text x="' + (x + 14) + '" y="' + (y + (t2 ? -2 : 5)) + '" style="font:600 14px var(--display);fill:var(--fg)">' + esc(t1) + '</text>' +
+        (t2 ? '<text x="' + (x + 14) + '" y="' + (y + 14) + '" style="font:12px var(--mono);fill:var(--muted)">' + esc(t2) + '</text>' : '');
     }
-    var merged = n.lines.filter(function (l) { return l.from.length > 1; });
-    if (merged.length) {
-      var uniform = n.lines.every(function (l) { return l.from.length === n.lines[0].from.length; }) && !splitIns.length;
-      if (uniform && n.lines.every(function (l) { return Math.abs(l.rate - n.lines[0].rate) < 1e-9; })) out.push('<b>Merge first:</b> join your ' + K + ' belts into <b>' + G + ' ' + plural(G, 'belt') + '</b>, ' + n.lines[0].from.length + ' into each (' + mergeCount(n.lines[0].from.length) + ' ' + plural(mergeCount(n.lines[0].from.length), 'merger') + ' each). Each carries <b>' + fmt(n.lines[0].rate) + u + '</b>.');
-      else out.push('<b>Merge first:</b> ' + n.lines.map(function (l, j) { return '<b>line ' + String.fromCharCode(65 + j) + '</b> = belt' + (l.from.length > 1 ? 's ' : ' ') + uniq(l.from.map(function (i) { return i + 1; })).join(' + ') + ' (' + fmt(l.rate) + u + ')'; }).join('; ') + '. Mergers take up to 3 belts.');
+    function pill(x, y, t, c) { var w = t.length * 7.4 + 14; return '<rect x="' + (x - w / 2) + '" y="' + (y - 10) + '" width="' + w + '" height="20" rx="10" style="fill:var(--panel);stroke:' + c + ';stroke-width:1.5"/><text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" style="font:600 11.5px var(--mono);fill:var(--fg)">' + esc(t) + '</text>'; }
+    var hd = function (x, t) { return '<text x="' + x + '" y="20" style="font:600 11px var(--mono);letter-spacing:.08em;fill:var(--faint)">' + t + '</text>'; };
+    var head = hd(inX, 'YOUR BELTS') + (n.cuts.length ? hd(spX, 'SPLIT THESE') : '') + hd(oX, 'OUT');
+    // whole belts straight to their output
+    n.whole.forEach(function (w) { var y1 = yIn(w.i), y2 = yOut(w.out); body += curve(inX + inW, y1, oX, y2, outCol(w.out), 3.2); });
+    // cut belts: to their splitter, then pieces to each output
+    n.cuts.forEach(function (c, j) {
+      var y1 = yIn(c.i), ys = yCut(j);
+      body += curve(inX + inW, y1, spX, ys, 'var(--muted)', 3.2);
+      c.portions.forEach(function (p) {
+        var y2 = yOut(p.out), col = outCol(p.out);
+        body += curve(spX + spW, ys, oX, y2, col, 3.2);
+        var mx = spX + spW + (oX - spX - spW) * 0.45, my = ys + (y2 - ys) * 0.45;
+        over += pill(mx, my, (p.n === c.q ? 'all' : fracWords(p.n, c.q).replace(' of', '')) + ' · ' + fmt(p.rate), col);
+      });
+      over += box(spX, ys, spW, 42, 'Split ' + (c.su.back ? '+ loop' : '÷' + c.q), c.ct.splitters + ' ' + plural(c.ct.splitters, 'splitter') + (c.ct.loopMergers ? ' · ' + c.ct.loopMergers + ' merger' : ''), 'var(--belt)');
+    });
+    for (var i = 0; i < K; i++) {
+      var c0 = cutOf[i], wo = null; n.whole.forEach(function (w) { if (w.i === i) wo = w.out; });
+      over += box(inX, yIn(i), inW, 40, 'Belt ' + (i + 1), fmt(n.ins[i]) + '/min', c0 ? 'var(--muted)' : outCol(wo));
     }
-    if (n.Mp > 1) {
-      var su = n.su, lw = G === 1 ? 'the belt' : 'each of the ' + G + ' ' + (merged.length ? 'lines' : 'belts');
-      if (!su.back) out.push('<b>Split ' + lw + ' into ' + n.Mp + ' equal pieces:</b> ' + treeWordsS(su.factors) + ' (' + su.splitters + ' ' + plural(su.splitters, 'splitter') + ' each).');
-      else out.push('<b>Split ' + lw + ' into ' + n.Mp + ' equal pieces</b> (' + n.Mp + ' doesn’t split cleanly, so loop some back): put a <b>merger</b> on the belt, then ' + treeWordsS(su.factors) + ' to get ' + su.Q + '. Send <b>' + su.back + ' of the ' + su.Q + '</b> back into that merger. The other ' + n.Mp + ' come out exactly equal once it settles.');
-    }
-    if (n.Gp > 1) out.push('<b>Combine the pieces:</b> part 1 takes piece 1 from ' + (n.g > 1 ? 'each line in its group' : 'every line') + ', part 2 takes piece 2, and so on (' + mergeCount(n.Gp) + ' ' + plural(mergeCount(n.Gp), 'merger') + ' per part). Every part is now exactly <b>' + fmt(n.T / n.P) + u + '</b>.');
-    if (n.g > 1 && n.Gp > 1) out.push('That’s ' + n.g + ' identical groups side by side. Build one, copy it.');
-    if (n.frac) {
-      var tk = n.outs[0];
-      out.push('<b>Take</b> ' + tk.parts.length + ' of the ' + n.P + ' parts' + (tk.parts.length > 1 ? ' and merge them' : '') + ': <b>' + fmt(tk.rate) + u + '</b>' + (n.frac.err > 1e-9 ? ' (closest clean amount to the ' + fmt(n.X) + ' you asked for)' : '') + '. Merge the other ' + (n.P - tk.parts.length) + ' parts into the rest: ' + n.outs.slice(1).map(function (o) { return '<b>' + fmt(o.rate) + u + '</b>'; }).join(' + ') + '.');
-    } else out.push('<b>Result:</b> ' + n.outs.length + ' ' + plural(n.outs.length, 'belt') + ', each <b>' + fmt(n.outs[0].rate) + u + '</b>.');
-    return out;
+    n.outs.forEach(function (o, k) {
+      var y = yOut(k);
+      over += box(oX, y, oW, 46, o.name + ' · ' + fmt(o.rate) + '/min', o.lanes > 1 ? o.lanes + ' in · ' + o.mergers + ' ' + plural(o.mergers, 'merger') : 'straight through', outCol(k));
+      if (o.lanes > 1) over += '<circle cx="' + (oX - 14) + '" cy="' + y + '" r="11" style="fill:var(--panel-2);stroke:var(--merge);stroke-width:2"/><text x="' + (oX - 14) + '" y="' + (y + 4) + '" text-anchor="middle" style="font:700 11px var(--mono);fill:var(--fg)">M</text>';
+    });
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;min-width:640px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Which belt goes where">' + head + body + over + '</svg>';
   }
+  function ribbonWords(n) {
+    var out = [];
+    function bl(i) { return 'Belt ' + (i + 1); }
+    n.outs.forEach(function (o, k) {
+      var src = o.whole.map(bl).concat(o.pieces.map(function (p) { return fracWords(p.n, p.q) + ' ' + bl(p.i); }));
+      out.push('<span class="sm-out" style="--c:' + outCol(k) + '"><b>' + esc(o.name) + '</b> · ' + fmt(o.rate) + '/min</span> = ' + src.join(' + ') +
+        (o.lanes > 3 ? ' <span class="muted">(' + o.lanes + ' belts in: chain ' + o.mergers + ' mergers, each takes 3)</span>' : o.lanes > 1 ? ' <span class="muted">(1 merger)</span>' : ''));
+    });
+    var steps = [];
+    n.cuts.forEach(function (c) {
+      var su = c.su;
+      steps.push('<b>Split ' + bl(c.i) + '</b> (' + fmt(c.rate) + '/min) with ' + c.ct.splitters + ' ' + plural(c.ct.splitters, 'splitter') + (su.back ? ' and a merger in front, sending ' + su.back + ' of ' + su.Q + ' pieces back into it' : '') + ', as in its picture: ' +
+        c.portions.map(function (p) { return '<span class="sm-out" style="--c:' + outCol(p.out) + '">' + esc(n.outs[p.out].name) + ' gets ' + fmt(p.rate) + '</span>'; }).join(' '));
+    });
+    return { outs: out, splits: steps };
+  }
+  /* ----- drawing: fewest parts (lines) ----- */
   function splitSvg(n) {
-    var K = n.ins.length, G = n.lines.length, O = n.outs.length, rowH = 24, inX = 14, gX = 190, sX = 340, oX = 560, W = 700;
+    var K = n.ins.length, G = n.lines.length, O = n.outs.length, rowH = 40, inX = 20, gX = 250, sX = 480, oX = 760, W = 960;
     var showLines = n.lines.some(function (l) { return l.from.length > 1; }) || !!n.preSplitOf || G !== K;
-    var H = Math.max(Math.max(K, O, G) * rowH + 40, 120), top = 26, body = '';
-    var orange = 'var(--belt)', green = 'var(--merge)';
+    var H = Math.max(Math.max(K, O, G) * rowH + 50, 160), top = 36, body = '';
     function yAt(i, cnt) { return top + (i + 0.5) * (H - top - 10) / cnt; }
-    function path(x1, y1, x2, y2, c, w) { var mx = (x1 + x2) / 2; return '<path d="M' + x1 + ' ' + y1 + ' C' + mx + ' ' + y1 + ' ' + mx + ' ' + y2 + ' ' + x2 + ' ' + y2 + '" style="fill:none;stroke:' + c + ';stroke-width:' + (w || 2) + ';opacity:.85"/>'; }
-    function box(x, y, w, h, t1, t2, c) { return '<rect x="' + x + '" y="' + (y - h / 2) + '" width="' + w + '" height="' + h + '" rx="7" style="fill:var(--panel-2);stroke:' + c + ';stroke-width:1.6"/><text x="' + (x + w / 2) + '" y="' + (y + (t2 ? -1 : 4)) + '" text-anchor="middle" style="font:600 11.5px var(--display);fill:var(--fg)">' + esc(t1) + '</text>' + (t2 ? '<text x="' + (x + w / 2) + '" y="' + (y + 12) + '" text-anchor="middle" style="font:10px var(--mono);fill:var(--muted)">' + esc(t2) + '</text>' : ''); }
-    function hd(x, t) { return '<text x="' + x + '" y="14" style="font:600 10.5px var(--mono);fill:var(--faint)">' + t + '</text>'; }
-    var lab = hd(inX, 'IN · ' + K) + (showLines ? hd(gX, 'LINES · ' + G) : '') + (n.Mp > 1 ? hd(sX, 'SPLIT ÷' + n.Mp) : '') + hd(oX, 'OUT · ' + O);
-    var bh = function (cnt, max) { return Math.min(max, Math.max(16, (H - top) / cnt - 6)); };
+    function path(x1, y1, x2, y2, c, w) { var mx = (x1 + x2) / 2; return '<path d="M' + x1 + ' ' + y1 + ' C' + mx + ' ' + y1 + ' ' + mx + ' ' + y2 + ' ' + x2 + ' ' + y2 + '" style="fill:none;stroke:' + c + ';stroke-width:' + (w || 3) + ';stroke-linecap:round"/>'; }
+    function box(x, y, w, h, t1, t2, c) { return '<rect x="' + x + '" y="' + (y - h / 2) + '" width="' + w + '" height="' + h + '" rx="9" style="fill:var(--panel-2);stroke:' + c + ';stroke-width:2"/><text x="' + (x + 12) + '" y="' + (y + (t2 ? -2 : 5)) + '" style="font:600 13.5px var(--display);fill:var(--fg)">' + esc(t1) + '</text>' + (t2 ? '<text x="' + (x + 12) + '" y="' + (y + 13) + '" style="font:11.5px var(--mono);fill:var(--muted)">' + esc(t2) + '</text>' : ''); }
+    function hd(x, t) { return '<text x="' + x + '" y="20" style="font:600 11px var(--mono);letter-spacing:.08em;fill:var(--faint)">' + t + '</text>'; }
+    var lab = hd(inX, 'YOUR BELTS') + (showLines ? hd(gX, 'LINES') : '') + (n.Mp > 1 ? hd(sX, 'SPLIT ÷' + n.Mp) : '') + hd(oX, 'OUT');
+    var bh = function (cnt) { return Math.min(40, Math.max(22, (H - top) / cnt - 8)); };
+    var over = '';
     for (var i = 0; i < K; i++) {
       var y = yAt(i, K);
-      body += box(inX, y, 90, bh(K, 22), fmt(n.ins[i]) + '/min', '', orange);
-      if (showLines) n.lines.forEach(function (l, j) { if (l.from.indexOf(i) >= 0) body += path(inX + 90, y, gX, yAt(j, G), orange); });
+      over += box(inX, y, 150, bh(K), 'Belt ' + (i + 1), fmt(n.ins[i]) + '/min', 'var(--muted)');
+      if (showLines) n.lines.forEach(function (l, j) { if (l.from.indexOf(i) >= 0) body += path(inX + 150, y, gX, yAt(j, G), 'var(--muted)'); });
     }
-    if (showLines) n.lines.forEach(function (l, j) { body += box(gX, yAt(j, G), 110, bh(G, 30), (l.from.length > 1 ? 'Line ' : 'Belt ') + String.fromCharCode(65 + j % 26), fmt(l.rate) + '/min', l.from.length > 1 ? green : orange); });
-    var srcX = showLines ? gX + 110 : inX + 90;
+    if (showLines) n.lines.forEach(function (l, j) { over += box(gX, yAt(j, G), 150, bh(G), (l.from.length > 1 ? 'Line ' : 'Belt ') + String.fromCharCode(65 + j % 26), fmt(l.rate) + '/min', l.from.length > 1 ? 'var(--merge)' : 'var(--muted)'); });
+    var srcX = showLines ? gX + 150 : inX + 150;
     n.lines.forEach(function (l, j) {
       var yy = showLines ? yAt(j, G) : yAt(j, K), fromX = srcX;
-      if (n.Mp > 1) {
-        body += path(srcX, yy, sX, yy, orange);
-        body += box(sX, yy, 110, bh(G, 30), '÷' + n.Mp + (n.su.back ? ' (÷' + n.su.Q + ', ' + n.su.back + ' back)' : ''), fmt(l.rate / n.Mp) + ' each', orange);
-        fromX = sX + 110;
-      }
-      var sg = Math.floor(j / n.Gp), seen = {};
-      for (var q = 0; q < n.Mp; q++) {
-        var part = sg * n.Mp + q, oi = 0;
-        n.outs.forEach(function (o, k) { if (o.parts.indexOf(part) >= 0) oi = k; });
-        if (seen[oi]) continue; seen[oi] = 1;
-        body += path(fromX, yy, oX, yAt(oi, O), orange, 1.4);
-      }
+      if (n.Mp > 1) { body += path(srcX, yy, sX, yy, 'var(--muted)'); over += box(sX, yy, 150, bh(G), '÷' + n.Mp + (n.su.back ? ' + loop' : ''), fmt(l.rate / n.Mp) + ' each', 'var(--belt)'); fromX = sX + 150; }
+      var sg = Math.floor(j / n.Gp);
+      for (var q = 0; q < n.Mp; q++) { var part = sg * n.Mp + q; body += path(fromX, yy, oX, yAt(part, O), outCol(part), 2.4); }
     });
-    n.outs.forEach(function (o, k) { body += box(oX, yAt(k, O), 110, bh(O, 28), o.name, fmt(o.rate) + '/min', o.take ? 'var(--good)' : green); });
-    return '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;min-width:520px;height:auto" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Split and merge layout">' + lab + body + '</svg>';
+    n.outs.forEach(function (o, k) { over += box(oX, yAt(k, O), 180, bh(O), o.name + ' · ' + fmt(o.rate) + '/min', '', outCol(k)); });
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;min-width:640px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Split and merge layout">' + lab + body + over + '</svg>';
   }
-  function unitSvg(su) {
+  function linesWords(n) {
+    var out = [], u = '/min', K = n.ins.length, G = n.lines.length;
+    var splitIns = n.preSplitOf ? n.preSplitOf.map(function (s, i) { return [i, s]; }).filter(function (x) { return x[1] > 1; }) : [];
+    if (splitIns.length) out.push('<b>Split first:</b> ' + splitIns.map(function (x) { return 'Belt ' + (x[0] + 1) + ' into ' + x[1]; }).join(', ') + ' (' + treeWordsS(E.easyFactors(splitIns[0][1])) + '), so nothing below goes over the belt limit.');
+    var merged = n.lines.filter(function (l) { return l.from.length > 1; });
+    if (merged.length) out.push('<b>Merge into lines:</b> ' + n.lines.map(function (l, j) { return '<b>Line ' + String.fromCharCode(65 + j) + '</b> = ' + uniq(l.from.map(function (i) { return 'Belt ' + (i + 1); })).join(' + ') + ' (' + fmt(l.rate) + u + ')'; }).join('; ') + '.');
+    if (n.Mp > 1) {
+      var su = n.su, lw = G === 1 ? 'the line' : 'each line';
+      out.push('<b>Split ' + lw + ' into ' + n.Mp + ' equal pieces:</b> ' + (su.back ? 'a merger, then ' + treeWordsS(su.factors) + ' to get ' + su.Q + ', and send ' + su.back + ' back into the merger' : treeWordsS(su.factors)) + '.');
+    }
+    if (n.Gp > 1) out.push('<b>Out 1</b> takes piece 1 from ' + (n.g > 1 ? 'each line in its group' : 'every line') + ', <b>Out 2</b> takes piece 2, and so on. The line colours in the picture show which piece goes where.');
+    return out;
+  }
+  function unitSvg(su, caption) {
     if (!su || su.P <= 1) return '';
-    var f = su.factors, Q = su.Q, rowH = 18, H = Q * rowH + 30, levX = function (l) { return 80 + l * 110; }, outX = levX(f.length) + 10, W = outX + 130;
-    var body = '', orange = 'var(--belt)', mergeX = 36;
-    function yLeaf(i) { return 20 + (i + 0.5) * rowH; }
+    var f = su.factors, Q = su.Q, rowH = 26, H = Q * rowH + 44, levX = function (l) { return 110 + l * 140; }, outX = levX(f.length) + 16, W = outX + 200;
+    var body = '', glyphs = '', orange = 'var(--belt)', mergeX = 52;
+    function yLeaf(i) { return 24 + (i + 0.5) * rowH; }
     function cy(a, z) { return (yLeaf(a) + yLeaf(z - 1)) / 2; }
-    function line(pts, c, dash) { return '<path d="M' + pts.map(function (p) { return p[0] + ' ' + p[1]; }).join(' L') + '" style="fill:none;stroke:' + c + ';stroke-width:2' + (dash ? ';stroke-dasharray:5 4' : '') + '"/>'; }
-    function sp(x, y, t) { return '<rect x="' + (x - 18) + '" y="' + (y - 10) + '" width="36" height="20" rx="5" style="fill:var(--panel-2);stroke:' + orange + ';stroke-width:1.8"/><text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" style="font:700 10.5px var(--mono);fill:var(--fg)">' + t + '</text>'; }
-    var rootY = cy(0, Q), glyphs = '';
-    body += line([[0, rootY], [levX(0) - 18, rootY]], orange);
-    if (su.back) glyphs += '<circle cx="' + mergeX + '" cy="' + rootY + '" r="10" style="fill:var(--panel-2);stroke:var(--merge);stroke-width:2"/><text x="' + mergeX + '" y="' + (rootY + 4) + '" text-anchor="middle" style="font:700 10px var(--mono);fill:var(--fg)">M</text>';
+    function line(pts, c, dash) { return '<path d="M' + pts.map(function (p) { return p[0] + ' ' + p[1]; }).join(' L') + '" style="fill:none;stroke:' + c + ';stroke-width:2.6;stroke-linejoin:round' + (dash ? ';stroke-dasharray:6 5' : '') + '"/>'; }
+    function sp(x, y, t) { return '<rect x="' + (x - 24) + '" y="' + (y - 14) + '" width="48" height="28" rx="7" style="fill:var(--panel-2);stroke:' + orange + ';stroke-width:2"/><text x="' + x + '" y="' + (y + 5) + '" text-anchor="middle" style="font:700 13px var(--mono);fill:var(--fg)">' + t + '</text>'; }
+    var rootY = cy(0, Q);
+    body += line([[0, rootY], [levX(0) - 24, rootY]], orange);
+    if (su.back) glyphs += '<circle cx="' + mergeX + '" cy="' + rootY + '" r="14" style="fill:var(--panel-2);stroke:var(--merge);stroke-width:2.2"/><text x="' + mergeX + '" y="' + (rootY + 5) + '" text-anchor="middle" style="font:700 12px var(--mono);fill:var(--fg)">M</text>';
     (function node(level, a, z, x, y) {
       var size = (z - a) / f[level];
       for (var c = 0; c < f[level]; c++) {
         var ca = a + c * size, cz = ca + size;
-        if (level + 1 < f.length) { var xc = levX(level + 1), yc = cy(ca, cz); body += line([[x + 18, y], [x + 50, y], [x + 50, yc], [xc - 18, yc]], orange); node(level + 1, ca, cz, xc, yc); }
-        else { var ly = yLeaf(ca); body += line([[x + 18, y], [x + 50, y], [x + 50, ly], [outX, ly]], orange); }
+        if (level + 1 < f.length) { var xc = levX(level + 1), yc = cy(ca, cz); body += line([[x + 24, y], [x + 64, y], [x + 64, yc], [xc - 24, yc]], orange); node(level + 1, ca, cz, xc, yc); }
+        else { var ly = yLeaf(ca); body += line([[x + 24, y], [x + 64, y], [x + 64, ly], [outX, ly]], orange); }
       }
       glyphs += sp(x, y, '÷' + f[level]);
     })(0, 0, Q, levX(0), rootY);
     for (var i = 0; i < Q; i++) {
       var isBack = i >= Q - su.back, y = yLeaf(i);
-      glyphs += '<text x="' + (outX + 8) + '" y="' + (y + 4) + '" style="font:600 11px var(--mono);fill:' + (isBack ? 'var(--merge)' : 'var(--fg)') + '">' + (isBack ? '↩ back to merger' : 'piece ' + (i + 1)) + '</text>';
+      glyphs += '<text x="' + (outX + 10) + '" y="' + (y + 5) + '" style="font:600 13px var(--mono);fill:' + (isBack ? 'var(--merge)' : 'var(--fg)') + '">' + (isBack ? '↩ back to the merger' : 'piece ' + (i + 1)) + '</text>';
     }
     if (su.back) {
-      var bx = outX + 120;
-      for (var bi = Q - su.back; bi < Q; bi++) body += line([[outX + 112, yLeaf(bi)], [bx, yLeaf(bi)], [bx, H - 6], [mergeX, H - 6], [mergeX, rootY + 10]], 'var(--merge)', true);
+      var bx = outX + 180;
+      for (var bi = Q - su.back; bi < Q; bi++) body += line([[outX + 168, yLeaf(bi)], [bx, yLeaf(bi)], [bx, H - 8], [mergeX, H - 8], [mergeX, rootY + 14]], 'var(--merge)', true);
     }
-    return '<svg viewBox="0 0 ' + (W + 10) + ' ' + H + '" style="width:100%;max-width:' + (W + 10) + 'px;min-width:360px;height:auto" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="One split unit">' + body + glyphs + '</svg>';
+    return '<figure class="sm-unit"><figcaption>' + caption + '</figcaption><svg viewBox="0 0 ' + (W + 10) + ' ' + H + '" style="width:100%;max-width:' + (W + 10) + 'px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Splitter tree">' + body + glyphs + '</svg></figure>';
+  }
+  function cutSvg(c, outs) {
+    var t = c.ct.tree, leaves = [], depth = 0;
+    (function walk(node, lv) { node.lv = lv; depth = Math.max(depth, lv); if (node.leaf) { node.row = leaves.length; leaves.push(node); } else node.kids.forEach(function (k) { walk(k, lv + 1); }); })(t, 0);
+    (function yOf(node) { if (node.leaf) return node.row; var ys = node.kids.map(yOf); node.row = (ys[0] + ys[ys.length - 1]) / 2; return node.row; })(t);
+    var rowH = 34, top = 18, H = leaves.length * rowH + top + (c.su.back ? 30 : 12), mergeX = 46;
+    var levX = function (l) { return 110 + l * 130; }, outX = levX(depth) + 4, W = outX + (c.su.back ? 300 : 250);
+    var Y = function (r) { return top + (r + 0.5) * rowH; };
+    var body = '', glyphs = '', per = c.rate / c.q;
+    function line(pts, col, dash) { return '<path d="M' + pts.map(function (p) { return p[0] + ' ' + p[1]; }).join(' L') + '" style="fill:none;stroke:' + col + ';stroke-width:3;stroke-linejoin:round;stroke-linecap:round' + (dash ? ';stroke-dasharray:6 5' : '') + '"/>'; }
+    function sp(x, y, txt) { return '<rect x="' + (x - 26) + '" y="' + (y - 15) + '" width="52" height="30" rx="8" style="fill:var(--panel-2);stroke:var(--belt);stroke-width:2"/><text x="' + x + '" y="' + (y + 5) + '" text-anchor="middle" style="font:700 13px var(--mono);fill:var(--fg)">' + txt + '</text>'; }
+    var rootY = Y(t.leaf ? 0 : t.row);
+    body += line([[0, rootY], [levX(0) - 26, rootY]], 'var(--muted)');
+    glyphs += '<text x="4" y="' + (rootY - 10) + '" style="font:600 12px var(--mono);fill:var(--muted)">Belt ' + (c.i + 1) + '</text>';
+    if (c.su.back) glyphs += '<circle cx="' + mergeX + '" cy="' + rootY + '" r="14" style="fill:var(--panel-2);stroke:var(--merge);stroke-width:2.2"/><text x="' + mergeX + '" y="' + (rootY + 5) + '" text-anchor="middle" style="font:700 12px var(--mono);fill:var(--fg)">M</text>';
+    (function draw(node) {
+      if (node.leaf) return;
+      var x = levX(node.lv), y = Y(node.row);
+      node.kids.forEach(function (k) {
+        var ky = Y(k.row), col = k.leaf ? (k.out < 0 ? 'var(--merge)' : outCol(k.out)) : 'var(--belt)';
+        var x2 = k.leaf ? outX : levX(k.lv) - 26;
+        body += line([[x + 26, y], [x + 60, y], [x + 60, ky], [x2, ky]], col, k.leaf && k.out < 0);
+        draw(k);
+      });
+      glyphs += sp(x, y, '÷' + node.f);
+    })(t);
+    leaves.forEach(function (lf) {
+      var y = Y(lf.row), back = lf.out < 0, col = back ? 'var(--merge)' : outCol(lf.out);
+      var label = back ? '↩ back to the merger' : '→ ' + outs[lf.out].name;
+      glyphs += '<text x="' + (outX + 10) + '" y="' + (y + 5) + '" style="font:700 13.5px var(--display);fill:' + col + '">' + esc(label) + '</text>' +
+        '<text x="' + (outX + 10 + label.length * 8.2 + 8) + '" y="' + (y + 5) + '" style="font:12px var(--mono);fill:var(--muted)">' + fmt(per * lf.count) + '/min</text>';
+      if (back) body += line([[outX + 250, y], [W - 8, y], [W - 8, H - 8], [mergeX, H - 8], [mergeX, rootY + 14]], 'var(--merge)', true);
+    });
+    return '<figure class="sm-unit"><figcaption>Belt ' + (c.i + 1) + ' · ' + fmt(c.rate) + '/min · ' + c.ct.splitters + ' ' + plural(c.ct.splitters, 'splitter') + '</figcaption><svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:' + W + 'px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="How to split this belt">' + body + glyphs + '</svg></figure>';
   }
   function openSplitter() {
-    var scrim = document.createElement('div'); scrim.className = 'scrim';
-    var sv = state.splitTool && state.splitTool.belts ? state.splitTool : { belts: '12×60', mode: 'equal', M: 5, X: 45 };
-    scrim.innerHTML = '<div class="sheet" role="dialog" aria-modal="true" aria-label="Split and merge"><div class="sheet-h"><div class="t"><h3>Split / merge</h3><button class="btn" type="button" data-close>Close</button></div>' +
-      '<div class="tiny">Turn your belts into equal belts, or take an exact amount off. Finds the fewest splitters and mergers that stay under your belt limit.</div>' +
-      '<div class="field"><span class="label">Your belts (/min each)</span><label class="num" style="width:100%"><input type="text" id="sm-in" value="' + esc(sv.belts) + '" style="width:100%;text-align:left" aria-label="Your belts"><span class="u">/min</span></label><div class="tiny" id="sm-parsed"></div></div>' +
-      '<div class="field"><span class="label">Make</span><div class="seg full" role="group"><button type="button" data-sm="equal" aria-pressed="' + (sv.mode !== 'take') + '">Equal belts</button><button type="button" data-sm="take" aria-pressed="' + (sv.mode === 'take') + '">Take an amount</button></div></div>' +
-      '<div class="field" id="sm-outf"></div>' +
-      '<div class="tiny" id="sm-belt"></div></div>' +
+    var scrim = document.createElement('div'); scrim.className = 'scrim center';
+    var sv = state.splitTool && state.splitTool.rows ? JSON.parse(JSON.stringify(state.splitTool)) : null;
+    if (!sv) {
+      var old = state.splitTool && state.splitTool.belts ? parseBeltsTxt(state.splitTool.belts) : [];
+      sv = { rows: old.length ? old : [{ n: 5, r: 60 }], mode: 'equal', M: 2, X: 45, view: 'easy' };
+    }
+    function parseBeltsTxt(t) {
+      var rows = [];
+      String(t).split(/[,;\s]+/).forEach(function (tok) {
+        var m = tok.match(/^(\d+)\s*[x×*]\s*(\d*\.?\d+)$/i);
+        if (m) rows.push({ n: +m[1], r: +m[2] }); else if (parseFloat(tok) > 0) rows.push({ n: 1, r: parseFloat(tok) });
+      });
+      return rows;
+    }
+    scrim.innerHTML = '<div class="sheet wide" role="dialog" aria-modal="true" aria-label="Split and merge"><div class="sheet-h"><div class="t"><h3>Split / merge belts</h3><button class="btn" type="button" data-close>Close</button></div>' +
+      '<div class="sm-top"><div class="sm-col"><span class="label">Your belts</span><div id="sm-rows" class="sm-rows"></div><button class="btn ghost sm" type="button" data-sm-act="add">+ Add belts of another speed</button></div>' +
+      '<div class="sm-col"><span class="label">You want</span><div class="seg full" role="group"><button type="button" data-sm="equal">Equal belts</button><button type="button" data-sm="take">Take an amount off</button></div><div id="sm-outf" class="sm-outf"></div><div class="tiny" id="sm-belt"></div></div></div></div>' +
       '<div class="sheet-body" id="sm-body"></div></div>';
     document.body.appendChild(scrim);
-    var body = scrim.querySelector('#sm-body'), mode = sv.mode === 'take' ? 'take' : 'equal';
-    function outField() {
-      scrim.querySelector('#sm-outf').innerHTML = mode === 'equal'
-        ? '<span class="label">Belts out</span><label class="num"><input type="number" min="1" max="64" step="1" id="sm-m" value="' + (sv.M || 5) + '"><span class="u">equal belts</span></label>'
-        : '<span class="label">Take out</span><label class="num"><input type="number" min="0.1" step="any" id="sm-x" value="' + (sv.X || 45) + '"><span class="u">/min</span></label><div class="tiny">The rest carries on on its own belt.</div>';
+    var body = scrim.querySelector('#sm-body');
+    function belts() { var a = []; sv.rows.forEach(function (r) { var n = Math.min(64, Math.max(0, Math.round(+r.n || 0))), v = +r.r || 0; for (var i = 0; i < n && a.length < 64; i++) if (v > 0) a.push(v); }); return a; }
+    function drawRows() {
+      scrim.querySelector('#sm-rows').innerHTML = sv.rows.map(function (r, i) {
+        return '<div class="sm-row"><label class="num"><input type="number" min="1" max="64" step="1" data-row="' + i + '" data-k="n" value="' + r.n + '" aria-label="How many belts"><span class="u">' + (+r.n === 1 ? 'belt' : 'belts') + '</span></label><span class="sm-of">of</span>' +
+          '<label class="num"><input type="number" min="0.1" step="any" list="sm-speeds" data-row="' + i + '" data-k="r" value="' + r.r + '" aria-label="Items per minute on each"><span class="u">/min each</span></label>' +
+          (sv.rows.length > 1 ? '<button class="icon-btn del" type="button" data-sm-act="del" data-row="' + i + '" aria-label="Remove">' + ICON.x + '</button>' : '') + '</div>';
+      }).join('') + '<datalist id="sm-speeds">' + D.belts.map(function (b) { return '<option value="' + b.rate + '">'; }).join('') + '</datalist>';
+    }
+    function drawOut() {
+      scrim.querySelectorAll('[data-sm]').forEach(function (x) { x.setAttribute('aria-pressed', String(x.getAttribute('data-sm') === sv.mode)); });
+      scrim.querySelector('#sm-outf').innerHTML = sv.mode === 'equal'
+        ? '<label class="num"><input type="number" min="1" max="64" step="1" id="sm-m" value="' + sv.M + '" aria-label="How many equal belts out"><span class="u">equal belts out</span></label>'
+        : '<label class="num"><input type="number" min="0.1" step="any" id="sm-x" value="' + sv.X + '" aria-label="How much to take off"><span class="u">/min to take off</span></label><div class="tiny">The rest carries on.</div>';
     }
     function draw() {
-      var ins = parseBelts(scrim.querySelector('#sm-in').value), T = ins.reduce(function (a, b) { return a + b; }, 0);
-      var mEl = scrim.querySelector('#sm-m'), xEl = scrim.querySelector('#sm-x');
-      if (mEl) sv.M = Math.min(64, Math.max(1, Math.round(+mEl.value || 1)));
-      if (xEl) sv.X = +xEl.value || 0;
-      sv.belts = scrim.querySelector('#sm-in').value; sv.mode = mode; state.splitTool = sv; saveLocal();
-      var bm = beltOf(state.belt), C = bm.rate;
-      scrim.querySelector('#sm-parsed').textContent = ins.length ? ins.length + ' ' + plural(ins.length, 'belt') + ' · ' + fmt(T) + '/min in total' : 'Like 12×60, or 60, 60, 120, 30';
-      scrim.querySelector('#sm-belt').textContent = 'Using Mk' + bm.mk + ' belts (' + C + '/min), from your Progress.';
-      var n = splitPlan(ins, mode, sv.M, sv.X, C);
-      if (n.err) { body.innerHTML = '<div class="banner ' + (/Nothing to do/.test(n.err) ? 'info' : 'bad') + '"><span>' + n.err + '</span></div>'; return; }
-      var html = '<div class="sm-sum">' + n.outs.slice(0, 3).map(function (o) { return '<span class="st"><b>' + fmt(o.rate) + '</b>' + esc(o.name) + ' /min</span>'; }).join('') + (n.outs.length > 3 ? '<span class="st"><b>' + n.outs.length + '</b>belts out</span>' : '') +
-        '<span class="st"><b>' + n.splitters + '</b>' + plural(n.splitters, 'splitter') + '</span><span class="st"><b>' + (n.pre + n.mergers) + '</b>' + plural(n.pre + n.mergers, 'merger') + '</span>' + (n.su.back ? '<span class="st"><b>loop</b>' + n.su.back + ' of ' + n.su.Q + ' back</span>' : '<span class="st"><b>exact</b>no loops</span>') + '</div>';
-      html += '<div class="sm-svg">' + splitSvg(n) + '</div>';
-      if (n.Mp > 1) html += '<div class="label" style="margin:2px 0 6px">One split unit' + (n.lines.length > 1 ? ' (build ' + n.lines.length + ')' : '') + '</div><div class="sm-svg">' + unitSvg(n.su) + '</div>';
-      html += '<ol class="sm-steps">' + splitWords(n, bm).map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ol>';
-      if (mode === 'take') html += '<div class="banner info" style="margin-top:10px"><span><b>Shortcut:</b> if whatever you feed only uses ' + fmt(sv.X) + '/min (a machine or a full storage), you don’t need an exact split. One splitter is enough: that side backs up and everything else flows on.</span></div>';
-      html += '<div class="sm-note">Mergers take up to 3 belts in. A loop-back is exact once the belts fill up; it just needs a moment to settle. Pipes don’t need this: they share themselves out.</div>';
+      state.splitTool = JSON.parse(JSON.stringify(sv)); saveLocal();
+      var ins = belts(), bm = beltOf(state.belt), C = bm.rate, T = ins.reduce(function (a, b) { return a + b; }, 0);
+      scrim.querySelector('#sm-belt').innerHTML = ins.length + ' ' + plural(ins.length, 'belt') + ' · <b>' + fmt(T) + '/min</b> in total · Mk' + bm.mk + ' belts carry ' + C + '/min (change in Progress)';
+      var res2 = splitPlan(ins, sv.mode, sv.M, sv.X, C);
+      if (res2.err) { body.innerHTML = '<div class="banner ' + (res2.info ? 'info' : 'bad') + '"><span>' + res2.err + '</span></div>'; return; }
+      var R = res2.ribbon, L = res2.lines;
+      var useLines = !R || (sv.view === 'few' && L);
+      var canChoose = R && L && L.cost < R.cost - 1.5;
+      var n = useLines ? L : R;
+      var sp = n.splitters, mg = (n.pre || 0) + n.mergers;
+      var html = '';
+      if (res2.approx) html += '<div class="banner info"><span>' + fmt(res2.X) + '/min can’t be split off exactly. The closest clean amount is <b>' + fmt(res2.approx) + '/min</b>.</span></div>';
+      html += '<div class="sm-sum">' + (sv.mode === 'take' ? res2.targets.map(function (t, k) { return '<span class="st" style="--c:' + outCol(k) + '"><b>' + fmt(t.rate) + '</b>' + esc(t.name) + ' /min</span>'; }).join('') : '<span class="st" style="--c:' + outCol(0) + '"><b>' + fmt(res2.targets[0].rate) + '</b>each of ' + res2.targets.length + ' outputs /min</span>') +
+        '<span class="st"><b>' + sp + '</b>' + plural(sp, 'splitter') + '</span><span class="st"><b>' + mg + '</b>' + plural(mg, 'merger') + '</span>' + (n.loops || (n.su && n.su.back) ? '<span class="st"><b>loop</b>some pieces go back</span>' : '<span class="st"><b>exact</b>no loop-backs</span>') + '</div>';
+      if (canChoose || (L && !R)) html += '<div class="sm-view"><div class="seg" role="group"><button type="button" data-sm-view="easy" aria-pressed="' + !useLines + '"' + (R ? '' : ' disabled') + '>Easiest to follow</button><button type="button" data-sm-view="few" aria-pressed="' + useLines + '">Fewest parts (' + Math.round(L.splitters + L.mergers + (L.pre || 0)) + ')</button></div></div>';
+      html += '<div class="sm-svg">' + (useLines ? splitSvg(n) : ribbonSvg(n)) + '</div>';
+      if (useLines) {
+        html += '<div class="sm-cols"><div><div class="label">Steps</div><ol class="sm-steps">' + linesWords(n).map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ol></div>' +
+          '<div>' + unitSvg(n.su, 'Each split, up close') + '</div></div>';
+      } else {
+        var w = ribbonWords(n), units = '';
+        n.cuts.slice(0, 8).forEach(function (c) { units += cutSvg(c, n.outs); });
+        if (n.cuts.length > 8) units += '<div class="tiny">+ ' + (n.cuts.length - 8) + ' more belts split the same way.</div>';
+        html += '<div class="sm-cols"><div><div class="label">What goes where</div><ul class="sm-list">' + w.outs.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>' +
+          (w.splits.length ? '<div class="label" style="margin-top:14px">How to split</div><ol class="sm-steps">' + w.splits.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ol>' : '<div class="tiny" style="margin-top:10px">No splitters needed: just merge the belts as shown.</div>') + '</div>' +
+          '<div>' + units + '</div></div>';
+      }
+      if (sv.mode === 'take') html += '<div class="banner info" style="margin-top:12px"><span><b>Shortcut:</b> if whatever you feed only uses ' + fmt(sv.X) + '/min (a machine, or storage that fills up), you don’t need an exact split. One splitter is enough: that side backs up and the rest flows on.</span></div>';
+      html += '<div class="sm-note">A merger takes up to 3 belts in. A loop-back (pieces sent back into a merger) becomes exact once the belts fill up. Pipes don’t need any of this: they share themselves out.</div>';
       body.innerHTML = html;
     }
-    outField();
-    scrim.addEventListener('input', function (e) { if (e.target.matches('#sm-in, #sm-m, #sm-x')) draw(); });
+    drawRows(); drawOut(); draw();
+    scrim.addEventListener('input', function (e) {
+      var t = e.target;
+      if (t.hasAttribute('data-row') && t.getAttribute('data-k')) { sv.rows[+t.getAttribute('data-row')][t.getAttribute('data-k')] = +t.value || 0; var u = t.parentNode.querySelector('.u'); if (t.getAttribute('data-k') === 'n' && u) u.textContent = +t.value === 1 ? 'belt' : 'belts'; draw(); }
+      else if (t.id === 'sm-m') { sv.M = Math.min(64, Math.max(1, Math.round(+t.value || 1))); draw(); }
+      else if (t.id === 'sm-x') { sv.X = +t.value || 0; draw(); }
+    });
     scrim.addEventListener('click', function (e) {
       if (e.target === scrim || e.target.closest('[data-close]')) { scrim.remove(); return; }
-      var b = e.target.closest('[data-sm]');
-      if (b) { mode = b.getAttribute('data-sm'); scrim.querySelectorAll('[data-sm]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); outField(); draw(); }
+      var a = e.target.closest('[data-sm-act]');
+      if (a) {
+        if (a.getAttribute('data-sm-act') === 'add') { var lastR = sv.rows[sv.rows.length - 1]; sv.rows.push({ n: 1, r: lastR && lastR.r === 60 ? 120 : 60 }); }
+        else sv.rows.splice(+a.getAttribute('data-row'), 1);
+        drawRows(); draw(); return;
+      }
+      var m = e.target.closest('[data-sm]'); if (m) { sv.mode = m.getAttribute('data-sm'); drawOut(); draw(); return; }
+      var v = e.target.closest('[data-sm-view]'); if (v && !v.disabled) { sv.view = v.getAttribute('data-sm-view'); draw(); }
     });
     document.addEventListener('keydown', function escK(e) { if (e.key === 'Escape') { scrim.remove(); document.removeEventListener('keydown', escK); } });
-    draw();
   }
   function openPreset(kind) {
     var scrim = document.createElement('div'); scrim.className = 'scrim';
@@ -3122,10 +3347,20 @@ details.mats[open] .chev { transform: rotate(180deg); }
       changed(false);
     } else if (act === 'unlock-all') { state.lockCount = {}; changed(false); }
     else if (act === 'kind') {
-      if (v === state.kind) return;
-      if (v === 'power') { state.itemsWant = state.want; state.want = state.powerWant || powerWantRow(); state.kind = 'power'; if (!(state.have || []).some(function (h) { return h.item; })) state.limitToHave = false; }
-      else { state.powerWant = state.want; state.want = state.itemsWant || [{ id: uid(), item: null, rate: 5, fixed: false }]; state.kind = 'items'; }
-      state.lockCount = {}; selected = null; changed(true);
+      var cur = state.kind === 'power' ? 'power' : 'items';
+      if (v === cur) return;
+      var ks = state.kindSnap || {};
+      var keep = {}; KF.forEach(function (k) { keep[k] = state[k] === undefined ? null : JSON.parse(JSON.stringify(state[k])); }); ks[cur] = keep;
+      var nx = ks[v];
+      if (nx) KF.forEach(function (k) { if (nx[k] !== undefined && nx[k] !== null) state[k] = JSON.parse(JSON.stringify(nx[k])); else if (k in FF_DEF) state[k] = FF_DEF[k]; });
+      else {
+        var b = blankFactory('', v);
+        KF.forEach(function (k) { state[k] = b[k] !== undefined ? b[k] : (k in FF_DEF ? FF_DEF[k] : null); });
+        var oldW = v === 'power' ? state.powerWant : state.itemsWant;   // from before plans were kept apart
+        if (oldW && oldW.length) state.want = oldW;
+        state.guideStep = null;
+      }
+      state.kindSnap = ks; state.kind = v; selected = null; changed(true);
     }
     else if (act === 'noclock') { state.noClock = v === '1'; changed(true); }
     else if (act === 'splitter') openSplitter();
@@ -3160,7 +3395,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261123031458';
+  var BELTLINE_BUILD = '20261123032305';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
