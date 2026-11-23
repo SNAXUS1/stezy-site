@@ -1465,7 +1465,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       have: state.have.filter(function (h) { return h.item; }).map(function (h) { return { item: h.item, rate: rowRate(h) }; })
         .concat((state.kind === 'power' || state.selfPower) && haveMW() > 0 ? [{ item: 'Power', rate: haveMW() }] : []),
       want: state.want.filter(function (w) { return w.item; }).map(function (w) { return { item: w.item, rate: Math.max(0, +w.rate || 0), fixed: !!w.fixed }; }),
-      limitToHave: state.limitToHave, goal: state.goal, split: state.noClock ? 'fill' : state.split, easyCounts: state.easyCounts, balance: state.balance === 'balanced' ? 'balanced' : 'manifold',
+      limitToHave: state.limitToHave, goal: state.goal, split: state.noClock ? (state.balance === 'balanced' ? 'even' : 'fill') : state.split, easyCounts: state.easyCounts, balance: state.balance === 'balanced' ? 'balanced' : 'manifold',
       recipeChoice: state.recipeChoice, lockCount: state.lockCount, sloops: Math.max(0, Math.floor(+state.sloops || 0)), selfPower: state.kind === 'power' || !!state.selfPower
     };
   }
@@ -1682,9 +1682,9 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (allFixed) html += '<label class="toggle"><input type="checkbox" id="opt-limit" data-opt="limitToHave"' + (state.limitToHave ? ' checked' : '') + '><span class="box"></span><span>Only use what I have</span></label>';
     if (!isPw) html += '<div class="field"><span class="label">Best means</span>' + seg('goal', [['resources', 'Least ore'], ['machines', 'Fewest machines'], ['power', 'Least power']], state.goal, 'full') + '</div>' +
       (state.noClock || isPw ? '' : '<div class="field"><span class="label">Machine speeds</span>' + seg('split', [['even', 'All same speed'], ['fill', '100% + 1 slower']], state.split, 'full') + '<div class="tiny">' + (state.split === 'fill' ? 'As many machines at 100% as possible, the rest on one slower machine (e.g. 5 at 100% + 1 at 50%).' : 'Every machine at the same clock, so splitters share evenly.') + '</div></div>');
-    if (state.split === 'even' && !isPw && !state.noClock) html += '<div class="field"><span class="label">How to split belts</span>' + seg('balance', [['manifold', 'Manifold'], ['balanced', 'Load balancer']], state.balance === 'balanced' ? 'balanced' : 'manifold', 'full') +
-      '<div class="tiny">' + (state.balance === 'balanced' ? 'Splitter trees give every machine exactly its share from the first second. More splitters; counts that don’t divide cleanly loop a few back.' : 'One belt past the machines, a splitter in front of each. Simple; machines fill up, then all run full.') + '</div></div>';
-    if (state.split === 'even' && !isPw && !state.noClock) html += '<label class="toggle"><input type="checkbox" id="opt-easy" data-opt="easyCounts"' + (state.easyCounts ? ' checked' : '') + '><span class="box"></span><span>Easy-split counts (2, 3, 4, 6, 8, 9…)</span></label>';
+    if (!isPw) html += '<div class="field"><span class="label">How to split belts</span>' + seg('balance', [['manifold', 'Manifold'], ['balanced', 'Load balancer']], state.balance === 'balanced' ? 'balanced' : 'manifold', 'full') +
+      '<div class="tiny">' + (state.balance === 'balanced' && state.noClock ? 'Splitter trees share each belt equally. No clock needed: every machine stays at 100% and they all pause a little.' : state.balance === 'balanced' ? 'Splitter trees give every machine exactly its share from the first second. More splitters; counts that don’t divide cleanly loop a few back.' : 'One belt past the machines, a splitter in front of each. Simple; machines fill up, then all run full.') + '</div></div>';
+    if (!isPw && (state.noClock ? state.balance === 'balanced' : state.split === 'even')) html += '<label class="toggle"><input type="checkbox" id="opt-easy" data-opt="easyCounts"' + (state.easyCounts ? ' checked' : '') + '><span class="box"></span><span>Easy-split counts (2, 3, 4, 6, 8, 9…)</span></label>';
     html += '</section>';
     document.getElementById('setup').innerHTML = html;
     renderOutbar();
@@ -2981,7 +2981,10 @@ details.mats[open] .chev { transform: rotate(180deg); }
       out.push('Set ' + full + ' ' + mNames(r.m, full) + ' to <b>' + clockTxt(s.clocks[0]) + '%</b> and the last one to <b>' + clockTxt(s.clocks[s.clocks.length - 1]) + '%</b>.');
     }
     var lastC = s.clocks[s.clocks.length - 1];
-    if (state.noClock && lastC < 0.999) out.push((n === 1 ? 'It' : 'The last one') + ' only gets enough input for about ' + trim(lastC * 100, 0) + '% of the time, so it pauses now and then. That’s normal.');
+    var allSame = s.clocks.every(function (c) { return Math.abs(c - s.clocks[0]) < 1e-9; });
+    if (state.noClock && lastC < 0.999) out.push(n > 1 && allSame
+      ? 'The balancer gives each one enough input for about ' + trim(lastC * 100, 0) + '% of the time, so they all pause now and then. That’s normal.'
+      : (n === 1 ? 'It' : 'The last one') + ' only gets enough input for about ' + trim(lastC * 100, 0) + '% of the time, so it pauses now and then. That’s normal.');
     if (s.powerOut > 0) out.push('Connect ' + (n === 1 ? 'it' : 'all ' + n) + ' to your power grid: <b class="pw-tag">' + trim(s.powerOut, 0) + ' MW</b>.' + (r.in.some(function (o) { return o[0] === 'Water'; }) ? ' Each one also needs its water pipe.' : ''));
     s.outputs.forEach(function (o) {
       var t = n > 1 ? (o.fluid ? 'Join the outputs into ' : 'Merge the outputs (one merger under each machine after the first) onto ') + (o.lines > 1 ? '<b>' + o.lines + ' ' + (o.fluid ? 'pipes' : 'belts') + '</b>' : 'one ' + (o.fluid ? 'pipe' : 'Mk' + o.mk + ' belt')) + ': <b>' + fmt(o.total) + ' ' + unit(o.item) + ' ' + esc(nm(o.item)) + '</b>.'
@@ -3395,6 +3398,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (act === 'set') {
       var f = b.getAttribute('data-f'), num = ['tier', 'belt', 'pipe', 'miner', 'maxClock'].indexOf(f) >= 0;
       state[f] = num ? +v : v;
+      if (f === 'balance' && v === 'balanced' && state.split === 'fill') state.split = 'even';
+      if (f === 'split' && v === 'fill' && state.balance === 'balanced') state.balance = 'manifold';
       if (f === 'tier') { state.belt = bestAt(D.belts, state.tier); state.pipe = bestAt(D.pipes, state.tier); state.miner = bestAt(D.miners, state.tier); }
       if (f === 'view') { saveLocal(); renderPlan(); return; }
       changed(true);
@@ -3515,7 +3520,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261123033913';
+  var BELTLINE_BUILD = '20261123034441';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
