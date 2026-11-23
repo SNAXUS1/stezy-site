@@ -444,6 +444,11 @@ details.mats[open] .chev { transform: rotate(180deg); }
 .kind-seg .k-ic { width: 9px; height: 9px; border-radius: 2px; background: var(--belt); }
 .kind-seg .k-ic.pw { background: #f2d85a; transform: rotate(45deg) scale(.85); }
 .pw-pick { display: flex; flex-direction: column; gap: 8px; }
+.rowcap { font-size: 13px; color: var(--muted); padding: 8px 12px; margin-bottom: 8px; border: 1px dashed var(--line-2); border-radius: 9px; }
+.rowcap b { color: var(--fg); }
+.glist { display: flex; flex-direction: column; gap: 3px; margin: 7px 0 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font: 12.5px/1.5 var(--mono); color: var(--muted); }
+.glist b { color: var(--fg); font-weight: 600; }
+.glist i { font-style: normal; display: inline-block; min-width: 26px; text-align: center; border-radius: 5px; padding: 0 5px; margin-right: 6px; color: var(--ink); font-weight: 700; }
 .type-card .seg button { padding: 9px 10px; font-size: 13.5px; }
 .pw-card .pw-rows { display: flex; flex-direction: column; gap: 10px; }
 .pw-row { border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -879,8 +884,13 @@ details.mats[open] .chev { transform: rotate(180deg); }
     var g = { total: total, per: perMachine, fluid: fluid };
     if (fluid) {
       var p = bestPipe(st);
-      g.cap = p.rate; g.mk = p.mk; g.lines = Math.max(1, Math.ceil(total / p.rate - 1e-9));
-      g.tooMuchForOne = perMachine.some(function (v) { return v > p.rate + 1e-9; });
+      g.cap = p.rate; g.mk = p.mk;
+      var mxF = Math.max.apply(null, perMachine);
+      g.tooMuchForOne = mxF > p.rate + 1e-9;
+      var fitF = g.tooMuchForOne ? 1 : Math.max(1, Math.floor(p.rate / mxF + 1e-9));
+      g.lines = Math.max(1, Math.ceil(n / fitF), Math.ceil(total / p.rate - 1e-9));
+      if (g.lines > n) g.lines = Math.max(1, Math.ceil(total / p.rate - 1e-9));
+      g.groups = balanced(n, Math.min(g.lines, n));
       g.layout = n === 1 ? { type: 'direct' } : { type: 'pipe' };
       return g;
     }
@@ -892,8 +902,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     var fit = Math.max(1, Math.floor(b.rate / maxPer + 1e-9));
     var lines = Math.max(Math.ceil(n / fit), Math.ceil(total / b.rate - 1e-9));
     g.lines = lines;
-    var base = Math.floor(n / lines), extra = n % lines, groups = [];
-    for (var i = 0; i < lines; i++) groups.push(base + (i < extra ? 1 : 0));
+    var groups = balanced(n, lines);
     g.groups = groups;
     g.layouts = groups.map(function (mcount) {
       var rate = maxPer * mcount;
@@ -909,8 +918,33 @@ details.mats[open] .chev { transform: rotate(180deg); }
     return g;
   }
 
+  function chunks(n, size) { var g = []; while (n > 0) { g.push(Math.min(size, n)); n -= size; } return g; }
+  function pipeEach(k, wPer, cap) { for (var d = k; d >= 1; d--) if (k % d === 0 && d * wPer <= cap + 1e-9) return d; return 1; }
+  // generators that drink water: build in rows where the water extractors run at exactly 100%
+  function moduleFor(s, r, setup, st) {
+    var wIn = r.in.filter(function (o) { return o[0] === 'Water'; })[0]; if (!wIn) return;
+    var wPer = wIn[1], k = 0;
+    for (var kk = 1; kk <= 16; kk++) { var ex = kk * wPer / 120; if (Math.abs(ex - Math.round(ex)) < 1e-6) { k = kk; break; } }
+    if (!k || k > setup.n) return;
+    var pipe = bestPipe(st), d = pipeEach(k, wPer, pipe.rate), n = setup.n;
+    var fuel = r.in.filter(function (o) { return o[0] !== 'Water'; })[0];
+    s.module = { gens: k, extractors: Math.round(k * wPer / 120), water: k * wPer, rows: Math.ceil(n / k), full: Math.floor(n / k), rest: n % k,
+      pipeEach: d, pipesPerRow: k / d, fuel: fuel ? fuel[0] : null, fuelPerRow: fuel ? fuel[1] * k : 0 };
+    s.inputs.forEach(function (g) {
+      if (g.item === 'Water') { g.groups = chunks(n, d); g.lines = g.groups.length; return; }
+      if (g.fluid || g.tooMuchForOne || !fuel) return;
+      var M = Math.floor(g.cap / (k * fuel[1]) + 1e-9); if (M < 1) return;
+      g.groups = chunks(n, M * k); g.lines = g.groups.length;
+      g.layouts = g.groups.map(function (m) { return m <= 1 ? { type: 'direct', m: m } : { type: 'manifold', m: m, splitters: m - 1 }; });
+    });
+  }
+  function balanced(n, lines) { var base = Math.floor(n / lines), extra = n % lines, groups = []; for (var i = 0; i < lines; i++) groups.push(base + (i < extra ? 1 : 0)); return groups; }
   function outputGuide(total, n, fluid, st) {
-    if (fluid) { var p = bestPipe(st); return { total: total, fluid: true, cap: p.rate, mk: p.mk, lines: Math.max(1, Math.ceil(total / p.rate - 1e-9)) }; }
+    if (fluid) {
+      var p = bestPipe(st), per = total / Math.max(1, n), fitO = per > p.rate ? 1 : Math.max(1, Math.floor(p.rate / per + 1e-9));
+      var lf = Math.max(1, Math.ceil(total / p.rate - 1e-9), Math.min(n, Math.ceil(n / fitO)));
+      return { total: total, fluid: true, cap: p.rate, mk: p.mk, lines: lf, groups: balanced(n, Math.min(lf, n)) };
+    }
     var b = bestBelt(st), lines = Math.max(1, Math.ceil(total / b.rate - 1e-9));
     var mergers = 0, per = Math.ceil(n / lines), left = n;
     var groups = [];
@@ -1102,6 +1136,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
         if (supply[o[0]]) g.fromSupply = total * supply[o[0]] / (totalProd || 1);
         return g;
       });
+      if (r.gen && st.waterUnlimited && setup.n > 1) moduleFor(s, r, setup, st);
       s.outputs = r.out.filter(function (o) { return o[0] !== 'Power'; }).map(function (o) {
         var total = o[1] * s.x;
         var g = outputGuide(total, setup.n, isFluid(o[0]), st);
@@ -2090,6 +2125,16 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (k === 'well') return '+' + Math.ceil(amount / 60 - 1e-9) + ' well nodes';
     return '';
   }
+  function pipeEachUI(k, per, cap) { for (var d = k; d >= 1; d--) if (k % d === 0 && d * per <= cap + 1e-9) return d; return 1; }
+  function moduleWords(s) {
+    var M = s.module; if (!M) return '';
+    var mn = mNames(s.recipe.m, M.gens);
+    var t = '<b>Build ' + M.full + ' identical ' + plural(M.full, 'row') + (M.rest ? ' + 1 smaller row' : '') + '.</b> Each row: <b>' + M.gens + ' ' + esc(mn) + '</b> + <b>' + M.extractors + ' water ' + plural(M.extractors, 'extractor') + '</b> at 100% (' + fmt(M.water) + ' m³/min, exactly what they drink, nothing wasted)';
+    if (M.fuel) t += ' + <b>' + fmt(M.fuelPerRow) + ' ' + unit(M.fuel) + ' ' + esc(nm(M.fuel)) + '</b>';
+    t += '.' + (M.pipesPerRow > 1 ? ' In each row, join the ' + M.extractors + ' extractors into one pipe, then split it into ' + M.pipesPerRow + ' pipes of ' + M.pipeEach + ' ' + plural(M.pipeEach, 'generator') + ' (a Mk' + state.pipe + ' pipe carries ' + (D.pipes.filter(function (p) { return p.mk === state.pipe; })[0] || D.pipes[0]).rate + ').' : ' One pipe feeds the whole row.');
+    if (M.rest) t += ' The last row is smaller: ' + M.rest + ' ' + plural(M.rest, 'generator') + ' with ' + Math.ceil(M.rest * M.water / M.gens / 120 - 1e-9) + ' ' + plural(Math.ceil(M.rest * M.water / M.gens / 120 - 1e-9), 'extractor') + '.';
+    return t + ' Rows are easy to copy and to add later. <b>Tip:</b> water that exactly matches use can starve the last generators while the pipe settles, so put a fluid buffer on each row’s water line (or add one spare extractor).';
+  }
   function minsTxt(m) { return m >= 90 ? trim(m / 60, 1) + ' h' : Math.max(1, Math.round(m)) + ' min'; }
   function powerPanel() {
     var gens = (res.steps || []).filter(function (x) { return x.powerOut > 0; });
@@ -2104,15 +2149,18 @@ details.mats[open] .chev { transform: rotate(180deg); }
         var per = g.total / Math.max(1, n);
         h += '<div class="pw-io">' + chip(g.item) + '<span>' + esc(nm(g.item)) + '</span><span class="q">' + fmt(g.total) + ' ' + unit(g.item) + ' · ' + fmt(per) + ' each</span></div><div class="pipe-cmp">';
         if (fl(g.item)) D.pipes.forEach(function (pp) {
-          var lines = Math.ceil(g.total / pp.rate - 1e-9), each = Math.floor(pp.rate / per + 1e-9);
+          var each = Math.max(1, Math.floor(pp.rate / per + 1e-9)), lines = Math.max(Math.ceil(g.total / pp.rate - 1e-9), Math.ceil(n / each));
+          if (s.module && g.item === 'Water') { each = pipeEachUI(s.module.gens, per, pp.rate); lines = Math.ceil(n / each); }
           h += '<span class="pc' + (pp.mk === state.pipe ? ' on' : '') + '">Mk' + pp.mk + ' pipe (' + pp.rate + '): <b>' + lines + '</b> ' + plural(lines, 'line') + '<br>up to ' + each + ' ' + plural(each, 'generator') + ' per line' + (pp.tier > state.tier ? ' · tier ' + pp.tier : '') + '</span>';
         });
         else {
-          var b = beltOf(state.belt), bl = Math.ceil(g.total / b.rate - 1e-9), be = Math.floor(b.rate / per + 1e-9);
+          var b = beltOf(state.belt), be = Math.max(1, Math.floor(b.rate / per + 1e-9)), bl = Math.max(Math.ceil(g.total / b.rate - 1e-9), Math.ceil(n / be));
+          if (s.module && Math.floor(b.rate / (s.module.gens * per) + 1e-9) >= 1) { be = Math.floor(b.rate / (s.module.gens * per) + 1e-9) * s.module.gens; bl = Math.ceil(n / be); }
           h += '<span class="pc belt on">Mk' + b.mk + ' belt (' + b.rate + '): <b>' + bl + '</b> ' + plural(bl, 'belt') + '<br>up to ' + be + ' ' + plural(be, 'generator') + ' per belt</span>';
         }
         h += '</div>';
       });
+      if (s.module) h += '<div class="pw-tip">' + moduleWords(s) + '</div>';
       var fuel = s.inputs.filter(function (g) { return fl(g.item) && g.item !== 'Water'; })[0];
       if (fuel) h += '<div class="pw-tip"><b>Fluid buffer:</b> put one on the fuel line before the generators. A Fluid Buffer (400 m³) keeps all ' + n + ' running for ' + minsTxt(400 / fuel.total) + ' if the fuel stops; an Industrial Fluid Buffer (2400 m³) gives ' + minsTxt(2400 / fuel.total) + '. It doesn’t add flow, it only covers hiccups.</div>';
     });
@@ -2299,16 +2347,29 @@ details.mats[open] .chev { transform: rotate(180deg); }
     return 'one splitter into ' + f[0] + ', then ' + f.slice(1).map(function (x) { return 'each of those into ' + x; }).join(', then ') + ' (' + L.splitters + ' splitters)';
   }
   function stepName(i) { return 'step ' + (i + 1) + ' (' + esc(nm(res.steps[i].recipe.out[0][0])) + ')'; }
+  function groupList(g, s) {
+    if (!g.groups || g.groups.length < 2) return '';
+    var st = 0, word = g.fluid ? 'Pipe ' : 'Belt ', c = col(g.item);
+    return '<span class="glist">' + g.groups.map(function (m, i) {
+      var lo = st; st += m;
+      var rate = 0; for (var q = lo; q < st; q++) rate += g.per[q] || 0;
+      return '<span><i style="background:' + c + '">' + (g.fluid ? 'P' : 'B') + (i + 1) + '</i><b>' + word + (i + 1) + '</b> → ' + (m === 1 ? 'machine ' + (lo + 1) : 'machines ' + (lo + 1) + '–' + st) + ' · ' + fmt(rate) + ' ' + unit(g.item) + '</span>';
+    }).join('') + '</span>';
+  }
   function guideText(s) {
     var r = s.recipe, mn = mName(r.m), out = [], n = s.count;
+    if (s.module) out.push(moduleWords(s));
     s.inputs.forEach(function (g) {
       var froms = g.from.filter(function (f) { return f.rate > 1e-6; }).map(function (f) { return stepName(f.step); });
       if (g.fromSupply > 1e-6) froms.unshift('what you have');
       var t = 'Bring in <b>' + fmt(g.total) + ' ' + unit(g.item) + ' ' + esc(nm(g.item)) + '</b>' + (froms.length ? ' from ' + froms.join(' and ') : '') + '.';
-      if (g.fluid) t += n > 1 ? ' Run one pipe past all ' + n + ' machines and connect each one.' + (g.lines > 1 ? ' It needs ' + g.lines + ' pipes.' : '') : '';
+      if (g.fluid) {
+        if (g.groups && g.groups.length > 1) t += ' One Mk' + g.mk + ' pipe carries only ' + g.cap + ' m³/min, so split it into <b>' + g.groups.length + ' separate pipes</b>. Each pipe runs along its own machines with a junction into each one:' + groupList(g, s);
+        else if (n > 1) t += ' Run one pipe past all ' + n + ' machines and connect each one.';
+      }
       else if (g.layout && g.layout.type === 'over') t += ' <span class="bad">One machine needs more than a Mk' + g.mk + ' belt carries: use a faster belt or a lower clock.</span>';
       else {
-        if (g.lines > 1) t += ' That needs <b>' + g.lines + ' belts</b> (a Mk' + g.mk + ' belt carries ' + g.cap + '/min), each feeding ' + uniq(g.groups).join(' or ') + ' machines.';
+        if (g.lines > 1) t += ' One Mk' + g.mk + ' belt carries only ' + g.cap + '/min, so use <b>' + g.lines + ' separate belts</b>, each feeding its own machines:' + groupList(g, s) + 'On each belt:';
         var L = (g.layouts || [])[0];
         if (n === 1) t += ' Belt goes straight in.';
         else if (usesTree(s)) t += ' Split it evenly: ' + treeWords(L) + '. Every machine gets exactly <b>' + fmt(g.per[0]) + '/min</b>.';
@@ -2337,23 +2398,45 @@ details.mats[open] .chev { transform: rotate(180deg); }
     });
     return out;
   }
+  function rowDiagram(s) {
+    var M = s.module, k = M.gens, s2 = {};
+    Object.keys(s).forEach(function (key) { s2[key] = s[key]; });
+    s2._row = true; s2.count = k; s2.clocks = s.clocks.slice(0, k); s2.powerOut = s.powerOut / s.count * k;
+    s2.inputs = s.inputs.map(function (g) {
+      var c = {}; Object.keys(g).forEach(function (key) { c[key] = g[key]; });
+      c.per = g.per.slice(0, k); c.total = c.per.reduce(function (a, b) { return a + b; }, 0); c.from = []; c.fromSupply = c.total;
+      if (g.item === 'Water') { c.groups = []; for (var z = k; z > 0; z -= M.pipeEach) c.groups.push(Math.min(M.pipeEach, z)); c.lines = c.groups.length; c._sub = M.extractors + ' water extractors at 100%'; }
+      else { var rpb = g.groups && g.groups[0] ? Math.max(1, Math.round(g.groups[0] / k)) : 1; c.groups = [k]; c.lines = 1; c._sub = rpb > 1 ? 'one belt feeds ' + rpb + ' rows' : 'one belt per row'; c.layouts = [{ type: 'manifold', m: k, splitters: k - 1 }]; }
+      return c;
+    });
+    s2.outputs = s.outputs.map(function (o) { var c = {}; Object.keys(o).forEach(function (key) { c[key] = o[key]; }); c.total = o.total * k / s.count; c.groups = [k]; c.lines = 1; return c; });
+    return '<div class="rowcap"><b>One row shown.</b> Build <b>' + M.full + ' ' + plural(M.full, 'row') + '</b> exactly like this' + (M.rest ? ', plus 1 smaller row of ' + M.rest : '') + '.</div>' + stepDiagram(s2);
+  }
   function stepDiagram(s) {
+    if (s.module && s.count > s.module.gens && !s._row) return rowDiagram(s);
     var r = s.recipe, n = s.count, ins = s.inputs, outs = s.outputs, k = ins.length, ko = outs.length, i;
-    var MW = 220, MH = 54, ROW = 74, CW = 220, CH = 64, LANE = 46;
-    var collapsed = n > 16, vrows = [];
+    var compact = n > 12 && n <= 64;
+    var MW = compact ? 270 : 220, MH = compact ? 30 : 54, ROW = compact ? 36 : 74, CW = 220, CH = 64, LANE = 46;
+    var collapsed = n > 64, vrows = [];
     if (collapsed) { for (i = 0; i < 6; i++) vrows.push(i); vrows.push(-1); vrows.push(n - 2, n - 1); } else for (i = 0; i < n; i++) vrows.push(i);
     var L0 = ins[0] && ins[0].layouts && ins[0].layouts[0];
     var tree = usesTree(s);
     var lanes = [];
     ins.forEach(function (g, j) {
-      var groups = !g.fluid && g.groups && !collapsed ? g.groups : [n], st = 0;
-      groups.forEach(function (m, gi) { lanes.push({ g: g, j: j, gi: gi, lo: st, hi: st + m, ng: groups.length }); st += m; });
+      var groups = g.groups && !collapsed ? g.groups : [n], st = 0, mine = [];
+      groups.forEach(function (m, gi) { mine.push({ g: g, j: j, gi: gi, lo: st, hi: st + m, ng: groups.length }); st += m; });
+      // lower groups on the left, so each branch crosses as few other lines as possible
+      mine.reverse().forEach(function (q) { lanes.push(q); });
     });
     var olanes = [];
     outs.forEach(function (o, j) {
-      var groups = !o.fluid && o.groups && !collapsed ? o.groups : [n], st = 0;
+      var groups = o.groups && !collapsed ? o.groups : [n], st = 0;
       groups.forEach(function (m, gi) { olanes.push({ o: o, j: j, gi: gi, lo: st, hi: st + m, ng: groups.length }); st += m; });
     });
+    if (lanes.length + olanes.length > 6) LANE = 36;
+    var multi = lanes.some(function (q) { return q.ng > 1; });
+    if (multi) MW = Math.max(MW, 280);
+    function feedTag(q) { return (q.g.fluid ? 'P' : 'B') + (q.gi + 1); }
     var x0 = 12, inX = x0 + CW + 40;
     var laneW = tree ? L0.factors.length * 88 + 30 : lanes.length * LANE + 14;
     var mL = inX + laneW + 20, mR = mL + MW;
@@ -2369,9 +2452,11 @@ details.mats[open] .chev { transform: rotate(180deg); }
     var H = Math.max(rowsBottom, olanes.length ? exitY[exitY.length - 1] + CH / 2 : 0) + 14;
     var paths = '', glyphs = '', boxes = '';
     function ln(pts, c, arrow) { var d = P(pts); return '<path d="' + d + '" class="halo" style="stroke-width:10"/><path d="' + d + '" class="ln" style="stroke:' + c + ';stroke-width:3"' + (arrow ? ' marker-end="' + marker(c) + '"' : '') + '/>'; }
-    function sG(x, y, c, t) { var txt = t || 'S', w = Math.max(26, txt.length * 8 + 12); return '<g><rect x="' + (x - w / 2) + '" y="' + (y - 13) + '" width="' + w + '" height="26" rx="7" class="sp" style="stroke:' + c + ';stroke-width:2.2"/><text x="' + x + '" y="' + (y + 4) + '" class="gl2" text-anchor="middle">' + esc(txt) + '</text></g>'; }
-    function mG(x, y) { return '<g><circle cx="' + x + '" cy="' + y + '" r="13" class="mg" style="stroke-width:2.2"/><text x="' + x + '" y="' + (y + 4) + '" class="gl2" text-anchor="middle">M</text></g>'; }
-    function jG(x, y, c) { return '<circle cx="' + x + '" cy="' + y + '" r="6.5" class="jn" style="fill:' + c + '"/>'; }
+    var gh = compact ? 18 : 26;
+    function sG(x, y, c, t) { var txt = t || 'S', w = Math.max(gh, txt.length * 8 + (compact ? 8 : 12)); return '<g><rect x="' + (x - w / 2) + '" y="' + (y - gh / 2) + '" width="' + w + '" height="' + gh + '" rx="' + (compact ? 5 : 7) + '" class="sp" style="stroke:' + c + ';stroke-width:' + (compact ? 1.8 : 2.2) + '"/><text x="' + x + '" y="' + (y + 4) + '" class="gl2" text-anchor="middle"' + (compact ? ' style="font-size:10.5px"' : '') + '>' + esc(txt) + '</text></g>'; }
+    function mG(x, y) { var rr = compact ? 9 : 13; return '<g><circle cx="' + x + '" cy="' + y + '" r="' + rr + '" class="mg" style="stroke-width:2.2"/><text x="' + x + '" y="' + (y + 4) + '" class="gl2" text-anchor="middle"' + (compact ? ' style="font-size:10.5px"' : '') + '>M</text></g>'; }
+    function jG(x, y, c) { return '<circle cx="' + x + '" cy="' + y + '" r="' + (compact ? 5 : 6.5) + '" class="jn" style="fill:' + c + '"/>'; }
+    function pill(x, y, c, t) { var w = t.length * 7.5 + 10; return '<g><rect x="' + (x - w / 2) + '" y="' + (y - 9) + '" width="' + w + '" height="18" rx="5" style="fill:' + c + '"/><text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" style="font:700 11px var(--mono);fill:#15171a">' + esc(t) + '</text></g>'; }
     function card(x, y, c, t1, t2, t3) {
       return '<g><rect x="' + x + '" y="' + y + '" width="' + CW + '" height="' + CH + '" rx="11" class="cardbox"/><rect x="' + x + '" y="' + (y + 10) + '" width="4" height="' + (CH - 20) + '" rx="2" style="fill:' + c + '"/>' +
         '<text x="' + (x + 16) + '" y="' + (y + 22) + '" class="t1">' + esc(clip(t1, 22)) + '</text><text x="' + (x + 16) + '" y="' + (y + 40) + '" class="t2">' + esc(clip(t2, 28)) + '</text>' +
@@ -2381,7 +2466,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     ins.forEach(function (g, j) {
       var froms = g.from.filter(function (f) { return f.rate > 1e-6; }).map(function (f) { return 'step ' + (f.step + 1); });
       if (g.fromSupply > 1e-6) froms.unshift('what you have');
-      boxes += card(x0, cardY[j], col(g.item), nm(g.item), fmt(g.total) + ' ' + unit(g.item) + (g.lines > 1 ? ' · ' + g.lines + (g.fluid ? ' pipes' : ' belts') : ''), froms.length ? 'from ' + froms.join(' + ') : '');
+      boxes += card(x0, cardY[j], col(g.item), nm(g.item), fmt(g.total) + ' ' + unit(g.item) + (g.lines > 1 ? ' → ' + g.lines + (g.fluid ? ' pipes' : ' belts') : ''), g._sub ? g._sub : g.lines > 1 ? (g.fluid ? 'Mk' + g.mk + ' pipe carries ' + g.cap : 'Mk' + g.mk + ' belt carries ' + g.cap) : froms.length ? 'from ' + froms.join(' + ') : '');
     });
     // input belts
     if (tree) {
@@ -2407,7 +2492,9 @@ details.mats[open] .chev { transform: rotate(180deg); }
     } else {
       for (var li = lanes.length - 1; li >= 0; li--) {
         var q = lanes[li], g = q.g, c = col(g.item), lx = inX + 12 + li * LANE;
-        var ey2 = cardY[q.j] + CH / 2 + (q.ng > 1 ? (q.gi - (q.ng - 1) / 2) * 12 : 0);
+        var sp = Math.min(12, (CH - 18) / Math.max(1, q.ng - 1));
+        var ey2 = cardY[q.j] + CH / 2 + (q.ng > 1 ? (q.gi - (q.ng - 1) / 2) * sp : 0);
+        if (q.ng > 1) glyphs += pill(lx, machTop - 14, c, feedTag(q));
         var rows = [];
         if (collapsed) vrows.forEach(function (m, v) { if (m >= 0) rows.push(v); }); else for (var m = q.lo; m < q.hi; m++) rows.push(vOf(m));
         var lastV = rows[rows.length - 1];
@@ -2423,10 +2510,17 @@ details.mats[open] .chev { transform: rotate(180deg); }
     vrows.forEach(function (mi, v) {
       var t = rowTopV(v);
       if (mi < 0) { boxes += '<text x="' + (mL + MW / 2) + '" y="' + (t + MH / 2 + 5) + '" text-anchor="middle" class="t2">⋮  ' + (n - 8) + ' more, built the same way</text>'; return; }
-      boxes += '<g><rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="10" class="gm' + (s.amp ? ' amp' : '') + '"/>' +
-        '<text x="' + (mL + 16) + '" y="' + (t + (s.amp ? 23 : 32)) + '" class="t1">' + esc(clip(mShort(r.m), 16)) + ' ' + (mi + 1) + '</text>' +
-        (s.amp ? '<text x="' + (mL + 16) + '" y="' + (t + 41) + '" class="t3">' + s.amp + ' somersloops</text>' : '') +
-        '<text x="' + (mR - 14) + '" y="' + (t + 33) + '" class="tc2" text-anchor="end">' + clockShort(s.clocks[mi]) + '%</text></g>';
+      if (compact && multi && v > 0) {
+        var brk = lanes.some(function (q) { return q.ng > 1 && q.lo === mi; });
+        if (brk) boxes += '<path d="M' + (mL - 8) + ' ' + (t - (ROW - MH) / 2) + ' H' + (mR + 8) + '" style="stroke:var(--line-2);stroke-width:1;stroke-dasharray:3 4;fill:none"/>';
+      }
+      var tags = multi ? lanes.filter(function (q) { return q.ng > 1 && mi >= q.lo && mi < q.hi; }).sort(function (a, b) { return a.j - b.j; }).map(feedTag).join(' ') : '';
+      var ty = compact ? t + MH / 2 + 5 : t + (s.amp ? 23 : 32);
+      boxes += '<g><rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="' + (compact ? 7 : 10) + '" class="gm' + (s.amp ? ' amp' : '') + '"/>' +
+        '<text x="' + (mL + (compact ? 12 : 16)) + '" y="' + ty + '" class="t1"' + (compact ? ' style="font-size:12.5px"' : '') + '>' + esc(clip(mShort(r.m), 16)) + ' ' + (mi + 1) + '</text>' +
+        (s.amp && !compact ? '<text x="' + (mL + 16) + '" y="' + (t + 41) + '" class="t3">' + s.amp + ' somersloops</text>' : '') +
+        (tags ? '<text x="' + (mR - (compact ? 62 : 72)) + '" y="' + ty + '" text-anchor="end" style="font:600 11px var(--mono);fill:var(--muted)">' + tags + '</text>' : '') +
+        '<text x="' + (mR - (compact ? 10 : 14)) + '" y="' + (compact ? ty : t + 33) + '" class="tc2" text-anchor="end"' + (compact ? ' style="font-size:12.5px"' : '') + '>' + clockShort(s.clocks[mi]) + '%</text></g>';
     });
     // output belts
     olanes.forEach(function (q, qi) {
@@ -2440,12 +2534,13 @@ details.mats[open] .chev { transform: rotate(180deg); }
       if (o.toOutput > 1e-6) dest.push('final output');
       if (o.toLeftover > 1e-4) dest.push('leftover');
       var rate = o.total * (q.hi - q.lo) / n;
-      boxes += card(cardOX, ey - CH / 2, c, nm(o.item), fmt(rate) + ' ' + unit(o.item) + (q.ng > 1 ? ' · belt ' + (q.gi + 1) + ' of ' + q.ng : o.fluid ? '' : ' · Mk' + o.mk + ' belt'), dest.length ? 'to ' + dest.join(', ') : '');
+      boxes += card(cardOX, ey - CH / 2, c, nm(o.item), fmt(rate) + ' ' + unit(o.item) + (q.ng > 1 ? ' · ' + (o.fluid ? 'pipe ' : 'belt ') + (q.gi + 1) + ' of ' + q.ng : o.fluid ? '' : ' · Mk' + o.mk + ' belt'), dest.length ? 'to ' + dest.join(', ') : '');
     });
     if (s.powerOut > 0) {
       var pcy = machTop + 6, wx = oX + olanes.length * LANE;
-      vrows.forEach(function (mi, v) { if (mi < 0) return; var y = rowTopV(v) + MH - 12; paths += '<path d="' + P([[mR, y], [wx, y]]) + '" class="ln" style="stroke:#f2d85a;stroke-width:2;stroke-dasharray:6 5"/>'; });
-      paths += '<path d="' + P([[wx, rowTopV(vrows.length - 1) + MH - 12], [wx, pcy + CH / 2], [cardOX, pcy + CH / 2]]) + '" class="ln" style="stroke:#f2d85a;stroke-width:2;stroke-dasharray:6 5" marker-end="' + marker('#f2d85a') + '"/>';
+      var pwy = compact ? MH / 2 + 7 : MH - 12;
+      vrows.forEach(function (mi, v) { if (mi < 0) return; var y = rowTopV(v) + pwy; paths += '<path d="' + P([[mR, y], [wx, y]]) + '" class="ln" style="stroke:#f2d85a;stroke-width:2;stroke-dasharray:6 5"/>'; });
+      paths += '<path d="' + P([[wx, rowTopV(vrows.length - 1) + pwy], [wx, pcy + CH / 2], [cardOX, pcy + CH / 2]]) + '" class="ln" style="stroke:#f2d85a;stroke-width:2;stroke-dasharray:6 5" marker-end="' + marker('#f2d85a') + '"/>';
       boxes += card(cardOX, pcy, '#f2d85a', 'Power', '+' + trim(s.powerOut, 0) + ' MW', 'to your power grid');
     }
     var defs = '<defs>' + ALL_COLS.map(function (c, ix) { return '<marker id="ah-' + ix + '" viewBox="0 0 10 10" refX="8.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M0,0.5 L10,5 L0,9.5 z" style="fill:' + c + '"/></marker>'; }).join('') + '</defs>';
