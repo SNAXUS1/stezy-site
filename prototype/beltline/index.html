@@ -64,7 +64,7 @@ body { color: var(--fg); font: 14px/1.5 var(--body); min-height: 100vh; }
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
-.wrap { position: relative; z-index: 1; max-width: 1480px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 40px; }
+.wrap { position: relative; z-index: 1; max-width: 2400px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 40px; }
 
 /* header */
 .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
@@ -85,6 +85,7 @@ button { cursor: pointer; }
 .tabs button[aria-selected="true"] { background: var(--fg); color: var(--ink); border-color: var(--fg); }
 
 .layout { display: grid; grid-template-columns: minmax(320px, 360px) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (min-width: 1700px) { .wrap { padding-left: 28px; padding-right: 28px; } .layout { grid-template-columns: 400px minmax(0, 1fr); gap: 22px; } }
 .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
 /* cards */
@@ -1181,7 +1182,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     var extraction = [], extractionPower = 0;
     if (supply.Water && !(model.haveCap.Water > 0)) {
       var cmax = (st.maxClock || 100) / 100, need = supply.Water / 120;
-      var n = Math.max(1, Math.ceil(need / cmax - 1e-6)), cl = need / n;
+      var n = Math.max(1, Math.ceil(need / cmax - 1e-4)), cl = Math.min(cmax, need / n);
       var pw = n * powerAt(20, exp, cl);
       extraction.push({ kind: 'water', count: n, clock: cl, rate: supply.Water, power: pw });
       extractionPower += pw; addCost(D.extras.waterExtractor.cost, n);
@@ -2558,7 +2559,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function refit() { var t = fitT(); if (t) { vpT = t; vpUser = false; applyT(); } }
   function initViewport() {
     var e = vpEls(); if (!e.vp || !e.svg) return;
-    var key = state.current;
+    var key = state.current + '|' + e.svg.getAttribute('width') + 'x' + e.svg.getAttribute('height');   // refit when the plan changes shape
     if (!vpT || vpFor !== key || !vpUser) { var t = fitT(); if (t) { vpT = t; vpFor = key; } }
     applyT();
     var vp = e.vp, ptrs = {}, start = null, moved = false, pinch = null;
