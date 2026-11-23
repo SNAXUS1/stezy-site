@@ -1270,7 +1270,9 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function clockShort(c) { return state.noClock ? '100' : trim(c * 100, 2); }
   function plural(n, a, b) { return n === 1 ? a : (b || a + 's'); }
   function mName(m) { return D.machines[m].name; }
-  function mShort(m) { return { gen_coal: 'Coal Generator', gen_fuel: 'Fuel Generator', gen_nuclear: 'Nuclear Plant', gen_biomass: 'Biomass Burner', accelerator: 'Accelerator', encoder: 'Quantum Encoder' }[m] || mName(m); }
+  var MSHORT = { gen_coal: 'Coal Generator', gen_fuel: 'Fuel Generator', gen_nuclear: 'Nuclear Plant', gen_biomass: 'Biomass Burner', accelerator: 'Accelerator', encoder: 'Quantum Encoder' };
+  // own keys only: the Constructor's id is "constructor", which every plain object also has built in
+  function mShort(m) { return Object.prototype.hasOwnProperty.call(MSHORT, m) ? MSHORT[m] : mName(m); }
   function mNames(m, n) { var s = mName(m); if (n === 1) return s; return /[^aeiou]y$/.test(s) ? s.slice(0, -1) + 'ies' : s + 's'; }
   function chip(id) { var it = D.items[id] || {}; return '<i class="chip' + (id === 'Power' ? ' power' : it.fluid ? ' fluid' : it.raw ? ' raw' : '') + '"></i>'; }
   function uid() { return Math.random().toString(36).slice(2, 9); }
@@ -3443,7 +3445,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261123032519';
+  var BELTLINE_BUILD = '20261123032927';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
