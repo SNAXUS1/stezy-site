@@ -360,7 +360,7 @@ button { cursor: pointer; }
 .vp { position: relative; height: 72vh; min-height: 340px; overflow: hidden; touch-action: none; cursor: grab;
   background: radial-gradient(circle at 1px 1px, rgba(255,255,255,.06) 1px, transparent 1.4px) 0 0 / 20px 20px, var(--bg); }
 .vp.dragging { cursor: grabbing; user-select: none; }
-.vp > svg { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.vp > svg { position: absolute; left: 0; top: 0; transform-origin: 0 0; text-rendering: geometricPrecision; shape-rendering: geometricPrecision; }
 .zoom-pct { font: 12px var(--mono); color: var(--muted); min-width: 42px; text-align: center; }
 /* step-by-step guide */
 .guide { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 14px; }
@@ -446,6 +446,21 @@ details.mats[open] .chev { transform: rotate(180deg); }
 .pw-pick { display: flex; flex-direction: column; gap: 8px; }
 .rowcap { font-size: 13px; color: var(--muted); padding: 8px 12px; margin-bottom: 8px; border: 1px dashed var(--line-2); border-radius: 9px; }
 .rowcap b { color: var(--fg); }
+.row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.sm-ctl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.sm-ctl .field { margin: 0; }
+.sm-sum { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 10px; }
+.sm-sum .st { border: 1px solid var(--line); background: var(--panel-2); border-radius: 9px; padding: 7px 11px; font: 12px var(--mono); color: var(--muted); }
+.sm-sum .st b { display: block; font: 600 17px var(--display); color: var(--fg); }
+.sm-sum .st.bad { border-color: var(--bad); }
+.sm-svg { width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); margin-bottom: 10px; }
+.sm-svg svg { display: block; }
+.sm-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; line-height: 1.55; }
+.sm-steps b { color: var(--fg); }
+.sm-note { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+.hdr-btn { border: 1px solid var(--line-2); background: var(--panel-2); color: var(--fg); border-radius: 999px; padding: 5px 12px; font: 600 12px var(--display); display: inline-flex; gap: 6px; align-items: center; }
+.hdr-btn:hover { border-color: var(--muted); }
+@media (max-width: 520px) { .sm-ctl { grid-template-columns: 1fr 1fr; } }
 .glist { display: flex; flex-direction: column; gap: 3px; margin: 7px 0 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font: 12.5px/1.5 var(--mono); color: var(--muted); }
 .glist b { color: var(--fg); font-weight: 600; }
 .glist i { font-style: normal; display: inline-block; min-width: 26px; text-align: center; border-radius: 5px; padding: 0 5px; margin-right: 6px; color: var(--ink); font-weight: 700; }
@@ -784,7 +799,10 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var it = D.items[id] || {}, cap = haveCap[id];
       if (opts.diagnose) {
         var external = it.raw || !prodAvail[id];
-        if (external || cap != null) supplies.push({ item: id, cap: Infinity, w: (it.raw ? weight(id) : 5) + (cap != null ? 0 : 0) });
+        if (cap != null && !external) {   // made by machines but some is on hand: use that first, then say what the rest needs
+          supplies.push({ item: id, cap: cap, w: 0.0002, capped: true });
+          supplies.push({ item: id, cap: Infinity, w: 1000, excess: true });
+        } else if (external || cap != null) supplies.push({ item: id, cap: Infinity, w: it.raw ? weight(id) : 5 });
         return;
       }
       if (id === 'Water' && st.waterUnlimited && rawGate('Water', st)) { supplies.push({ item: id, cap: Infinity, w: weight(id) }); return; }
@@ -1039,6 +1057,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
       dm.supplies.forEach(function (s, k) {
         var used = d.supX[k], have = model.haveCap[s.item] || 0;
         if (s.item === 'Water' && st.waterUnlimited) return;
+        if (s.capped) return;
+        if (s.excess) { if (used > 1e-4) out.missing.push({ item: s.item, need: have + used, have: have, raw: false }); return; }
         if (used > have * (1 + 1e-5) + 1e-4) out.missing.push({ item: s.item, need: used, have: have, raw: !!(D.items[s.item] || {}).raw });
       });
       out.missing.sort(function (a, b) { return (b.need - b.have) - (a.need - a.have); });
@@ -1251,15 +1271,25 @@ details.mats[open] .chev { transform: rotate(180deg); }
     };
   }
   // fields that belong to one factory (the rest, like tier and alternates, are shared)
-  var FF = ['name', 'have', 'want', 'recipeChoice', 'lockCount', 'waterUnlimited', 'limitToHave', 'goal', 'split', 'easyCounts', 'built', 'example', 'lastOut', 'selfPower', 'kind', 'powerHave', 'itemsWant', 'powerWant'];
-  var FF_DEF = { selfPower: false, kind: 'items', powerHave: 0, itemsWant: null, powerWant: null };
-  function snapshot() { var o = {}; FF.forEach(function (k) { o[k] = JSON.parse(JSON.stringify(state[k])); }); return o; }
+  var FF = ['name', 'have', 'want', 'recipeChoice', 'lockCount', 'waterUnlimited', 'limitToHave', 'goal', 'split', 'easyCounts', 'built', 'example', 'lastOut', 'selfPower', 'kind', 'powerHave', 'itemsWant', 'powerWant', 'geoI', 'geoN', 'geoP'];
+  var FF_DEF = { selfPower: false, kind: 'items', powerHave: 0, itemsWant: null, powerWant: null, geoI: 0, geoN: 0, geoP: 0 };
+  function snapshot() { var o = {}; FF.forEach(function (k) { var v = state[k] === undefined ? (k in FF_DEF ? FF_DEF[k] : null) : state[k]; o[k] = JSON.parse(JSON.stringify(v)); }); return o; }
   function loadSnap(s) { FF.forEach(function (k) { if (s[k] !== undefined) state[k] = JSON.parse(JSON.stringify(s[k])); else if (k in FF_DEF) state[k] = FF_DEF[k]; }); }
   function switchFactory(id) {
     if (id === state.current || !state.saved[id]) return;
     state.saved[state.current] = snapshot();
     loadSnap(state.saved[id]); delete state.saved[id];
     state.current = id; selected = null; closePop(); changed(true, true);
+  }
+  var GEO = [['geoI', 'Impure', 100], ['geoN', 'Normal', 200], ['geoP', 'Pure', 400]];
+  function geoMW() { return GEO.reduce(function (a, g) { return a + (+state[g[0]] || 0) * g[2]; }, 0); }
+  function haveMW() { return geoMW() + (+state.powerHave || 0); }
+  function powerHaveHtml() {
+    return '<div class="field"><span class="label">Power you already have</span><div class="row3">' + GEO.map(function (g) {
+      return '<label class="num"><input type="number" inputmode="numeric" min="0" step="1" id="prog-' + g[0] + '" data-prog="' + g[0] + '" aria-label="Geothermal generators on ' + g[1].toLowerCase() + ' nodes" value="' + (state[g[0]] || 0) + '"><span class="u">' + g[1] + '</span></label>';
+    }).join('') + '</div><div class="tiny">Geothermal generators per node purity. They average 100 / 200 / 400 MW and swing up and down over time.</div>' +
+      '<label class="num"><input type="number" inputmode="numeric" min="0" step="1" id="prog-powerHave" data-prog="powerHave" aria-label="Other power you already have in MW" value="' + (state.powerHave || 0) + '"><span class="u">MW other</span></label>' +
+      (haveMW() > 0 ? '<div class="tiny">Counts <b>' + fmt(haveMW()) + ' MW</b>. Only the rest gets built.</div>' : '') + '</div>';
   }
   function powerWantRow() { return [{ id: uid(), item: 'Power', rate: 500, fixed: true }]; }
   function blankFactory(name, kind) {
@@ -1394,7 +1424,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       tier: state.tier, belt: state.belt, pipe: state.pipe, maxClock: state.noClock ? 100 : state.maxClock,
       alts: state.alts, mam: state.mam, waterUnlimited: state.waterUnlimited,
       have: state.have.filter(function (h) { return h.item; }).map(function (h) { return { item: h.item, rate: rowRate(h) }; })
-        .concat(state.kind !== 'power' && state.selfPower && +state.powerHave > 0 ? [{ item: 'Power', rate: +state.powerHave }] : []),
+        .concat((state.kind === 'power' || state.selfPower) && haveMW() > 0 ? [{ item: 'Power', rate: haveMW() }] : []),
       want: state.want.filter(function (w) { return w.item; }).map(function (w) { return { item: w.item, rate: Math.max(0, +w.rate || 0), fixed: !!w.fixed }; }),
       limitToHave: state.limitToHave, goal: state.goal, split: state.noClock ? 'fill' : state.split, easyCounts: state.easyCounts,
       recipeChoice: state.recipeChoice, lockCount: state.lockCount, sloops: Math.max(0, Math.floor(+state.sloops || 0)), selfPower: state.kind === 'power' || !!state.selfPower
@@ -1567,13 +1597,13 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var pwW = state.want[pwI] || { rate: 500, fixed: true };
       html += '<div class="rowbox"><div class="rowline">' + chip('Power') + '<span class="nm" style="font-weight:600;flex:1">Electricity</span>' + miniSeg('want', pwI, 'fixed', [['true', 'Fixed'], ['false', 'Max']], String(!!pwW.fixed)) + '</div><div class="rowline">' +
         (pwW.fixed ? numInput('want', pwI, 'rate', pwW.rate, 'MW', 'Megawatts') + '<span class="share-out" data-share-out="' + pwI + '"></span>' : '<span class="tiny">As much as your resources in You have allow.</span>') + '</div></div>';
-      html += powerFromHtml();
+      html += powerHaveHtml() + powerFromHtml();
     } else {
       html += '<div class="rows">' + state.want.map(wantRow).join('') + '</div>' +
         '<button class="btn ghost" type="button" data-act="add" data-list="want">' + ICON.plus + 'Add item</button>' +
         '<div class="field"><span class="label">Quick start</span><div class="row2"><button class="btn" type="button" data-act="preset" data-v="mall">Building materials</button><button class="btn" type="button" data-act="preset" data-v="goal">Tier goal</button></div></div>';
       html += '<label class="toggle"><input type="checkbox" id="opt-self" data-opt="selfPower"' + (state.selfPower ? ' checked' : '') + '><span class="box"></span><span>Also make the power for this factory</span></label>';
-      if (state.selfPower) html += '<div class="field"><span class="label">Power you already have</span><label class="num"><input type="number" inputmode="numeric" min="0" step="1" id="prog-powerHave" data-prog="powerHave" aria-label="Power you already have in MW" value="' + (state.powerHave || 0) + '"><span class="u">MW</span></label><div class="tiny">Geothermal or spare grid power. The rest gets built.</div></div>' + powerFromHtml();
+      if (state.selfPower) html += powerHaveHtml() + powerFromHtml();
     }
     if (allFixed) html += '<label class="toggle"><input type="checkbox" id="opt-limit" data-opt="limitToHave"' + (state.limitToHave ? ' checked' : '') + '><span class="box"></span><span>Only use what I have</span></label>';
     if (!isPw) html += '<div class="field"><span class="label">Best means</span>' + seg('goal', [['resources', 'Least ore'], ['machines', 'Fewest machines'], ['power', 'Least power']], state.goal, 'full') + '</div>' +
@@ -1628,6 +1658,250 @@ details.mats[open] .chev { transform: rotate(180deg); }
     ['Plastic', 30], ['Rubber', 30], ['HighSpeedWire', 60], ['AluminumPlate', 10], ['AluminumCasing', 10], ['Computer', 1], ['ModularFrameHeavy', 1]];
   function canMakeMap() { var a = {}; E.availableRecipes(engineState()).forEach(function (r) { r.out.forEach(function (o) { a[o[0]] = true; }); }); return a; }
   function unlockTier(id) { var t = null; E.producers(id).forEach(function (r) { r.unlock.forEach(function (u) { if (u[0] === 't') { var x = Math.max(u[1], D.machines[r.m].tier); if (t == null || x < t) t = x; } }); }); return t; }
+  /* ---------------- split / merge helper ---------------- */
+  function gcd(a, b) { while (b) { var t = b; b = a % b; a = t; } return a; }
+  function treeCount(f) { var c = 0, prod = 1; f.forEach(function (x) { c += prod; prod *= x; }); return c; }
+  function nextEasy(n) { while (!E.isEasy(n)) n++; return n; }
+  function splitUnit(P) {
+    if (P <= 1) return { P: 1, splitters: 0, mergers: 0, load: 1, back: 0 };
+    var f = E.easyFactors(P);
+    if (f) return { P: P, Q: P, factors: f, back: 0, splitters: treeCount(f), mergers: 0, load: 1 };
+    var Q = nextEasy(P + 1), ff = E.easyFactors(Q);
+    return { P: P, Q: Q, factors: ff, back: Q - P, splitters: treeCount(ff), mergers: 1, load: Q / P };
+  }
+  function mergeCount(m) { return m <= 1 ? 0 : Math.ceil((m - 1) / 2); }
+  function treeWordsS(f) { return 'a splitter into ' + f[0] + (f.length > 1 ? ', then ' + f.slice(1).map(function (x) { return 'each of those into ' + x; }).join(', then ') : ''); }
+
+  // parse "60, 60, 120" or "12x60, 2×30"
+  function parseBelts(txt) {
+    var out = [];
+    String(txt || '').split(/[,;\s]+/).forEach(function (tok) {
+      if (!tok) return;
+      var m = tok.match(/^(\d+)\s*[x×*]\s*(\d*\.?\d+)$/i);
+      if (m) { for (var i = 0; i < Math.min(64, +m[1]); i++) out.push(+m[2]); return; }
+      var v = parseFloat(tok); if (v > 0) out.push(v);
+    });
+    return out.slice(0, 64);
+  }
+
+  // Build a network that turns the inputs into P equal parts.
+  // lines: belts after the first merge/split, each split into Mp equal pieces; lines are in groups of Gp, each group feeds Mp parts.
+  function partsNet(ins, P, C) {
+    var K = ins.length, T = ins.reduce(function (a, b) { return a + b; }, 0), same = ins.every(function (v) { return Math.abs(v - ins[0]) < 1e-9; });
+    var best = null;
+    function consider(n) { n.cost = n.pre + n.splitters + n.mergers + (n.su.back ? 0.5 * n.lines.length : 0); if (!best || n.cost < best.cost - 1e-9) best = n; }
+    if (same) {
+      var r = ins[0];
+      [1, 2, 3, 4, 6, 8, 9, 12].forEach(function (sN) {
+        var L = K * sN;
+        for (var G = 1; G <= L; G++) {
+          if (L % G || (sN > 1 && G < L)) continue;
+          var R = L / G * r / sN; if (R > C + 1e-9) continue;
+          var g = gcd(G, P), Gp = G / g, Mp = P / g, su = splitUnit(Mp);
+          if (R * su.load > C + 1e-9) continue;
+          var lines = [];
+          for (var j = 0; j < G; j++) {
+            var from = [];
+            if (sN > 1) from.push(Math.floor(j / sN)); else for (var i = j * (K / G); i < (j + 1) * (K / G); i++) from.push(i);
+            lines.push({ from: from, rate: R });
+          }
+          consider({ T: T, C: C, P: P, ins: ins, sN: sN, preSplitOf: sN > 1 ? ins.map(function () { return sN; }) : null, lines: lines, Gp: Gp, Mp: Mp, g: g, su: su,
+            pre: (sN > 1 ? 0 : G * mergeCount(K / G)) , splitters: (sN > 1 ? K * treeCount(E.easyFactors(sN)) : 0) + G * su.splitters, mergers: G * su.mergers + P * mergeCount(Gp) });
+        }
+      });
+    }
+    // any belts: pack them onto lines (first fit, biggest first), split every line into P, part k takes piece k of every line
+    var su2 = splitUnit(P), capEff = C / su2.load, pieces = [], preSplitOf = ins.map(function () { return 1; }), preSpl = 0;
+    ins.forEach(function (v, i) {
+      var sN = 1; while (v / sN > capEff + 1e-9 && sN < 64) sN = nextEasy(sN + 1);
+      preSplitOf[i] = sN; if (sN > 1) preSpl += treeCount(E.easyFactors(sN));
+      for (var t = 0; t < sN; t++) pieces.push({ i: i, rate: v / sN });
+    });
+    if (pieces.every(function (p) { return p.rate <= capEff + 1e-9; })) {
+      var order = pieces.slice().sort(function (a, b) { return b.rate - a.rate; }), bins = [];
+      order.forEach(function (p) {
+        var bin = null; for (var b = 0; b < bins.length; b++) if (bins[b].rate + p.rate <= capEff + 1e-9) { bin = bins[b]; break; }
+        if (!bin) { bin = { from: [], rate: 0 }; bins.push(bin); }
+        bin.from.push(p.i); bin.rate += p.rate;
+      });
+      bins.forEach(function (b) { b.from.sort(function (x, y) { return x - y; }); });
+      bins.sort(function (a, b) { return a.from[0] - b.from[0]; });
+      var Gn = bins.length;
+      consider({ T: T, C: C, P: P, ins: ins, sN: 1, preSplitOf: preSpl ? preSplitOf : null, lines: bins, Gp: Gn, Mp: P, g: 1, su: su2,
+        pre: bins.reduce(function (a, b) { return a + mergeCount(b.from.length); }, 0), splitters: preSpl + Gn * su2.splitters, mergers: Gn * su2.mergers + (Gn > 1 ? P * mergeCount(Gn) : 0) });
+    }
+    return best;
+  }
+  // a fraction p/q close to x, q up to 54
+  function frac(x) {
+    var bestF = null;
+    for (var q = 1; q <= 54; q++) { var p = Math.round(x * q); if (p < 1 || p >= q) continue; var err = Math.abs(p / q - x); if (!bestF || err < bestF.err - 1e-9) bestF = { p: p, q: q, err: err }; if (err < 1e-9) break; }
+    return bestF;
+  }
+  function splitPlan(ins, mode, M, X, C) {
+    var T = ins.reduce(function (a, b) { return a + b; }, 0);
+    if (!ins.length) return { err: 'Type your belts, e.g. <b>12×60</b> or <b>60, 60, 120</b>.' };
+    var tooBig = ins.filter(function (v) { return v > C + 1e-9; });
+    if (tooBig.length) return { err: 'A belt can’t carry ' + fmt(tooBig[0]) + '/min on this Mk (max ' + C + ').' };
+    if (mode === 'equal') {
+      if (M * C < T - 1e-9) return { err: 'Each output would carry <b>' + fmt(T / M) + '/min</b>, more than one belt (' + C + '). Use at least <b>' + Math.ceil(T / C - 1e-9) + ' outputs</b>, or a faster belt.' };
+      if (M === ins.length && ins.every(function (v) { return Math.abs(v - ins[0]) < 1e-9; })) return { err: 'Your belts are already ' + M + ' equal belts. Nothing to do.' };
+      var n = partsNet(ins, M, C); if (!n) return { err: 'No clean layout fits this belt. Try a faster belt.' };
+      n.outs = []; for (var k = 0; k < M; k++) n.outs.push({ name: 'Out ' + (k + 1), parts: [k], rate: T / M });
+      n.outMergers = 0; return n;
+    }
+    if (!(X > 0) || X >= T - 1e-9) return { err: 'Take out an amount between 0 and your total (' + fmt(T) + '/min).' };
+    if (X > C + 1e-9) return { err: 'The amount you take (' + fmt(X) + '/min) is more than one belt carries (' + C + ').' };
+    var f = frac(X / T), q = f.q, p = f.p, part = T / q;
+    var n2 = partsNet(ins, q, C); if (!n2) return { err: 'No clean layout fits this belt. Try a faster belt.' };
+    var outs = [], aParts = []; for (var a = 0; a < p; a++) aParts.push(a);
+    outs.push({ name: 'Take', parts: aParts, rate: part * p, take: true });
+    var restParts = [], per = Math.max(1, Math.floor(C / part + 1e-9)); for (var b = p; b < q; b++) restParts.push(b);
+    for (var st = 0, idx = 1; st < restParts.length; st += per, idx++) { var ch = restParts.slice(st, st + per); outs.push({ name: 'Rest' + (restParts.length > per ? ' ' + idx : ''), parts: ch, rate: part * ch.length }); }
+    n2.outs = outs; n2.frac = f; n2.X = X;
+    n2.outMergers = outs.reduce(function (a2, o) { return a2 + mergeCount(o.parts.length); }, 0);
+    n2.mergers += n2.outMergers;
+    return n2;
+  }
+  function splitWords(n, bm) {
+    var out = [], u = '/min', K = n.ins.length, G = n.lines.length;
+    var splitIns = n.preSplitOf ? n.preSplitOf.map(function (s, i) { return [i, s]; }).filter(function (x) { return x[1] > 1; }) : [];
+    if (splitIns.length) {
+      if (splitIns.length === K && splitIns.every(function (x) { return x[1] === splitIns[0][1]; })) out.push('<b>Split first:</b> split ' + (K === 1 ? 'the belt' : 'each of your ' + K + ' belts') + ' into <b>' + splitIns[0][1] + '</b> (' + treeWordsS(E.easyFactors(splitIns[0][1])) + '). That keeps the loop-back below under the belt limit.');
+      else out.push('<b>Split first:</b> ' + splitIns.map(function (x) { return 'belt ' + (x[0] + 1) + ' (' + fmt(n.ins[x[0]]) + u + ') into ' + x[1]; }).join(', ') + ', so no belt below goes over the limit.');
+    }
+    var merged = n.lines.filter(function (l) { return l.from.length > 1; });
+    if (merged.length) {
+      var uniform = n.lines.every(function (l) { return l.from.length === n.lines[0].from.length; }) && !splitIns.length;
+      if (uniform && n.lines.every(function (l) { return Math.abs(l.rate - n.lines[0].rate) < 1e-9; })) out.push('<b>Merge first:</b> join your ' + K + ' belts into <b>' + G + ' ' + plural(G, 'belt') + '</b>, ' + n.lines[0].from.length + ' into each (' + mergeCount(n.lines[0].from.length) + ' ' + plural(mergeCount(n.lines[0].from.length), 'merger') + ' each). Each carries <b>' + fmt(n.lines[0].rate) + u + '</b>.');
+      else out.push('<b>Merge first:</b> ' + n.lines.map(function (l, j) { return '<b>line ' + String.fromCharCode(65 + j) + '</b> = belt' + (l.from.length > 1 ? 's ' : ' ') + uniq(l.from.map(function (i) { return i + 1; })).join(' + ') + ' (' + fmt(l.rate) + u + ')'; }).join('; ') + '. Mergers take up to 3 belts.');
+    }
+    if (n.Mp > 1) {
+      var su = n.su, lw = G === 1 ? 'the belt' : 'each of the ' + G + ' ' + (merged.length ? 'lines' : 'belts');
+      if (!su.back) out.push('<b>Split ' + lw + ' into ' + n.Mp + ' equal pieces:</b> ' + treeWordsS(su.factors) + ' (' + su.splitters + ' ' + plural(su.splitters, 'splitter') + ' each).');
+      else out.push('<b>Split ' + lw + ' into ' + n.Mp + ' equal pieces</b> (' + n.Mp + ' doesn’t split cleanly, so loop some back): put a <b>merger</b> on the belt, then ' + treeWordsS(su.factors) + ' to get ' + su.Q + '. Send <b>' + su.back + ' of the ' + su.Q + '</b> back into that merger. The other ' + n.Mp + ' come out exactly equal once it settles.');
+    }
+    if (n.Gp > 1) out.push('<b>Combine the pieces:</b> part 1 takes piece 1 from ' + (n.g > 1 ? 'each line in its group' : 'every line') + ', part 2 takes piece 2, and so on (' + mergeCount(n.Gp) + ' ' + plural(mergeCount(n.Gp), 'merger') + ' per part). Every part is now exactly <b>' + fmt(n.T / n.P) + u + '</b>.');
+    if (n.g > 1 && n.Gp > 1) out.push('That’s ' + n.g + ' identical groups side by side. Build one, copy it.');
+    if (n.frac) {
+      var tk = n.outs[0];
+      out.push('<b>Take</b> ' + tk.parts.length + ' of the ' + n.P + ' parts' + (tk.parts.length > 1 ? ' and merge them' : '') + ': <b>' + fmt(tk.rate) + u + '</b>' + (n.frac.err > 1e-9 ? ' (closest clean amount to the ' + fmt(n.X) + ' you asked for)' : '') + '. Merge the other ' + (n.P - tk.parts.length) + ' parts into the rest: ' + n.outs.slice(1).map(function (o) { return '<b>' + fmt(o.rate) + u + '</b>'; }).join(' + ') + '.');
+    } else out.push('<b>Result:</b> ' + n.outs.length + ' ' + plural(n.outs.length, 'belt') + ', each <b>' + fmt(n.outs[0].rate) + u + '</b>.');
+    return out;
+  }
+  function splitSvg(n) {
+    var K = n.ins.length, G = n.lines.length, O = n.outs.length, rowH = 24, inX = 14, gX = 190, sX = 340, oX = 560, W = 700;
+    var showLines = n.lines.some(function (l) { return l.from.length > 1; }) || !!n.preSplitOf || G !== K;
+    var H = Math.max(Math.max(K, O, G) * rowH + 40, 120), top = 26, body = '';
+    var orange = 'var(--belt)', green = 'var(--merge)';
+    function yAt(i, cnt) { return top + (i + 0.5) * (H - top - 10) / cnt; }
+    function path(x1, y1, x2, y2, c, w) { var mx = (x1 + x2) / 2; return '<path d="M' + x1 + ' ' + y1 + ' C' + mx + ' ' + y1 + ' ' + mx + ' ' + y2 + ' ' + x2 + ' ' + y2 + '" style="fill:none;stroke:' + c + ';stroke-width:' + (w || 2) + ';opacity:.85"/>'; }
+    function box(x, y, w, h, t1, t2, c) { return '<rect x="' + x + '" y="' + (y - h / 2) + '" width="' + w + '" height="' + h + '" rx="7" style="fill:var(--panel-2);stroke:' + c + ';stroke-width:1.6"/><text x="' + (x + w / 2) + '" y="' + (y + (t2 ? -1 : 4)) + '" text-anchor="middle" style="font:600 11.5px var(--display);fill:var(--fg)">' + esc(t1) + '</text>' + (t2 ? '<text x="' + (x + w / 2) + '" y="' + (y + 12) + '" text-anchor="middle" style="font:10px var(--mono);fill:var(--muted)">' + esc(t2) + '</text>' : ''); }
+    function hd(x, t) { return '<text x="' + x + '" y="14" style="font:600 10.5px var(--mono);fill:var(--faint)">' + t + '</text>'; }
+    var lab = hd(inX, 'IN · ' + K) + (showLines ? hd(gX, 'LINES · ' + G) : '') + (n.Mp > 1 ? hd(sX, 'SPLIT ÷' + n.Mp) : '') + hd(oX, 'OUT · ' + O);
+    var bh = function (cnt, max) { return Math.min(max, Math.max(16, (H - top) / cnt - 6)); };
+    for (var i = 0; i < K; i++) {
+      var y = yAt(i, K);
+      body += box(inX, y, 90, bh(K, 22), fmt(n.ins[i]) + '/min', '', orange);
+      if (showLines) n.lines.forEach(function (l, j) { if (l.from.indexOf(i) >= 0) body += path(inX + 90, y, gX, yAt(j, G), orange); });
+    }
+    if (showLines) n.lines.forEach(function (l, j) { body += box(gX, yAt(j, G), 110, bh(G, 30), (l.from.length > 1 ? 'Line ' : 'Belt ') + String.fromCharCode(65 + j % 26), fmt(l.rate) + '/min', l.from.length > 1 ? green : orange); });
+    var srcX = showLines ? gX + 110 : inX + 90;
+    n.lines.forEach(function (l, j) {
+      var yy = showLines ? yAt(j, G) : yAt(j, K), fromX = srcX;
+      if (n.Mp > 1) {
+        body += path(srcX, yy, sX, yy, orange);
+        body += box(sX, yy, 110, bh(G, 30), '÷' + n.Mp + (n.su.back ? ' (÷' + n.su.Q + ', ' + n.su.back + ' back)' : ''), fmt(l.rate / n.Mp) + ' each', orange);
+        fromX = sX + 110;
+      }
+      var sg = Math.floor(j / n.Gp), seen = {};
+      for (var q = 0; q < n.Mp; q++) {
+        var part = sg * n.Mp + q, oi = 0;
+        n.outs.forEach(function (o, k) { if (o.parts.indexOf(part) >= 0) oi = k; });
+        if (seen[oi]) continue; seen[oi] = 1;
+        body += path(fromX, yy, oX, yAt(oi, O), orange, 1.4);
+      }
+    });
+    n.outs.forEach(function (o, k) { body += box(oX, yAt(k, O), 110, bh(O, 28), o.name, fmt(o.rate) + '/min', o.take ? 'var(--good)' : green); });
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;min-width:520px;height:auto" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Split and merge layout">' + lab + body + '</svg>';
+  }
+  function unitSvg(su) {
+    if (!su || su.P <= 1) return '';
+    var f = su.factors, Q = su.Q, rowH = 18, H = Q * rowH + 30, levX = function (l) { return 80 + l * 110; }, outX = levX(f.length) + 10, W = outX + 130;
+    var body = '', orange = 'var(--belt)', mergeX = 36;
+    function yLeaf(i) { return 20 + (i + 0.5) * rowH; }
+    function cy(a, z) { return (yLeaf(a) + yLeaf(z - 1)) / 2; }
+    function line(pts, c, dash) { return '<path d="M' + pts.map(function (p) { return p[0] + ' ' + p[1]; }).join(' L') + '" style="fill:none;stroke:' + c + ';stroke-width:2' + (dash ? ';stroke-dasharray:5 4' : '') + '"/>'; }
+    function sp(x, y, t) { return '<rect x="' + (x - 18) + '" y="' + (y - 10) + '" width="36" height="20" rx="5" style="fill:var(--panel-2);stroke:' + orange + ';stroke-width:1.8"/><text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" style="font:700 10.5px var(--mono);fill:var(--fg)">' + t + '</text>'; }
+    var rootY = cy(0, Q), glyphs = '';
+    body += line([[0, rootY], [levX(0) - 18, rootY]], orange);
+    if (su.back) glyphs += '<circle cx="' + mergeX + '" cy="' + rootY + '" r="10" style="fill:var(--panel-2);stroke:var(--merge);stroke-width:2"/><text x="' + mergeX + '" y="' + (rootY + 4) + '" text-anchor="middle" style="font:700 10px var(--mono);fill:var(--fg)">M</text>';
+    (function node(level, a, z, x, y) {
+      var size = (z - a) / f[level];
+      for (var c = 0; c < f[level]; c++) {
+        var ca = a + c * size, cz = ca + size;
+        if (level + 1 < f.length) { var xc = levX(level + 1), yc = cy(ca, cz); body += line([[x + 18, y], [x + 50, y], [x + 50, yc], [xc - 18, yc]], orange); node(level + 1, ca, cz, xc, yc); }
+        else { var ly = yLeaf(ca); body += line([[x + 18, y], [x + 50, y], [x + 50, ly], [outX, ly]], orange); }
+      }
+      glyphs += sp(x, y, '÷' + f[level]);
+    })(0, 0, Q, levX(0), rootY);
+    for (var i = 0; i < Q; i++) {
+      var isBack = i >= Q - su.back, y = yLeaf(i);
+      glyphs += '<text x="' + (outX + 8) + '" y="' + (y + 4) + '" style="font:600 11px var(--mono);fill:' + (isBack ? 'var(--merge)' : 'var(--fg)') + '">' + (isBack ? '↩ back to merger' : 'piece ' + (i + 1)) + '</text>';
+    }
+    if (su.back) {
+      var bx = outX + 120;
+      for (var bi = Q - su.back; bi < Q; bi++) body += line([[outX + 112, yLeaf(bi)], [bx, yLeaf(bi)], [bx, H - 6], [mergeX, H - 6], [mergeX, rootY + 10]], 'var(--merge)', true);
+    }
+    return '<svg viewBox="0 0 ' + (W + 10) + ' ' + H + '" style="width:100%;max-width:' + (W + 10) + 'px;min-width:360px;height:auto" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="One split unit">' + body + glyphs + '</svg>';
+  }
+  function openSplitter() {
+    var scrim = document.createElement('div'); scrim.className = 'scrim';
+    var sv = state.splitTool && state.splitTool.belts ? state.splitTool : { belts: '12×60', mode: 'equal', M: 5, X: 45 };
+    scrim.innerHTML = '<div class="sheet" role="dialog" aria-modal="true" aria-label="Split and merge"><div class="sheet-h"><div class="t"><h3>Split / merge</h3><button class="btn" type="button" data-close>Close</button></div>' +
+      '<div class="tiny">Turn your belts into equal belts, or take an exact amount off. Finds the fewest splitters and mergers that stay under your belt limit.</div>' +
+      '<div class="field"><span class="label">Your belts (/min each)</span><label class="num" style="width:100%"><input type="text" id="sm-in" value="' + esc(sv.belts) + '" style="width:100%;text-align:left" aria-label="Your belts"><span class="u">/min</span></label><div class="tiny" id="sm-parsed"></div></div>' +
+      '<div class="field"><span class="label">Make</span><div class="seg full" role="group"><button type="button" data-sm="equal" aria-pressed="' + (sv.mode !== 'take') + '">Equal belts</button><button type="button" data-sm="take" aria-pressed="' + (sv.mode === 'take') + '">Take an amount</button></div></div>' +
+      '<div class="field" id="sm-outf"></div>' +
+      '<div class="tiny" id="sm-belt"></div></div>' +
+      '<div class="sheet-body" id="sm-body"></div></div>';
+    document.body.appendChild(scrim);
+    var body = scrim.querySelector('#sm-body'), mode = sv.mode === 'take' ? 'take' : 'equal';
+    function outField() {
+      scrim.querySelector('#sm-outf').innerHTML = mode === 'equal'
+        ? '<span class="label">Belts out</span><label class="num"><input type="number" min="1" max="64" step="1" id="sm-m" value="' + (sv.M || 5) + '"><span class="u">equal belts</span></label>'
+        : '<span class="label">Take out</span><label class="num"><input type="number" min="0.1" step="any" id="sm-x" value="' + (sv.X || 45) + '"><span class="u">/min</span></label><div class="tiny">The rest carries on on its own belt.</div>';
+    }
+    function draw() {
+      var ins = parseBelts(scrim.querySelector('#sm-in').value), T = ins.reduce(function (a, b) { return a + b; }, 0);
+      var mEl = scrim.querySelector('#sm-m'), xEl = scrim.querySelector('#sm-x');
+      if (mEl) sv.M = Math.min(64, Math.max(1, Math.round(+mEl.value || 1)));
+      if (xEl) sv.X = +xEl.value || 0;
+      sv.belts = scrim.querySelector('#sm-in').value; sv.mode = mode; state.splitTool = sv; saveLocal();
+      var bm = beltOf(state.belt), C = bm.rate;
+      scrim.querySelector('#sm-parsed').textContent = ins.length ? ins.length + ' ' + plural(ins.length, 'belt') + ' · ' + fmt(T) + '/min in total' : 'Like 12×60, or 60, 60, 120, 30';
+      scrim.querySelector('#sm-belt').textContent = 'Using Mk' + bm.mk + ' belts (' + C + '/min), from your Progress.';
+      var n = splitPlan(ins, mode, sv.M, sv.X, C);
+      if (n.err) { body.innerHTML = '<div class="banner ' + (/Nothing to do/.test(n.err) ? 'info' : 'bad') + '"><span>' + n.err + '</span></div>'; return; }
+      var html = '<div class="sm-sum">' + n.outs.slice(0, 3).map(function (o) { return '<span class="st"><b>' + fmt(o.rate) + '</b>' + esc(o.name) + ' /min</span>'; }).join('') + (n.outs.length > 3 ? '<span class="st"><b>' + n.outs.length + '</b>belts out</span>' : '') +
+        '<span class="st"><b>' + n.splitters + '</b>' + plural(n.splitters, 'splitter') + '</span><span class="st"><b>' + (n.pre + n.mergers) + '</b>' + plural(n.pre + n.mergers, 'merger') + '</span>' + (n.su.back ? '<span class="st"><b>loop</b>' + n.su.back + ' of ' + n.su.Q + ' back</span>' : '<span class="st"><b>exact</b>no loops</span>') + '</div>';
+      html += '<div class="sm-svg">' + splitSvg(n) + '</div>';
+      if (n.Mp > 1) html += '<div class="label" style="margin:2px 0 6px">One split unit' + (n.lines.length > 1 ? ' (build ' + n.lines.length + ')' : '') + '</div><div class="sm-svg">' + unitSvg(n.su) + '</div>';
+      html += '<ol class="sm-steps">' + splitWords(n, bm).map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ol>';
+      if (mode === 'take') html += '<div class="banner info" style="margin-top:10px"><span><b>Shortcut:</b> if whatever you feed only uses ' + fmt(sv.X) + '/min (a machine or a full storage), you don’t need an exact split. One splitter is enough: that side backs up and everything else flows on.</span></div>';
+      html += '<div class="sm-note">Mergers take up to 3 belts in. A loop-back is exact once the belts fill up; it just needs a moment to settle. Pipes don’t need this: they share themselves out.</div>';
+      body.innerHTML = html;
+    }
+    outField();
+    scrim.addEventListener('input', function (e) { if (e.target.matches('#sm-in, #sm-m, #sm-x')) draw(); });
+    scrim.addEventListener('click', function (e) {
+      if (e.target === scrim || e.target.closest('[data-close]')) { scrim.remove(); return; }
+      var b = e.target.closest('[data-sm]');
+      if (b) { mode = b.getAttribute('data-sm'); scrim.querySelectorAll('[data-sm]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); outField(); draw(); }
+    });
+    document.addEventListener('keydown', function escK(e) { if (e.key === 'Escape') { scrim.remove(); document.removeEventListener('keydown', escK); } });
+    draw();
+  }
   function openPreset(kind) {
     var scrim = document.createElement('div'); scrim.className = 'scrim';
     var mall = kind === 'mall', size = 'medium', tier = Math.min(9, state.tier + 1), hours = 2, picked = null;
@@ -2118,6 +2392,14 @@ details.mats[open] .chev { transform: rotate(180deg); }
       return fresh ? 'Opened a shared plan.' : 'Opened a shared plan as a new factory. It uses your own tier and alternates.';
     } catch (e) { history.replaceState(null, '', location.pathname); return 'That share link is broken.'; }
   }
+  var WASTE = { NuclearWaste: 'uranium', PlutoniumWaste: 'plutonium' };
+  function needHint(item, amount) {
+    var mh = minerHint(item, amount); if (mh) return esc(mh);
+    if (WASTE[item]) return 'Made only by nuclear plants burning ' + WASTE[item] + ' fuel rods. Add the waste in You have (or link your nuclear factory under From your other factories).';
+    var it = D.items[item] || {};
+    if (!it.raw && !E.producers(item).length) return 'Gathered by hand or from creatures, no machine makes it. Add how much you collect in You have.';
+    return '';
+  }
   function minerHint(item, amount) {
     var k = nodeKind(item);
     if (k === 'miner') { var m = D.miners.filter(function (x) { return x.mk === state.miner; })[0] || D.miners[0]; return '+' + Math.ceil(amount / Math.min(m.rate, beltOf(state.belt).rate) - 1e-9) + ' Mk' + m.mk + ' miners (normal)'; }
@@ -2141,7 +2423,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (!gens.length) return '';
     var made = res.power.made, used = res.power.total;
     var h = '<section class="card pw-card"><div class="card-h"><h2>Power plant</h2><span class="tiny">Pipes, belts, water, buffers</span></div>' +
-      (res.power.self ? '<div class="pw-tip" style="margin-bottom:10px">Makes <b class="pw-tag">' + trim(made, 0) + ' MW</b>' + (used > 0.05 ? ', uses ' + trim(used, used >= 100 ? 0 : 1) + ' MW itself (extractors, refineries)' : '') + ', so <b>' + trim(Math.max(0, made - used), 0) + ' MW</b> goes to your grid.</div>' : '') + '<div class="pw-rows">';
+      (res.power.self ? '<div class="pw-tip" style="margin-bottom:10px">Makes <b class="pw-tag">' + trim(made, 0) + ' MW</b>' + (haveMW() > 0 ? ' + ' + trim(haveMW(), 0) + ' MW you already have' : '') + (used > 0.05 ? ', uses ' + trim(used, used >= 100 ? 0 : 1) + ' MW itself (extractors, refineries)' : '') + ', so <b>' + trim(Math.max(0, made + haveMW() - used), 0) + ' MW</b> goes to your grid.</div>' : '') + '<div class="pw-rows">';
     gens.forEach(function (s) {
       var r = s.recipe, n = s.count;
       h += '<div class="pw-row"><div class="pw-top"><b>' + n + ' × ' + esc(mNames(r.m, n)) + '</b><span class="ck">' + uniq(s.clocks.map(clockTxt)).join(' / ') + '%</span><span class="pw-tag">+' + trim(s.powerOut, 0) + ' MW</span></div>';
@@ -2187,7 +2469,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
         if (res.mode === 'max' && noHave) b += '<div><b>Max needs something in You have.</b> It makes as much as your resources allow, and you haven’t added any yet. Add your nodes, or switch to Fixed and type how much you want.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" type="button" data-act="goto-have">Add resources</button><button class="btn sm" type="button" data-act="all-fixed">Switch to Fixed</button></div>';
         else b += '<div><b>' + (res.mode === 'exact' ? 'Not enough resources.' : 'Not enough to make any.') + '</b>' + (res.maxScale ? ' You can make ' + Math.round(res.maxScale * 100) + '% of that.' : '') + (Object.keys(state.lockCount).length ? ' Locked machine counts may be too high.' : '') + '</div>';
         if (res.missing.length && !(res.mode === 'max' && noHave)) b += '<div class="usage">' + res.missing.map(function (m) {
-          return '<div class="use"><div class="use-top">' + chip(m.item) + '<span class="nm">' + esc(nm(m.item)) + '</span><span class="q"><b>' + fmt(m.need) + '</b> needed · ' + fmt(m.have) + ' have</span></div><div class="bar"><i class="over" style="width:' + Math.min(100, m.have / m.need * 100).toFixed(0) + '%"></i></div>' + (minerHint(m.item, m.need - m.have) ? '<div class="note">' + minerHint(m.item, m.need - m.have) + '</div>' : '') + '</div>';
+          return '<div class="use"><div class="use-top">' + chip(m.item) + '<span class="nm">' + esc(nm(m.item)) + '</span><span class="q"><b>' + fmt(m.need) + '</b> needed · ' + fmt(m.have) + ' have</span></div><div class="bar"><i class="over" style="width:' + Math.min(100, m.have / m.need * 100).toFixed(0) + '%"></i></div>' + (needHint(m.item, m.need - m.have) ? '<div class="note">' + needHint(m.item, m.need - m.have) + '</div>' : '') + '</div>';
         }).join('') + '</div>';
         b += '<div style="display:flex;gap:8px;flex-wrap:wrap">' + (Object.keys(state.lockCount).length ? '<button class="btn sm" type="button" data-act="unlock-all">Clear locked counts</button>' : '') + (res.mode === 'exact' ? '<button class="btn sm" type="button" data-act="all-max">Make as much as I can</button>' : '') + '</div>';
       }
@@ -2228,6 +2510,9 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (res.leftovers.length) {
       var pts = res.leftovers.reduce(function (a, l) { return a + (fl(l.item) ? 0 : l.rate * (l.sink || 0)); }, 0);
       html += '<div class="banner warn"><span><b>Leftover:</b> ' + res.leftovers.map(function (l) { return fmt(l.rate) + ' ' + esc(nm(l.item)) + (fl(l.item) ? ' m³' : '') + '/min'; }).join(', ') + (pts > 0 ? ' · worth ' + Math.round(pts).toLocaleString('en') + ' sink points/min' : '') + '</span></div>';
+      res.leftovers.forEach(function (l) {
+        if (WASTE[l.item]) html += '<div class="banner bad"><span><b>' + esc(nm(l.item)) + ' can’t go in a sink.</b> ' + fmt(l.rate) + '/min = ' + fmt(l.rate * 60) + ' per hour. Store it (an Industrial Storage Container holds 48 stacks) or turn it into ' + (l.item === 'NuclearWaste' ? 'plutonium fuel rods' : 'ficsonium fuel rods') + ' later. Plan the storage before you switch the plant on: once it’s full, the plant stops.</span></div>';
+      });
     }
     // build list
     var builtN = res.steps.filter(function (s) { return state.built[s.recipe.id]; }).length;
@@ -2359,6 +2644,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function guideText(s) {
     var r = s.recipe, mn = mName(r.m), out = [], n = s.count;
     if (s.module) out.push(moduleWords(s));
+    if (s.recipe.gen && s.inputs.some(function (g) { return g.fluid; })) out.push('<b>BUF</b> in the picture is a fluid buffer: put it on the main line right after the extractors (or on the fuel line), before it splits into pipes. A Fluid Buffer holds 400 m³, an Industrial one 2400 m³. If the line goes uphill, add a pump after it.');
     s.inputs.forEach(function (g) {
       var froms = g.from.filter(function (f) { return f.rate > 1e-6; }).map(function (f) { return stepName(f.step); });
       if (g.fromSupply > 1e-6) froms.unshift('what you have');
@@ -2437,7 +2723,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
     var multi = lanes.some(function (q) { return q.ng > 1; });
     if (multi) MW = Math.max(MW, 280);
     function feedTag(q) { return (q.g.fluid ? 'P' : 'B') + (q.gi + 1); }
-    var x0 = 12, inX = x0 + CW + 40;
+    var bufIdx = r.gen ? ins.map(function (g, j) { return g.fluid ? j : -1; }).filter(function (j) { return j >= 0; }) : [];
+    var x0 = 12, inX = x0 + CW + (bufIdx.length ? 92 : 40);
     var laneW = tree ? L0.factors.length * 88 + 30 : lanes.length * LANE + 14;
     var mL = inX + laneW + 20, mR = mL + MW;
     var oX = mR + 44, cardOX = oX + olanes.length * LANE + 26, W = cardOX + CW + 12;
@@ -2467,6 +2754,13 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var froms = g.from.filter(function (f) { return f.rate > 1e-6; }).map(function (f) { return 'step ' + (f.step + 1); });
       if (g.fromSupply > 1e-6) froms.unshift('what you have');
       boxes += card(x0, cardY[j], col(g.item), nm(g.item), fmt(g.total) + ' ' + unit(g.item) + (g.lines > 1 ? ' → ' + g.lines + (g.fluid ? ' pipes' : ' belts') : ''), g._sub ? g._sub : g.lines > 1 ? (g.fluid ? 'Mk' + g.mk + ' pipe carries ' + g.cap : 'Mk' + g.mk + ' belt carries ' + g.cap) : froms.length ? 'from ' + froms.join(' + ') : '');
+    });
+    bufIdx.forEach(function (j) {
+      var g = ins[j], c = col(g.item), bx = x0 + CW + 22, by = cardY[j] + 8, bh = CH - 16;
+      glyphs += '<g><rect x="' + bx + '" y="' + by + '" width="42" height="' + bh + '" rx="10" style="fill:var(--panel-2);stroke:' + c + ';stroke-width:2"/>' +
+        '<path d="M' + (bx + 6) + ' ' + (by + bh * 0.58) + ' H' + (bx + 36) + '" style="stroke:' + c + ';stroke-width:1.5;opacity:.6"/>' +
+        '<text x="' + (bx + 21) + '" y="' + (by + bh * 0.45) + '" text-anchor="middle" style="font:700 9.5px var(--mono);fill:var(--fg)">BUF</text>' +
+        '<text x="' + (bx + 21) + '" y="' + (by + bh + 12) + '" text-anchor="middle" style="font:9.5px var(--mono);fill:var(--muted)">buffer</text></g>';
     });
     // input belts
     if (tree) {
@@ -2830,6 +3124,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       state.lockCount = {}; selected = null; changed(true);
     }
     else if (act === 'noclock') { state.noClock = v === '1'; changed(true); }
+    else if (act === 'splitter') openSplitter();
     else if (act === 'powfrom') { if (v) state.recipeChoice.Power = v; else delete state.recipeChoice.Power; changed(true); }
     else if (act === 'all-fixed') { state.want.forEach(function (w) { if (!w.fixed) { w.fixed = true; w.rate = w.item === 'Power' ? 500 : 30; } }); state.limitToHave = false; changed(true); }
     else if (act === 'all-max') { state.want.forEach(function (w) { w.fixed = false; w.rate = 5; }); changed(true); }
@@ -2909,7 +3204,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     startWorker(data);
     state = normalize(loadLocal());
     committed = histSnap();
-    document.getElementById('meta').innerHTML = '<span class="pill">Game v' + esc(D.game.version) + ' · ' + D.recipes.length + ' recipes</span><span class="pill" id="busy"><i class="dot"></i>Planning…</span><span class="hist"><button type="button" data-act="undo" aria-label="Undo" title="Undo (Ctrl+Z)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4L3 7l3 3"/><path d="M3 7h6.5a3.5 3.5 0 010 7H8"/></svg></button><button type="button" data-act="redo" aria-label="Redo" title="Redo (Ctrl+Y)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4l3 3-3 3"/><path d="M13 7H6.5a3.5 3.5 0 000 7H8"/></svg></button></span><span class="pill" id="sync"><i class="dot"></i>Saved here</span>';
+    document.getElementById('meta').innerHTML = '<span class="pill">Game v' + esc(D.game.version) + ' · ' + D.recipes.length + ' recipes</span><span class="pill" id="busy"><i class="dot"></i>Planning…</span><span class="hist"><button type="button" data-act="undo" aria-label="Undo" title="Undo (Ctrl+Z)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4L3 7l3 3"/><path d="M3 7h6.5a3.5 3.5 0 010 7H8"/></svg></button><button type="button" data-act="redo" aria-label="Redo" title="Redo (Ctrl+Y)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4l3 3-3 3"/><path d="M13 7H6.5a3.5 3.5 0 000 7H8"/></svg></button></span><span class="pill" id="sync"><i class="dot"></i>Saved here</span><button type="button" class="hdr-btn" data-act="splitter" title="Split or merge belts evenly">⑂ Split / merge</button>';
     var shared = importShared();
     renderSetup(); applyPane(); schedulePlan(); initSync(); updateHistBtns();
     if (shared) toast(shared);
