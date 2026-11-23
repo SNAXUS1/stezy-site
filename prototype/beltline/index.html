@@ -444,6 +444,23 @@ details.mats[open] .chev { transform: rotate(180deg); }
 .kind-seg .k-ic { width: 9px; height: 9px; border-radius: 2px; background: var(--belt); }
 .kind-seg .k-ic.pw { background: #f2d85a; transform: rotate(45deg) scale(.85); }
 .pw-pick { display: flex; flex-direction: column; gap: 8px; }
+.type-card .seg button { padding: 9px 10px; font-size: 13.5px; }
+.pw-card .pw-rows { display: flex; flex-direction: column; gap: 10px; }
+.pw-row { border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.pw-top { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.pw-top b { font: 600 14px var(--display); }
+.pw-top .ck { font: 12px var(--mono); color: var(--belt); }
+.pw-top .pw-tag { margin-left: auto; font: 600 13px var(--mono); }
+.pw-io { display: flex; align-items: center; gap: 8px; font-size: 13px; flex-wrap: wrap; }
+.pw-io .q { margin-left: auto; font: 12px var(--mono); color: var(--muted); }
+.pipe-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pipe-cmp .pc { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 11.5px/1.45 var(--mono); color: var(--muted); }
+.pipe-cmp .pc b { color: var(--fg); font-size: 13px; }
+.pipe-cmp .pc.on { border-color: var(--fluid); background: var(--fluid-soft); color: var(--fg); }
+.pipe-cmp .pc.belt.on { border-color: var(--belt); background: var(--belt-soft); }
+.pw-tip { font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.pw-tip b { color: var(--fg); }
+@media (max-width: 520px) { .pipe-cmp { grid-template-columns: 1fr; } }
 .pw-auto { text-align: left; border: 1px solid var(--line); background: var(--panel-2); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; font: 600 13px var(--body); color: var(--fg); }
 .pw-auto span { font: 11.5px var(--mono); color: var(--muted); font-weight: 400; }
 .pw-auto[aria-pressed="true"], .pw-opt[aria-pressed="true"] { border-color: #f2d85a; box-shadow: inset 0 0 0 1px #f2d85a; }
@@ -1167,8 +1184,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function trim(n, d) { var s = n.toFixed(d); return s.indexOf('.') >= 0 ? s.replace(/0+$/, '').replace(/\.$/, '') : s; }
   function fmt(n) { if (!isFinite(n)) return '∞'; var a = Math.abs(n); return a >= 1000 ? trim(n, 0) : a >= 100 ? trim(n, 1) : trim(n, 2); }
   function unit(id) { return id === 'Power' ? 'MW' : fl(id) ? 'm³/min' : '/min'; }
-  function clockTxt(c) { return trim(c * 100, 4); }
-  function clockShort(c) { return trim(c * 100, 2); }
+  function clockTxt(c) { return state.noClock ? '100' : trim(c * 100, 4); }
+  function clockShort(c) { return state.noClock ? '100' : trim(c * 100, 2); }
   function plural(n, a, b) { return n === 1 ? a : (b || a + 's'); }
   function mName(m) { return D.machines[m].name; }
   function mShort(m) { return { gen_coal: 'Coal Generator', gen_fuel: 'Fuel Generator', gen_nuclear: 'Nuclear Plant', gen_biomass: 'Biomass Burner', accelerator: 'Accelerator', encoder: 'Quantum Encoder' }[m] || mName(m); }
@@ -1195,7 +1212,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       limitToHave: true, goal: 'resources', split: 'even', easyCounts: true,
       recipeChoice: {}, lockCount: {}, view: 'overview', zoom: 0, guideStep: null,
       name: 'Steel example', built: {}, current: 'f1', factories: [{ id: 'f1', name: 'Steel example' }], saved: {},
-      shards: 0, sloops: 0, lastOut: [], selfPower: false, kind: 'items', powerHave: 0, itemsWant: null, powerWant: null
+      shards: 0, sloops: 0, noClock: false, lastOut: [], selfPower: false, kind: 'items', powerHave: 0, itemsWant: null, powerWant: null
     };
   }
   // fields that belong to one factory (the rest, like tier and alternates, are shared)
@@ -1339,13 +1356,13 @@ details.mats[open] .chev { transform: rotate(180deg); }
   /* ---------------- engine ---------------- */
   function engineState() {
     return {
-      tier: state.tier, belt: state.belt, pipe: state.pipe, maxClock: state.maxClock,
+      tier: state.tier, belt: state.belt, pipe: state.pipe, maxClock: state.noClock ? 100 : state.maxClock,
       alts: state.alts, mam: state.mam, waterUnlimited: state.waterUnlimited,
       have: state.have.filter(function (h) { return h.item; }).map(function (h) { return { item: h.item, rate: rowRate(h) }; })
         .concat(state.kind !== 'power' && state.selfPower && +state.powerHave > 0 ? [{ item: 'Power', rate: +state.powerHave }] : []),
       want: state.want.filter(function (w) { return w.item; }).map(function (w) { return { item: w.item, rate: Math.max(0, +w.rate || 0), fixed: !!w.fixed }; }),
-      limitToHave: state.limitToHave, goal: state.goal, split: state.split, easyCounts: state.easyCounts,
-      recipeChoice: state.recipeChoice, lockCount: state.lockCount, sloops: Math.max(0, Math.floor(+state.sloops || 0)), selfPower: !!state.selfPower
+      limitToHave: state.limitToHave, goal: state.goal, split: state.noClock ? 'fill' : state.split, easyCounts: state.easyCounts,
+      recipeChoice: state.recipeChoice, lockCount: state.lockCount, sloops: Math.max(0, Math.floor(+state.sloops || 0)), selfPower: state.kind === 'power' || !!state.selfPower
     };
   }
   var worker = null, reqId = 0, busyTimer = null;
@@ -1479,29 +1496,37 @@ details.mats[open] .chev { transform: rotate(180deg); }
     var mamCount = Object.keys(state.mam).filter(function (k) { return state.mam[k]; }).length;
     var tiers = []; for (var t = 0; t <= 9; t++) tiers.push([t, String(t)]);
     var machines = Object.keys(D.machines).filter(function (k) { return D.machines[k].tier <= state.tier; }).map(function (k) { return D.machines[k].name; });
+    var isPw = state.kind === 'power';
+    var chR = state.recipeChoice.Power && E.byId(state.recipeChoice.Power);
+    var showBelt = !isPw || !chR || !fl(chR.in[0][0]);
+    var pipeOpts = D.pipes.map(function (p) { return [p.mk, 'Mk' + p.mk + ' · ' + p.rate + (p.tier > state.tier ? ' (tier ' + p.tier + ')' : ''), p.rate + ' m³/min per pipe']; });
+    var html0 = '<section class="card type-card"><div class="card-h"><h2>This factory makes</h2></div><div class="seg full kind-seg" role="group">' +
+      '<button type="button" data-act="kind" data-v="items" aria-pressed="' + !isPw + '"><i class="k-ic"></i>Items</button>' +
+      '<button type="button" data-act="kind" data-v="power" aria-pressed="' + isPw + '"><i class="k-ic pw"></i>Power</button></div>' +
+      '<div class="tiny">' + (isPw ? 'A power plant: pick how many MW and which fuel. Only the settings that matter for power are shown.' : 'Parts and products. Switch to Power to plan a power plant.') + '</div></section>';
     var allFixed = !state.want.some(function (w) { return !w.fixed; });
     var html = '';
+    html = html0 + html;
     html += '<section class="card"><div class="card-h"><h2><span class="num-badge">1</span>Progress</h2></div>' +
-      '<div class="field"><span class="label">Tier</span>' + seg('tier', tiers, state.tier, 'full mono') + '<div class="tiny">' + esc(machines.join(' · ')) + '</div></div>' +
-      '<div class="field"><span class="label">Belt</span>' + seg('belt', D.belts.map(function (b) { return [b.mk, 'Mk' + b.mk, b.rate + '/min']; }), state.belt, 'full') + '</div>' +
-      '<div class="row2"><div class="field"><span class="label">Miner</span>' + seg('miner', D.miners.map(function (m) { return [m.mk, 'Mk' + m.mk, m.rate + '/min on normal']; }), state.miner, 'full') + '</div>' +
-      '<div class="field"><span class="label">Pipe</span>' + seg('pipe', D.pipes.map(function (p) { return [p.mk, 'Mk' + p.mk, p.rate + ' m³/min']; }), state.pipe, 'full') + '</div></div>' +
-      '<div class="field"><span class="label">Max clock</span>' + seg('maxClock', [[100, '100%'], [150, '150%'], [200, '200%'], [250, '250%']], state.maxClock, 'full') + '</div>' +
-      '<div class="row2"><div class="field"><span class="label">Power shards</span><label class="num"><input type="number" inputmode="numeric" min="0" step="1" id="prog-shards" data-prog="shards" aria-label="Power shards you have" value="' + (state.shards || 0) + '"><span class="u">have</span></label></div>' +
-      '<div class="field"><span class="label">Somersloops</span><label class="num"><input type="number" inputmode="numeric" min="0" step="1" id="prog-sloops" data-prog="sloops" aria-label="Somersloops to use" value="' + (state.sloops || 0) + '"><span class="u">to use</span></label></div></div>' +
+      '<div class="field"><span class="label">Tier</span>' + seg('tier', tiers, state.tier, 'full mono') + (isPw ? '' : '<div class="tiny">' + esc(machines.join(' · ')) + '</div>') + '</div>' +
+      (isPw ? '<div class="field"><span class="label">Pipes</span>' + seg('pipe', pipeOpts, state.pipe, 'full') + '<div class="tiny">m³ per minute through one pipe. The plan says how many pipes each part needs.</div></div>' : '') +
+      (showBelt ? '<div class="field"><span class="label">Belt' + (isPw ? ' (for coal and biomass)' : '') + '</span>' + seg('belt', D.belts.map(function (b) { return [b.mk, 'Mk' + b.mk, b.rate + '/min']; }), state.belt, 'full') + '</div>' : '') +
+      (isPw ? '' : '<div class="row2"><div class="field"><span class="label">Miner</span>' + seg('miner', D.miners.map(function (m) { return [m.mk, 'Mk' + m.mk, m.rate + '/min on normal']; }), state.miner, 'full') + '</div>' +
+      '<div class="field"><span class="label">Pipe</span>' + seg('pipe', pipeOpts, state.pipe, 'full') + '</div></div>') +
+      '<div class="field"><span class="label">Clock speed</span><div class="seg full" role="group"><button type="button" data-act="noclock" data-v="0" aria-pressed="' + !state.noClock + '">Adjustable</button><button type="button" data-act="noclock" data-v="1" aria-pressed="' + !!state.noClock + '">Not unlocked yet</button></div><div class="tiny">' + (state.noClock ? 'Every machine stays at 100%. If the last one gets less input it just pauses now and then.' : 'Machines can be set to any %. Over 100% needs power shards.') + '</div></div>' +
+      (state.noClock ? '' : '<div class="field"><span class="label">Max clock</span>' + seg('maxClock', [[100, '100%'], [150, '150%'], [200, '200%'], [250, '250%']], state.maxClock, 'full') + '</div>') +
+      '<div class="row2">' + (state.noClock ? '' : '<div class="field"><span class="label">Power shards</span><label class="num"><input type="number" inputmode="numeric" min="0" step="1" id="prog-shards" data-prog="shards" aria-label="Power shards you have" value="' + (state.shards || 0) + '"><span class="u">have</span></label></div>') +
+      (isPw ? '<div></div></div>' : '<div class="field"><span class="label">Somersloops</span><label class="num"><input type="number" inputmode="numeric" min="0" step="1" id="prog-sloops" data-prog="sloops" aria-label="Somersloops to use" value="' + (state.sloops || 0) + '"><span class="u">to use</span></label></div></div>') +
       '<div class="row2"><button class="btn" type="button" data-act="sheet" data-v="alts">Alternates <span class="count-pill">' + altCount + '</span></button>' +
       '<button class="btn" type="button" data-act="sheet" data-v="mam">MAM <span class="count-pill">' + mamCount + '</span></button></div></section>';
 
     html += '<section class="card" id="have-card"><div class="card-h"><h2><span class="num-badge">2</span>You have</h2></div><div class="rows">' +
       state.have.map(haveRow).join('') + '</div>' +
       '<button class="btn ghost" type="button" data-act="add" data-list="have">' + ICON.plus + 'Add resource</button>' +
-      '<label class="toggle"><input type="checkbox" id="opt-water" data-opt="waterUnlimited"' + (state.waterUnlimited ? ' checked' : '') + '><span class="box"></span><span>Water is free</span></label></section>';
+      '<label class="toggle"><input type="checkbox" id="opt-water" data-opt="waterUnlimited"' + (state.waterUnlimited ? ' checked' : '') + '><span class="box"></span><span>Build water extractors as needed</span></label>' +
+      '<div class="tiny">' + (state.waterUnlimited ? 'On: any water the plan needs comes from new water extractors (120 m³/min each), so you don’t have to list water above.' : 'Off: only the water you add above is used.') + '</div></section>';
 
-    var isPw = state.kind === 'power';
-    html += '<section class="card"><div class="card-h"><h2><span class="num-badge">3</span>You want</h2><span class="tiny">' + (isPw ? 'A power plant' : 'Fixed = exact · Max = all that’s left') + '</span></div>' +
-      '<div class="field"><span class="label">This factory makes</span><div class="seg full kind-seg" role="group">' +
-      '<button type="button" data-act="kind" data-v="items" aria-pressed="' + !isPw + '"><i class="k-ic"></i>Items</button>' +
-      '<button type="button" data-act="kind" data-v="power" aria-pressed="' + isPw + '"><i class="k-ic pw"></i>Power</button></div></div>';
+    html += '<section class="card"><div class="card-h"><h2><span class="num-badge">3</span>You want</h2><span class="tiny">' + (isPw ? 'A power plant' : 'Fixed = exact · Max = all that’s left') + '</span></div>';
     if (isPw) {
       var pwI = 0; state.want.forEach(function (w, i) { if (w.item === 'Power') pwI = i; });
       var pwW = state.want[pwI] || { rate: 500, fixed: true };
@@ -1516,9 +1541,9 @@ details.mats[open] .chev { transform: rotate(180deg); }
       if (state.selfPower) html += '<div class="field"><span class="label">Power you already have</span><label class="num"><input type="number" inputmode="numeric" min="0" step="1" id="prog-powerHave" data-prog="powerHave" aria-label="Power you already have in MW" value="' + (state.powerHave || 0) + '"><span class="u">MW</span></label><div class="tiny">Geothermal or spare grid power. The rest gets built.</div></div>' + powerFromHtml();
     }
     if (allFixed) html += '<label class="toggle"><input type="checkbox" id="opt-limit" data-opt="limitToHave"' + (state.limitToHave ? ' checked' : '') + '><span class="box"></span><span>Only use what I have</span></label>';
-    html += '<div class="field"><span class="label">Best means</span>' + seg('goal', [['resources', 'Least ore'], ['machines', 'Fewest machines'], ['power', 'Least power']], state.goal, 'full') + '</div>' +
-      '<div class="field"><span class="label">Machine speeds</span>' + seg('split', [['even', 'All same speed'], ['fill', '100% + 1 slower']], state.split, 'full') + '<div class="tiny">' + (state.split === 'fill' ? 'As many machines at 100% as possible, the rest on one slower machine (e.g. 5 at 100% + 1 at 50%).' : 'Every machine at the same clock, so splitters share evenly.') + '</div></div>';
-    if (state.split === 'even') html += '<label class="toggle"><input type="checkbox" id="opt-easy" data-opt="easyCounts"' + (state.easyCounts ? ' checked' : '') + '><span class="box"></span><span>Easy-split counts (2, 3, 4, 6, 8, 9…)</span></label>';
+    if (!isPw) html += '<div class="field"><span class="label">Best means</span>' + seg('goal', [['resources', 'Least ore'], ['machines', 'Fewest machines'], ['power', 'Least power']], state.goal, 'full') + '</div>' +
+      (state.noClock || isPw ? '' : '<div class="field"><span class="label">Machine speeds</span>' + seg('split', [['even', 'All same speed'], ['fill', '100% + 1 slower']], state.split, 'full') + '<div class="tiny">' + (state.split === 'fill' ? 'As many machines at 100% as possible, the rest on one slower machine (e.g. 5 at 100% + 1 at 50%).' : 'Every machine at the same clock, so splitters share evenly.') + '</div></div>');
+    if (state.split === 'even' && !isPw && !state.noClock) html += '<label class="toggle"><input type="checkbox" id="opt-easy" data-opt="easyCounts"' + (state.easyCounts ? ' checked' : '') + '><span class="box"></span><span>Easy-split counts (2, 3, 4, 6, 8, 9…)</span></label>';
     html += '</section>';
     document.getElementById('setup').innerHTML = html;
     renderOutbar();
@@ -2065,6 +2090,37 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (k === 'well') return '+' + Math.ceil(amount / 60 - 1e-9) + ' well nodes';
     return '';
   }
+  function minsTxt(m) { return m >= 90 ? trim(m / 60, 1) + ' h' : Math.max(1, Math.round(m)) + ' min'; }
+  function powerPanel() {
+    var gens = (res.steps || []).filter(function (x) { return x.powerOut > 0; });
+    if (!gens.length) return '';
+    var made = res.power.made, used = res.power.total;
+    var h = '<section class="card pw-card"><div class="card-h"><h2>Power plant</h2><span class="tiny">Pipes, belts, water, buffers</span></div>' +
+      (res.power.self ? '<div class="pw-tip" style="margin-bottom:10px">Makes <b class="pw-tag">' + trim(made, 0) + ' MW</b>' + (used > 0.05 ? ', uses ' + trim(used, used >= 100 ? 0 : 1) + ' MW itself (extractors, refineries)' : '') + ', so <b>' + trim(Math.max(0, made - used), 0) + ' MW</b> goes to your grid.</div>' : '') + '<div class="pw-rows">';
+    gens.forEach(function (s) {
+      var r = s.recipe, n = s.count;
+      h += '<div class="pw-row"><div class="pw-top"><b>' + n + ' × ' + esc(mNames(r.m, n)) + '</b><span class="ck">' + uniq(s.clocks.map(clockTxt)).join(' / ') + '%</span><span class="pw-tag">+' + trim(s.powerOut, 0) + ' MW</span></div>';
+      s.inputs.forEach(function (g) {
+        var per = g.total / Math.max(1, n);
+        h += '<div class="pw-io">' + chip(g.item) + '<span>' + esc(nm(g.item)) + '</span><span class="q">' + fmt(g.total) + ' ' + unit(g.item) + ' · ' + fmt(per) + ' each</span></div><div class="pipe-cmp">';
+        if (fl(g.item)) D.pipes.forEach(function (pp) {
+          var lines = Math.ceil(g.total / pp.rate - 1e-9), each = Math.floor(pp.rate / per + 1e-9);
+          h += '<span class="pc' + (pp.mk === state.pipe ? ' on' : '') + '">Mk' + pp.mk + ' pipe (' + pp.rate + '): <b>' + lines + '</b> ' + plural(lines, 'line') + '<br>up to ' + each + ' ' + plural(each, 'generator') + ' per line' + (pp.tier > state.tier ? ' · tier ' + pp.tier : '') + '</span>';
+        });
+        else {
+          var b = beltOf(state.belt), bl = Math.ceil(g.total / b.rate - 1e-9), be = Math.floor(b.rate / per + 1e-9);
+          h += '<span class="pc belt on">Mk' + b.mk + ' belt (' + b.rate + '): <b>' + bl + '</b> ' + plural(bl, 'belt') + '<br>up to ' + be + ' ' + plural(be, 'generator') + ' per belt</span>';
+        }
+        h += '</div>';
+      });
+      var fuel = s.inputs.filter(function (g) { return fl(g.item) && g.item !== 'Water'; })[0];
+      if (fuel) h += '<div class="pw-tip"><b>Fluid buffer:</b> put one on the fuel line before the generators. A Fluid Buffer (400 m³) keeps all ' + n + ' running for ' + minsTxt(400 / fuel.total) + ' if the fuel stops; an Industrial Fluid Buffer (2400 m³) gives ' + minsTxt(2400 / fuel.total) + '. It doesn’t add flow, it only covers hiccups.</div>';
+    });
+    var wx = (res.extraction || []).filter(function (e) { return e.kind === 'water'; })[0];
+    if (wx) h += '<div class="pw-tip"><b>Water:</b> ' + wx.count + ' water ' + plural(wx.count, 'extractor') + ' at ' + clockShort(wx.clock) + '% (' + fmt(wx.rate) + ' m³/min). Place them in deep enough water and pipe them into one line, then tee off to each generator.</div>';
+    h += '<div class="pw-tip"><b>Pipe tips:</b> run one pipe along the row and tee into each generator (a manifold); it evens out after a few minutes. Pipes only push fluid about 10 m up by themselves. Higher than that, add a Pipeline Pump (Mk1 lifts 20 m, Mk2 lifts 50 m).</div>';
+    return h + '</div></section>';
+  }
   function renderPlan() {
     var el = document.getElementById('plan-body'), html = '';
     if (state.example) html += '<div class="banner info"><span><b>Example factory.</b> Change the setup on the left and everything redraws.</span><button class="btn sm" type="button" data-act="clear-example">Start blank</button></div>';
@@ -2104,6 +2160,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       else if (over || !s.have) note = minerHint(s.item, over ? s.extra : s.used);
       return '<div class="use"><div class="use-top">' + chip(s.item) + '<span class="nm">' + esc(nm(s.item)) + '</span><span class="q"><b>' + fmt(s.used) + '</b>' + (s.have ? ' / ' + fmt(s.have) : '') + ' ' + unit(s.item) + '</span></div><div class="bar"><i class="' + (over ? 'over' : fl(s.item) ? 'fluid' : '') + '" style="width:' + (pct * 100).toFixed(1) + '%"></i></div>' + (note ? '<div class="note">' + esc(note) + '</div>' : '') + '</div>';
     }).join('') + '</div>';
+    html += powerPanel();
     // map
     buildColors();
     var view = state.view === 'guide' ? 'guide' : 'overview';
@@ -2265,6 +2322,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var full = s.clocks.filter(function (c) { return Math.abs(c - s.clocks[0]) < 1e-9; }).length;
       out.push('Set ' + full + ' ' + mNames(r.m, full) + ' to <b>' + clockTxt(s.clocks[0]) + '%</b> and the last one to <b>' + clockTxt(s.clocks[s.clocks.length - 1]) + '%</b>.');
     }
+    var lastC = s.clocks[s.clocks.length - 1];
+    if (state.noClock && lastC < 0.999) out.push((n === 1 ? 'It' : 'The last one') + ' only gets enough input for about ' + trim(lastC * 100, 0) + '% of the time, so it pauses now and then. That’s normal.');
     if (s.powerOut > 0) out.push('Connect ' + (n === 1 ? 'it' : 'all ' + n) + ' to your power grid: <b class="pw-tag">' + trim(s.powerOut, 0) + ' MW</b>.' + (r.in.some(function (o) { return o[0] === 'Water'; }) ? ' Each one also needs its water pipe.' : ''));
     s.outputs.forEach(function (o) {
       var t = n > 1 ? (o.fluid ? 'Join the outputs into ' : 'Merge the outputs (one merger under each machine after the first) onto ') + (o.lines > 1 ? '<b>' + o.lines + ' ' + (o.fluid ? 'pipes' : 'belts') + '</b>' : 'one ' + (o.fluid ? 'pipe' : 'Mk' + o.mk + ' belt')) + ': <b>' + fmt(o.total) + ' ' + unit(o.item) + ' ' + esc(nm(o.item)) + '</b>.'
@@ -2675,6 +2734,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       else { state.powerWant = state.want; state.want = state.itemsWant || [{ id: uid(), item: null, rate: 5, fixed: false }]; state.kind = 'items'; }
       state.lockCount = {}; selected = null; changed(true);
     }
+    else if (act === 'noclock') { state.noClock = v === '1'; changed(true); }
     else if (act === 'powfrom') { if (v) state.recipeChoice.Power = v; else delete state.recipeChoice.Power; changed(true); }
     else if (act === 'all-fixed') { state.want.forEach(function (w) { if (!w.fixed) { w.fixed = true; w.rate = w.item === 'Power' ? 500 : 30; } }); state.limitToHave = false; changed(true); }
     else if (act === 'all-max') { state.want.forEach(function (w) { w.fixed = false; w.rate = 5; }); changed(true); }
