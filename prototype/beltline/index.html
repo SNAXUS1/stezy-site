@@ -2015,8 +2015,10 @@ details.mats[open] .chev { transform: rotate(180deg); }
     res.leftovers.forEach(function (l) { if (!byId['out:' + l.item]) add({ id: 'left:' + l.item, kind: 'left', item: l.item, l: l, col: last }); });
     res.steps.forEach(function (s, i) {
       s.inputs.forEach(function (g) {
-        g.from.forEach(function (f) { if (f.rate > 1e-6) edges.push({ from: 'st:' + f.step, to: 'st:' + i, item: g.item, rate: f.rate }); });
-        if (g.fromSupply > 1e-6 && byId['sup:' + g.item]) edges.push({ from: 'sup:' + g.item, to: 'st:' + i, item: g.item, rate: g.fromSupply });
+        var srcs = g.from.filter(function (f) { return f.rate > 1e-6; }).length + (g.fromSupply > 1e-6 ? 1 : 0);
+        var ln = srcs === 1 && g.lines > 1 ? g.lines : null;   // one source: show the same line count as Step by step
+        g.from.forEach(function (f) { if (f.rate > 1e-6) edges.push({ from: 'st:' + f.step, to: 'st:' + i, item: g.item, rate: f.rate, lines: ln }); });
+        if (g.fromSupply > 1e-6 && byId['sup:' + g.item]) edges.push({ from: 'sup:' + g.item, to: 'st:' + i, item: g.item, rate: g.fromSupply, lines: ln });
       });
       s.outputs.forEach(function (o) {
         if (o.toOutput > 1e-6) edges.push({ from: 'st:' + i, to: 'out:' + o.item, item: o.item, rate: o.toOutput });
@@ -2302,13 +2304,13 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var x2 = e.mx != null ? e.mx : b.x, y2 = e.mx != null ? e.my : b.y;
       var dx = Math.max(30, (x2 - x1) * 0.5);
       var d = 'M' + x1.toFixed(1) + ' ' + y1.toFixed(1) + ' C' + (x1 + dx).toFixed(1) + ' ' + y1.toFixed(1) + ' ' + (x2 - dx).toFixed(1) + ' ' + y2.toFixed(1) + ' ' + x2.toFixed(1) + ' ' + y2.toFixed(1);
-      var c = col(e.item), w = +(1.8 + 2.4 * Math.sqrt(e.rate / maxRate)).toFixed(2), nb = beltsFor(e.item, e.rate);
+      var c = col(e.item), w = +(1.8 + 2.4 * Math.sqrt(e.rate / maxRate)).toFixed(2), nb = e.lines || beltsFor(e.item, e.rate);
       var cls = 'edge' + (e.hl ? ' hl' : '') + (e.dim ? ' dim' : '');
       out += '<g class="' + cls + '"><path d="' + d + '" class="halo" style="stroke-width:' + (Math.max(w, nb > 1 ? 7 : 0) + 6) + '"/>' + rails(d, c, nb, w, e.mx == null) + '<path d="' + d + '" class="flow"/></g>';
       var t = e.sx != null ? 0.62 : e.mx != null ? 0.38 : 0.5, u = 1 - t;
       var mxp = u * u * u * x1 + 3 * u * u * t * (x1 + dx) + 3 * u * t * t * (x2 - dx) + t * t * t * x2;
       var myp = u * u * u * y1 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y2;
-      var name = clip(nm(e.item), 15), extra = nb > 1 ? ' · ' + nb + ' belts' : '';
+      var name = clip(nm(e.item), 15), extra = nb > 1 ? ' · ' + nb + (fl(e.item) ? ' pipes' : ' belts') : '';
       var tw = (fmt(e.rate).length + 1 + name.length + extra.length) * 6.3 + 14;
       labels += '<g class="' + cls + '"><rect class="lbl-bg" x="' + (mxp - tw / 2).toFixed(1) + '" y="' + (myp - 9).toFixed(1) + '" width="' + tw.toFixed(1) + '" height="18" rx="9" style="stroke:' + c + '"/>' +
         '<text class="lbl" x="' + mxp.toFixed(1) + '" y="' + (myp + 3.6).toFixed(1) + '" text-anchor="middle"><tspan class="r">' + fmt(e.rate) + '</tspan><tspan class="i"> ' + esc(name) + '</tspan>' + (extra ? '<tspan class="w">' + esc(extra) + '</tspan>' : '') + '</text></g>';
@@ -2500,7 +2502,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var legendItems = Object.keys(colorMap).slice(0, 12).map(function (id) { return '<span class="it"><i style="background:' + colorMap[id] + '"></i>' + esc(nm(id)) + '</span>'; }).join('');
       html += '<div class="seg" role="group"><button type="button" data-act="zoom" data-v="-" aria-label="Zoom out">−</button><span class="zoom-pct" id="zoom-pct">100%</span><button type="button" data-act="zoom" data-v="+" aria-label="Zoom in">+</button><button type="button" data-act="zoom" data-v="fit">Fit</button></div>' +
         (canShare() ? '<button type="button" class="btn sm" data-act="share">Share plan</button>' : '') + '<span class="grow"></span>' +
-        '<div class="legend"><span><i class="lg-s"></i>Splitter</span><span><i class="lg-m"></i>Merger</span><span>Double line = 2+ belts</span></div></div>' +
+        '<div class="legend"><span><i class="lg-s"></i>Splitter</span><span><i class="lg-m"></i>Merger</span><span>Double line = 2+ belts or pipes</span></div></div>' +
         '<div class="map-bar legend" style="padding-block:8px">' + legendItems + '</div>' +
         '<div class="vp" id="vp">' + M.svg + '</div><div class="map-hint">Scroll or pinch to zoom · drag to move · click a box to see and change it · <b>Step by step</b> shows how to wire each part.</div>';
     } else {
