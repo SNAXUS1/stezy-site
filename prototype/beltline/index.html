@@ -440,6 +440,24 @@ details.mats[open] .chev { transform: rotate(180deg); }
 .clock button { border: 0; background: var(--panel-3); border-radius: 6px; padding: 4px 8px; font: 600 11px var(--display); color: var(--muted); }
 .clock button:hover { color: var(--fg); }
 .rcp { display: flex; flex-direction: column; gap: 6px; }
+.kind-seg button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.kind-seg .k-ic { width: 9px; height: 9px; border-radius: 2px; background: var(--belt); }
+.kind-seg .k-ic.pw { background: #f2d85a; transform: rotate(45deg) scale(.85); }
+.pw-pick { display: flex; flex-direction: column; gap: 8px; }
+.pw-auto { text-align: left; border: 1px solid var(--line); background: var(--panel-2); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; font: 600 13px var(--body); color: var(--fg); }
+.pw-auto span { font: 11.5px var(--mono); color: var(--muted); font-weight: 400; }
+.pw-auto[aria-pressed="true"], .pw-opt[aria-pressed="true"] { border-color: #f2d85a; box-shadow: inset 0 0 0 1px #f2d85a; }
+.pw-gen { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 7px; background: var(--panel); }
+.pw-gh { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font: 600 12.5px var(--display); }
+.pw-gh small { font: 11px var(--mono); color: var(--muted); font-weight: 400; white-space: nowrap; }
+.pw-gen.locked .pw-gh span { color: var(--faint); }
+.pw-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.pw-opt { border: 1px solid var(--line-2); background: var(--panel-2); color: var(--fg); border-radius: 8px; padding: 5px 9px; font: 500 12px var(--body); display: inline-flex; gap: 6px; align-items: center; }
+.pw-opt:hover:not(:disabled) { border-color: var(--muted); }
+.pw-opt small { font: 10.5px var(--mono); color: var(--muted); }
+.pw-opt:disabled { color: var(--faint); background: transparent; border-style: dashed; cursor: not-allowed; }
+.pw-note { font: 11.5px/1.5 var(--mono); color: var(--muted); }
+.pw-note b { color: #f2d85a; font-weight: 600; }
 .rcp button { text-align: left; border: 1px solid var(--line); background: var(--panel-2); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; }
 .rcp button:hover { border-color: var(--line-2); }
 .rcp button[aria-pressed="true"] { border-color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
@@ -906,7 +924,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     var res, tStar = null;
     if (mode === 'max') {
       var r1 = solveModel(model, st, 'max');
-      if (r1.status !== 'optimal' || r1.t < 1e-6) { var e1 = explainShort(st, model, r1, mode, noLoops); e1.solverTrouble = r1.status !== 'optimal' && r1.status !== 'infeasible'; return e1; }
+      if (r1.status !== 'optimal' || r1.t < 1e-4) { var e1 = explainShort(st, model, r1, mode, noLoops); e1.solverTrouble = r1.status !== 'optimal' && r1.status !== 'infeasible'; return e1; }
       tStar = r1.t;
       res = solveModel(model, st, 'max', tStar * (1 - 1e-7));
       if (res.status !== 'optimal') res = r1;
@@ -944,7 +962,9 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var plain = Object.assign({}, st, { sloops: 0 });
       return planWith(plain, mode, noLoops);
     }
-    return assemble(st, model, res, mode, tStar);
+    var out = assemble(st, model, res, mode, tStar);
+    if (mode === 'max' && out.outputs.every(function (o) { return !(o.rate > 1e-3); })) return explainShort(st, model, { status: 'infeasible' }, mode, noLoops);
+    return out;
   }
 
   function explainShort(st, model, res, mode, noLoops) {
@@ -967,6 +987,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (d.status === 'optimal') {
       dm.supplies.forEach(function (s, k) {
         var used = d.supX[k], have = model.haveCap[s.item] || 0;
+        if (s.item === 'Water' && st.waterUnlimited) return;
         if (used > have * (1 + 1e-5) + 1e-4) out.missing.push({ item: s.item, need: used, have: have, raw: !!(D.items[s.item] || {}).raw });
       });
       out.missing.sort(function (a, b) { return (b.need - b.have) - (a.need - a.have); });
@@ -1113,7 +1134,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   }
 
   return {
-    init: init, plan: plan, simplex: simplex, availableRecipes: availableRecipes, recipeUnlocked: recipeUnlocked,
+    init: init, plan: plan, simplex: simplex, availableRecipes: availableRecipes, recipeUnlocked: recipeUnlocked, howToUnlock: howToUnlock,
     itemName: itemName, isFluid: isFluid, isEasy: isEasy, easyFactors: easyFactors, machineSetup: machineSetup,
     producers: function (id) { return producers[id] || []; }, byId: function (id) { return byId[id]; },
     choices: function (item, st) { return (producers[item] || []).filter(function (r) { return r.out[0][0] === item && recipeUnlocked(r, st); }); },
@@ -1174,22 +1195,26 @@ details.mats[open] .chev { transform: rotate(180deg); }
       limitToHave: true, goal: 'resources', split: 'even', easyCounts: true,
       recipeChoice: {}, lockCount: {}, view: 'overview', zoom: 0, guideStep: null,
       name: 'Steel example', built: {}, current: 'f1', factories: [{ id: 'f1', name: 'Steel example' }], saved: {},
-      shards: 0, sloops: 0, lastOut: [], selfPower: false
+      shards: 0, sloops: 0, lastOut: [], selfPower: false, kind: 'items', powerHave: 0, itemsWant: null, powerWant: null
     };
   }
   // fields that belong to one factory (the rest, like tier and alternates, are shared)
-  var FF = ['name', 'have', 'want', 'recipeChoice', 'lockCount', 'waterUnlimited', 'limitToHave', 'goal', 'split', 'easyCounts', 'built', 'example', 'lastOut', 'selfPower'];
+  var FF = ['name', 'have', 'want', 'recipeChoice', 'lockCount', 'waterUnlimited', 'limitToHave', 'goal', 'split', 'easyCounts', 'built', 'example', 'lastOut', 'selfPower', 'kind', 'powerHave', 'itemsWant', 'powerWant'];
+  var FF_DEF = { selfPower: false, kind: 'items', powerHave: 0, itemsWant: null, powerWant: null };
   function snapshot() { var o = {}; FF.forEach(function (k) { o[k] = JSON.parse(JSON.stringify(state[k])); }); return o; }
-  function loadSnap(s) { FF.forEach(function (k) { if (s[k] !== undefined) state[k] = JSON.parse(JSON.stringify(s[k])); }); }
+  function loadSnap(s) { FF.forEach(function (k) { if (s[k] !== undefined) state[k] = JSON.parse(JSON.stringify(s[k])); else if (k in FF_DEF) state[k] = FF_DEF[k]; }); }
   function switchFactory(id) {
     if (id === state.current || !state.saved[id]) return;
     state.saved[state.current] = snapshot();
     loadSnap(state.saved[id]); delete state.saved[id];
     state.current = id; selected = null; closePop(); changed(true, true);
   }
-  function blankFactory(name) {
-    return { name: name, have: [{ id: uid(), item: null, kind: 'node', purity: 'normal', mk: state.miner, count: 1, clock: 100, rate: 60 }], want: [{ id: uid(), item: null, rate: 5, fixed: false }],
-      recipeChoice: {}, lockCount: {}, waterUnlimited: true, limitToHave: true, goal: 'resources', split: 'even', easyCounts: true, built: {}, example: false, lastOut: [] };
+  function powerWantRow() { return [{ id: uid(), item: 'Power', rate: 500, fixed: true }]; }
+  function blankFactory(name, kind) {
+    var pw = kind === 'power';
+    return { name: name, have: [{ id: uid(), item: null, kind: 'node', purity: 'normal', mk: state.miner, count: 1, clock: 100, rate: 60 }], want: pw ? powerWantRow() : [{ id: uid(), item: null, rate: 5, fixed: false }],
+      recipeChoice: {}, lockCount: {}, waterUnlimited: true, limitToHave: !pw, goal: 'resources', split: 'even', easyCounts: true, built: {}, example: false, lastOut: [],
+      selfPower: false, kind: pw ? 'power' : 'items', powerHave: 0, itemsWant: null, powerWant: null };
   }
   function addFactory(snap) {
     state.saved[state.current] = snapshot();
@@ -1316,7 +1341,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
     return {
       tier: state.tier, belt: state.belt, pipe: state.pipe, maxClock: state.maxClock,
       alts: state.alts, mam: state.mam, waterUnlimited: state.waterUnlimited,
-      have: state.have.filter(function (h) { return h.item; }).map(function (h) { return { item: h.item, rate: rowRate(h) }; }),
+      have: state.have.filter(function (h) { return h.item; }).map(function (h) { return { item: h.item, rate: rowRate(h) }; })
+        .concat(state.kind !== 'power' && state.selfPower && +state.powerHave > 0 ? [{ item: 'Power', rate: +state.powerHave }] : []),
       want: state.want.filter(function (w) { return w.item; }).map(function (w) { return { item: w.item, rate: Math.max(0, +w.rate || 0), fixed: !!w.fixed }; }),
       limitToHave: state.limitToHave, goal: state.goal, split: state.split, easyCounts: state.easyCounts,
       recipeChoice: state.recipeChoice, lockCount: state.lockCount, sloops: Math.max(0, Math.floor(+state.sloops || 0)), selfPower: !!state.selfPower
@@ -1353,6 +1379,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }, 90);
   }
   function afterPlan() {
+    var pn = document.getElementById('pw-now');
+    if (pn && res && res.steps) { var cu = uniq(res.steps.filter(function (x) { return x.powerOut > 0; }).map(function (x) { return nm(x.recipe.in[0][0]); })); pn.textContent = cu.length ? 'Using ' + cu.join(' + ') + ' now' : 'Picks the cheapest fuel you can make'; }
     clearTimeout(busyTimer); setBusy(false);
     if (res && res.status === 'ok') {
       var lo = res.outputs.map(function (o) { return { item: o.item, rate: +o.rate.toFixed(4) }; });
@@ -1413,6 +1441,39 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
     return html + '</div></div>';
   }
+  var GEN_ORDER = ['gen_biomass', 'gen_coal', 'gen_fuel', 'gen_nuclear'];
+  function fuelLock(r, st) {
+    var M = D.machines[r.m];
+    if (M.tier > state.tier) return 'tier ' + M.tier;
+    var f = r.in[0][0], prods = E.producers(f);
+    if ((D.items[f] || {}).raw) return f === 'LiquidOil' && state.tier < 5 ? 'tier 5' : '';
+    if (!prods.length || prods.some(function (q) { return E.recipeUnlocked(q, st); })) return '';
+    var how = E.howToUnlock(f);
+    return !how ? 'locked' : how.kind === 't' ? 'tier ' + how.tier : how.kind === 'alt' ? 'alternate' : 'MAM';
+  }
+  function powerFromHtml() {
+    var st = engineState(), chosen = state.recipeChoice.Power || '';
+    var cur = res && res.steps ? res.steps.filter(function (x) { return x.powerOut > 0; }).map(function (x) { return nm(x.recipe.in[0][0]); }) : [];
+    var h = '<div class="field"><span class="label">Power from</span><div class="pw-pick">' +
+      '<button type="button" class="pw-auto" data-act="powfrom" data-v="" aria-pressed="' + !chosen + '">Best automatically<span id="pw-now">' + (cur.length ? 'Using ' + esc(uniq(cur).join(' + ')) + ' now' : 'Picks the cheapest fuel you can make') + '</span></button>';
+    GEN_ORDER.forEach(function (g) {
+      var M = D.machines[g]; if (!M) return;
+      var rs = D.recipes.filter(function (r) { return r.gen && r.m === g; });
+      var mOk = M.tier <= state.tier;
+      h += '<div class="pw-gen' + (mOk ? '' : ' locked') + '"><div class="pw-gh"><span>' + esc(M.name) + '</span><small>' + fmt(M.gen) + ' MW each' + (mOk ? '' : ' · tier ' + M.tier) + '</small></div><div class="pw-opts">';
+      rs.forEach(function (r) {
+        var lock = fuelLock(r, st), f = r.in[0][0];
+        h += '<button type="button" class="pw-opt" data-act="powfrom" data-v="' + esc(r.id) + '" aria-pressed="' + (chosen === r.id) + '"' + (lock ? ' disabled title="' + esc(nm(f) + ': ' + lock) + '"' : '') + '>' + esc(nm(f)) + (lock ? '<small>' + esc(lock) + '</small>' : '') + '</button>';
+      });
+      h += '</div></div>';
+    });
+    var cr = chosen && E.byId(chosen);
+    if (cr) {
+      var f0 = cr.in[0];
+      h += '<div class="pw-note">Each ' + esc(D.machines[cr.m].name) + ' makes <b>' + fmt(cr.out[0][1]) + ' MW</b> from ' + fmt(f0[1]) + ' ' + esc(unit(f0[0])) + ' ' + esc(nm(f0[0])) + (cr.in[1] ? ' + ' + fmt(cr.in[1][1]) + ' ' + esc(unit(cr.in[1][0])) + ' ' + esc(nm(cr.in[1][0])) : '') + '.</div>';
+    }
+    return h + '</div></div>';
+  }
   function renderSetup() {
     var altCount = Object.keys(state.alts).filter(function (k) { return state.alts[k]; }).length;
     var mamCount = Object.keys(state.mam).filter(function (k) { return state.mam[k]; }).length;
@@ -1436,11 +1497,24 @@ details.mats[open] .chev { transform: rotate(180deg); }
       '<button class="btn ghost" type="button" data-act="add" data-list="have">' + ICON.plus + 'Add resource</button>' +
       '<label class="toggle"><input type="checkbox" id="opt-water" data-opt="waterUnlimited"' + (state.waterUnlimited ? ' checked' : '') + '><span class="box"></span><span>Water is free</span></label></section>';
 
-    html += '<section class="card"><div class="card-h"><h2><span class="num-badge">3</span>You want</h2><span class="tiny">Fixed = exact · Max = all that’s left</span></div>' +
-      '<div class="rows">' + state.want.map(wantRow).join('') + '</div>' +
-      '<button class="btn ghost" type="button" data-act="add" data-list="want">' + ICON.plus + 'Add item</button>' +
-      '<div class="field"><span class="label">Quick start</span><div class="row2"><button class="btn" type="button" data-act="preset" data-v="mall">Building materials</button><button class="btn" type="button" data-act="preset" data-v="goal">Tier goal</button></div></div>';
-    html += '<label class="toggle"><input type="checkbox" id="opt-self" data-opt="selfPower"' + (state.selfPower ? ' checked' : '') + '><span class="box"></span><span>Also make the power for this factory</span></label>';
+    var isPw = state.kind === 'power';
+    html += '<section class="card"><div class="card-h"><h2><span class="num-badge">3</span>You want</h2><span class="tiny">' + (isPw ? 'A power plant' : 'Fixed = exact · Max = all that’s left') + '</span></div>' +
+      '<div class="field"><span class="label">This factory makes</span><div class="seg full kind-seg" role="group">' +
+      '<button type="button" data-act="kind" data-v="items" aria-pressed="' + !isPw + '"><i class="k-ic"></i>Items</button>' +
+      '<button type="button" data-act="kind" data-v="power" aria-pressed="' + isPw + '"><i class="k-ic pw"></i>Power</button></div></div>';
+    if (isPw) {
+      var pwI = 0; state.want.forEach(function (w, i) { if (w.item === 'Power') pwI = i; });
+      var pwW = state.want[pwI] || { rate: 500, fixed: true };
+      html += '<div class="rowbox"><div class="rowline">' + chip('Power') + '<span class="nm" style="font-weight:600;flex:1">Electricity</span>' + miniSeg('want', pwI, 'fixed', [['true', 'Fixed'], ['false', 'Max']], String(!!pwW.fixed)) + '</div><div class="rowline">' +
+        (pwW.fixed ? numInput('want', pwI, 'rate', pwW.rate, 'MW', 'Megawatts') + '<span class="share-out" data-share-out="' + pwI + '"></span>' : '<span class="tiny">As much as your resources in You have allow.</span>') + '</div></div>';
+      html += powerFromHtml();
+    } else {
+      html += '<div class="rows">' + state.want.map(wantRow).join('') + '</div>' +
+        '<button class="btn ghost" type="button" data-act="add" data-list="want">' + ICON.plus + 'Add item</button>' +
+        '<div class="field"><span class="label">Quick start</span><div class="row2"><button class="btn" type="button" data-act="preset" data-v="mall">Building materials</button><button class="btn" type="button" data-act="preset" data-v="goal">Tier goal</button></div></div>';
+      html += '<label class="toggle"><input type="checkbox" id="opt-self" data-opt="selfPower"' + (state.selfPower ? ' checked' : '') + '><span class="box"></span><span>Also make the power for this factory</span></label>';
+      if (state.selfPower) html += '<div class="field"><span class="label">Power you already have</span><label class="num"><input type="number" inputmode="numeric" min="0" step="1" id="prog-powerHave" data-prog="powerHave" aria-label="Power you already have in MW" value="' + (state.powerHave || 0) + '"><span class="u">MW</span></label><div class="tiny">Geothermal or spare grid power. The rest gets built.</div></div>' + powerFromHtml();
+    }
     if (allFixed) html += '<label class="toggle"><input type="checkbox" id="opt-limit" data-opt="limitToHave"' + (state.limitToHave ? ' checked' : '') + '><span class="box"></span><span>Only use what I have</span></label>';
     html += '<div class="field"><span class="label">Best means</span>' + seg('goal', [['resources', 'Least ore'], ['machines', 'Fewest machines'], ['power', 'Least power']], state.goal, 'full') + '</div>' +
       '<div class="field"><span class="label">Machine speeds</span>' + seg('split', [['even', 'All same speed'], ['fill', '100% + 1 slower']], state.split, 'full') + '<div class="tiny">' + (state.split === 'fill' ? 'As many machines at 100% as possible, the rest on one slower machine (e.g. 5 at 100% + 1 at 50%).' : 'Every machine at the same clock, so splitters share evenly.') + '</div></div>';
@@ -1457,7 +1531,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     pop.className = 'pop fac-pop';
     pop.innerHTML = '<label class="searchbox"><input type="text" id="fac-name" aria-label="Factory name" value="' + esc(state.name) + '" maxlength="40"></label>' +
       '<div class="fac-list">' + state.factories.map(function (f) { return '<button type="button" class="fac-item' + (f.id === state.current ? ' on' : '') + '" data-fac="' + esc(f.id) + '"><i class="d"></i>' + esc(f.id === state.current ? state.name : f.name) + '</button>'; }).join('') + '</div>' +
-      '<div class="fac-acts"><button type="button" class="btn sm" data-fac-act="new">' + ICON.plus + 'New</button><button type="button" class="btn sm" data-fac-act="dup">Duplicate</button>' +
+      '<div class="fac-acts"><button type="button" class="btn sm" data-fac-act="new">' + ICON.plus + 'New items</button><button type="button" class="btn sm" data-fac-act="newpw">' + ICON.plus + 'New power plant</button><button type="button" class="btn sm" data-fac-act="dup">Duplicate</button>' +
       (state.factories.length > 1 ? '<button type="button" class="btn sm danger" data-fac-act="del">Delete</button>' : '') + '</div>';
     document.body.appendChild(pop);
     var rect = btn.getBoundingClientRect();
@@ -1471,6 +1545,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var a = e.target.closest('[data-fac-act]'); if (!a) return;
       var what = a.getAttribute('data-fac-act');
       if (what === 'new') addFactory(blankFactory('Factory ' + (state.factories.length + 1)));
+      else if (what === 'newpw') addFactory(blankFactory('Power plant ' + (state.factories.filter(function (f) { return /^Power plant/.test(f.name); }).length + 1), 'power'));
       else if (what === 'dup') { var s = snapshot(); s.name = state.name + ' copy'; s.example = false; addFactory(s); }
       else if (what === 'del') { if (a.classList.contains('armed')) deleteFactory(state.current); else { a.classList.add('armed'); a.textContent = 'Delete “' + clip(state.name, 14) + '”?'; } }
     });
@@ -2002,10 +2077,12 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
     if (res.status === 'short') {
       var b = '<div class="banner warn"><div style="display:flex;flex-direction:column;gap:8px;width:100%">';
-      if (res.impossible) b += '<div><b>Can’t be made with what’s unlocked.</b> A part needs something you haven’t listed or unlocked.</div>';
+      if (res.impossible) { b += '<div><b>Can’t be made with what’s unlocked.</b> A part needs something you haven’t listed or unlocked.</div>'; var pcr = state.recipeChoice.Power && E.byId(state.recipeChoice.Power); if (pcr) b += '<div>Power from: <b>' + esc(nm(pcr.in[0][0])) + '</b>. ' + esc(howUnlock(E.howToUnlock(pcr.in[0][0]))) + ' <button class="btn sm" type="button" data-act="powfrom" data-v="">Pick automatically</button></div>'; }
       else {
-        b += '<div><b>' + (res.mode === 'exact' ? 'Not enough resources.' : 'Not enough to make any.') + '</b>' + (res.maxScale ? ' You can make ' + Math.round(res.maxScale * 100) + '% of that.' : '') + (Object.keys(state.lockCount).length ? ' Locked machine counts may be too high.' : '') + '</div>';
-        if (res.missing.length) b += '<div class="usage">' + res.missing.map(function (m) {
+        var noHave = !(state.have || []).some(function (h) { return h.item && rowRate(h) > 0; });
+        if (res.mode === 'max' && noHave) b += '<div><b>Max needs something in You have.</b> It makes as much as your resources allow, and you haven’t added any yet. Add your nodes, or switch to Fixed and type how much you want.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" type="button" data-act="goto-have">Add resources</button><button class="btn sm" type="button" data-act="all-fixed">Switch to Fixed</button></div>';
+        else b += '<div><b>' + (res.mode === 'exact' ? 'Not enough resources.' : 'Not enough to make any.') + '</b>' + (res.maxScale ? ' You can make ' + Math.round(res.maxScale * 100) + '% of that.' : '') + (Object.keys(state.lockCount).length ? ' Locked machine counts may be too high.' : '') + '</div>';
+        if (res.missing.length && !(res.mode === 'max' && noHave)) b += '<div class="usage">' + res.missing.map(function (m) {
           return '<div class="use"><div class="use-top">' + chip(m.item) + '<span class="nm">' + esc(nm(m.item)) + '</span><span class="q"><b>' + fmt(m.need) + '</b> needed · ' + fmt(m.have) + ' have</span></div><div class="bar"><i class="over" style="width:' + Math.min(100, m.have / m.need * 100).toFixed(0) + '%"></i></div>' + (minerHint(m.item, m.need - m.have) ? '<div class="note">' + minerHint(m.item, m.need - m.have) + '</div>' : '') + '</div>';
         }).join('') + '</div>';
         b += '<div style="display:flex;gap:8px;flex-wrap:wrap">' + (Object.keys(state.lockCount).length ? '<button class="btn sm" type="button" data-act="unlock-all">Clear locked counts</button>' : '') + (res.mode === 'exact' ? '<button class="btn sm" type="button" data-act="all-max">Make as much as I can</button>' : '') + '</div>';
@@ -2592,6 +2669,14 @@ details.mats[open] .chev { transform: rotate(180deg); }
       else state.lockCount[rid] = Math.max(1, n2.step.count + (+v));
       changed(false);
     } else if (act === 'unlock-all') { state.lockCount = {}; changed(false); }
+    else if (act === 'kind') {
+      if (v === state.kind) return;
+      if (v === 'power') { state.itemsWant = state.want; state.want = state.powerWant || powerWantRow(); state.kind = 'power'; if (!(state.have || []).some(function (h) { return h.item; })) state.limitToHave = false; }
+      else { state.powerWant = state.want; state.want = state.itemsWant || [{ id: uid(), item: null, rate: 5, fixed: false }]; state.kind = 'items'; }
+      state.lockCount = {}; selected = null; changed(true);
+    }
+    else if (act === 'powfrom') { if (v) state.recipeChoice.Power = v; else delete state.recipeChoice.Power; changed(true); }
+    else if (act === 'all-fixed') { state.want.forEach(function (w) { if (!w.fixed) { w.fixed = true; w.rate = w.item === 'Power' ? 500 : 30; } }); state.limitToHave = false; changed(true); }
     else if (act === 'all-max') { state.want.forEach(function (w) { w.fixed = false; w.rate = 5; }); changed(true); }
     else if (act === 'goto-have') { pane = 'setup'; applyPane(); var hc = document.getElementById('have-card'); if (hc) hc.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   });
