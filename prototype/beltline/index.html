@@ -993,8 +993,16 @@ details.mats[open] .chev { transform: rotate(180deg); }
   }
   function balanced(n, lines) { var base = Math.floor(n / lines), extra = n % lines, groups = []; for (var i = 0; i < lines; i++) groups.push(base + (i < extra ? 1 : 0)); return groups; }
   function outputGuide(total, n, fluid, st, per) {
+    var perIn = per;
     if (fluid) {
-      var p = bestPipe(st), per = total / Math.max(1, n), fitO = per > p.rate ? 1 : Math.max(1, Math.floor(p.rate / per + 1e-9));
+      var p = bestPipe(st), per = total / Math.max(1, n);
+      if (perIn && perIn.length === n && perIn.some(function (v) { return Math.abs(v - perIn[0]) > 1e-6; })) {
+        var gF = [], rF = [], cF = 0, sF = 0;
+        perIn.forEach(function (v) { if (cF > 0 && sF + v > p.rate + 1e-6) { gF.push(cF); rF.push(sF); cF = 0; sF = 0; } cF++; sF += v; });
+        if (cF) { gF.push(cF); rF.push(sF); }
+        return { total: total, fluid: true, cap: p.rate, mk: p.mk, lines: Math.max(gF.length, Math.ceil(total / p.rate - 1e-9)), groups: gF, rates: rF };
+      }
+      var fitO = per > p.rate ? 1 : Math.max(1, Math.floor(p.rate / per + 1e-9));
       var lf = Math.max(1, Math.ceil(total / p.rate - 1e-9), Math.min(n, Math.ceil(n / fitO)));
       return { total: total, fluid: true, cap: p.rate, mk: p.mk, lines: lf, groups: balanced(n, Math.min(lf, n)) };
     }
@@ -1030,6 +1038,33 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (locked.length) {
       return { status: 'locked', locked: locked.map(function (w) { return { item: w.item, how: howToUnlock(w.item) }; }) };
     }
+    // a part deeper in the chain that nothing unlocked can make (e.g. Gas Filter before its MAM research)
+    var reach = { Power: true }, rawSet = {};
+    D.raw.forEach(function (id) { rawSet[id] = true; if (rawGate(id, st) || (id === 'Water' && st.waterUnlimited === false)) reach[id] = true; });
+    Object.keys(haveIds).forEach(function (id) { reach[id] = true; });
+    Object.keys(D.items).forEach(function (id) { if (!(producers[id] || []).length) reach[id] = true; });   // gathered by hand (wood, leaves…)
+    for (var pass = 0, grew = true; grew && pass < 200; pass++) {
+      grew = false;
+      avail.forEach(function (r) {
+        if (r.in.every(function (o) { return reach[o[0]]; })) r.out.forEach(function (o) { if (!reach[o[0]]) { reach[o[0]] = true; grew = true; } });
+      });
+    }
+    var blocked = [], seenB = {};
+    want.forEach(function (w) {
+      if (reach[w.item]) return;
+      var stack = [w.item], vis = {};
+      while (stack.length) {
+        var it = stack.pop(); if (vis[it] || reach[it]) continue; vis[it] = true;
+        var rs = avail.filter(function (r) { return r.out.some(function (o) { return o[0] === it; }); });
+        if (!rs.length || rawSet[it]) {
+          var how = rawSet[it] ? { kind: 't', tier: it === 'Water' ? 3 : it === 'LiquidOil' ? 5 : 8, extract: true } : howToUnlock(it);
+          if (!seenB[it]) { seenB[it] = true; blocked.push({ item: it, how: how, for: it === w.item ? null : w.item }); }
+          continue;
+        }
+        rs.forEach(function (r) { r.in.forEach(function (o) { if (!reach[o[0]]) stack.push(o[0]); }); });
+      }
+    });
+    if (blocked.length) return { status: 'locked', locked: blocked };
     var mode = want.some(function (w) { return !isFixed(w, st); }) ? 'max' : 'exact';
     var first = planWith(st, mode, false);
     if (first.status === 'ok' || first.status === 'short' && !first.solverTrouble) return first;
@@ -1108,7 +1143,9 @@ details.mats[open] .chev { transform: rotate(180deg); }
         if (s.item === 'Water' && st.waterUnlimited) return;
         if (s.capped) return;
         if (s.excess) { if (used > 1e-4) out.missing.push({ item: s.item, need: have + used, have: have, raw: false }); return; }
-        if (used > have * (1 + 1e-5) + 1e-4) out.missing.push({ item: s.item, need: used, have: have, raw: !!(D.items[s.item] || {}).raw });
+        var isRaw = !!(D.items[s.item] || {}).raw;
+        if (isRaw && mode === 'exact' && !st.limitToHave && !(model.haveCap[s.item] > 0)) return;   // raw is unlimited here: not what's missing
+        if (used > have * (1 + 1e-5) + 1e-4) out.missing.push({ item: s.item, need: used, have: have, raw: isRaw });
       });
       out.missing.sort(function (a, b) { return (b.need - b.have) - (a.need - a.have); });
     } else out.impossible = true;
@@ -1170,6 +1207,15 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
     steps.sort(function (a, b) { return a.depth - b.depth || itemName(a.recipe.out[0][0]).localeCompare(itemName(b.recipe.out[0][0])); });
 
+    // a step that makes and uses the same item loops it straight back into itself first
+    function selfUse(p, item) {
+      var a = 0, b = 0;
+      p.recipe.out.forEach(function (q) { if (q[0] === item) a += q[1] * p.x; });
+      p.recipe.in.forEach(function (q) { if (q[0] === item) b += q[1] * p.x; });
+      return Math.min(a, b);
+    }
+    var selfTot = {};
+    steps.forEach(function (p) { p.recipe.out.forEach(function (q) { if (!selfTot[q[0] + '|' + p.recipe.id]) { selfTot[q[0] + '|' + p.recipe.id] = 1; selfTot[q[0]] = (selfTot[q[0]] || 0) + selfUse(p, q[0]); } }); });
     var exp = 1.321929, factoryPower = 0, machineCount = 0, splitters = 0, mergers = 0, sloopsUsed = 0, shards = 0, powerMade = 0;
     var cost = {};
     function addCost(list, k) { list.forEach(function (p) { cost[p[0]] = (cost[p[0]] || 0) + p[1] * k; }); }
@@ -1195,14 +1241,15 @@ details.mats[open] .chev { transform: rotate(180deg); }
         g.item = o[0];
         if (g.layouts) g.layouts.forEach(function (l) { splitters += l.splitters || 0; mergers += l.mergers || 0; });
         // where it comes from
-        var from = [];
+        var from = [], mine = selfUse(s, o[0]), need = total - mine;
         steps.forEach(function (p, pi) {
           if (p === s) return;
-          p.recipe.out.forEach(function (q) { if (q[0] === o[0]) from.push({ step: pi, rate: q[1] * p.x }); });
+          p.recipe.out.forEach(function (q) { if (q[0] === o[0]) from.push({ step: pi, rate: q[1] * p.x - selfUse(p, o[0]) }); });
         });
         var totalProd = from.reduce(function (a, f) { return a + f.rate; }, 0) + (supply[o[0]] || 0);
-        g.from = from.map(function (f) { return { step: f.step, rate: total * f.rate / (totalProd || 1) }; });
-        if (supply[o[0]]) g.fromSupply = total * supply[o[0]] / (totalProd || 1);
+        g.from = from.map(function (f) { return { step: f.step, rate: need * f.rate / (totalProd || 1) }; });
+        if (supply[o[0]]) g.fromSupply = need * supply[o[0]] / (totalProd || 1);
+        if (mine > 1e-9) g.fromSelf = mine;
         return g;
       });
       if (r.gen && st.waterUnlimited && setup.n > 1) moduleFor(s, r, setup, st);
@@ -1215,12 +1262,14 @@ details.mats[open] .chev { transform: rotate(180deg); }
           if (p === s) return;
           p.recipe.in.forEach(function (q) { if (q[0] === o[0]) to.push({ step: pi, rate: q[1] * p.x }); });
         });
-        var totalUse = to.reduce(function (a, t) { return a + t.rate; }, 0);
-        var share = total / ((prod[o[0]] || total) + (supply[o[0]] || 0));
-        g.to = to.map(function (t) { return { step: t.step, rate: t.rate * share }; });
-        if (target[o[0]] != null) g.toOutput = Math.max(0, (prod[o[0]] + (supply[o[0]] || 0) - (cons[o[0]] || 0))) * (total / (prod[o[0]] || total));
+        var mine = selfUse(s, o[0]), free = total - mine, freeProd = (prod[o[0]] || total) - (selfTot[o[0]] || 0);
+        if (mine > 1e-9) g.toSelf = mine;
+        var share = freeProd > 1e-12 ? free / (freeProd + (supply[o[0]] || 0)) : 0;
+        g.to = to.map(function (t) { return { step: t.step, rate: (t.rate - selfUse(steps[t.step], o[0])) * share }; });
+        var fr = freeProd > 1e-12 ? free / freeProd : 0;
+        if (target[o[0]] != null) g.toOutput = Math.max(0, (prod[o[0]] + (supply[o[0]] || 0) - (cons[o[0]] || 0))) * fr;
         var left = leftovers.filter(function (l) { return l.item === o[0]; })[0];
-        if (left) g.toLeftover = left.rate * (total / prod[o[0]]);
+        if (left) g.toLeftover = left.rate * fr;
         return g;
       });
     });
@@ -2655,9 +2704,9 @@ details.mats[open] .chev { transform: rotate(180deg); }
   /* ---------------- plan view ---------------- */
   function howUnlock(how) {
     if (!how) return 'Nothing unlocked makes it yet.';
-    if (how.kind === 't') return 'Unlocks at tier ' + how.tier + '.';
+    if (how.kind === 't') return (how.extract ? 'You can extract it from tier ' : 'Unlocks at tier ') + how.tier + '.';
     if (how.kind === 'alt') return 'Needs alternate: ' + how.recipe.name + '.';
-    if (how.kind === 'mam') return 'Needs MAM research.';
+    if (how.kind === 'mam') { var m = (D.mam || []).filter(function (x) { return x.id === how.id; })[0]; return 'Needs MAM research' + (m && m.name ? ': ' + m.name + (m.tree ? ' (' + m.tree + ' tree)' : '') : how.recipe ? ' (' + how.recipe.name + ')' : '') + '.'; }
     return '';
   }
   var GENS = [{ n: 'biomass burner', mw: 30, t: 0 }, { n: 'coal generator', mw: 75, t: 3 }, { n: 'fuel generator', mw: 250, t: 5 }, { n: 'nuclear plant', mw: 2500, t: 8 }];
@@ -2758,7 +2807,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     if (res.status === 'empty') { el.innerHTML = html + '<div class="card"><div class="empty">Pick something in <b>You want</b>.</div></div>'; return; }
     if (res.status === 'error') { el.innerHTML = html + '<div class="banner bad">Planning failed: ' + esc(res.message) + '</div>'; return; }
     if (res.status === 'locked') {
-      el.innerHTML = html + '<div class="banner bad"><div>' + res.locked.map(function (l) { return '<div><b>' + esc(nm(l.item)) + '</b>: ' + esc(howUnlock(l.how)) + '</div>'; }).join('') + '</div></div>';
+      el.innerHTML = html + '<div class="banner bad"><div>' + res.locked.map(function (l) { return '<div>' + (l.for ? esc(nm(l.for)) + ' needs <b>' + esc(nm(l.item)) + '</b>, which you can’t make yet. ' : '<b>' + esc(nm(l.item)) + '</b>: ') + esc(howUnlock(l.how)) + '</div>'; }).join('') + '</div></div>';
       return;
     }
     if (res.status === 'short') {
@@ -2974,6 +3023,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     s.inputs.forEach(function (g) {
       var froms = g.from.filter(function (f) { return f.rate > 1e-6; }).map(function (f) { return stepName(f.step); });
       if (g.fromSupply > 1e-6) froms.unshift('what you have');
+      if (g.fromSelf > 1e-6) froms.unshift('its own output (' + fmt(g.fromSelf) + ' looped back)');
       var t = 'Bring in <b>' + fmt(g.total) + ' ' + unit(g.item) + ' ' + esc(nm(g.item)) + '</b>' + (froms.length ? ' from ' + froms.join(' and ') : '') + '.';
       if (g.fluid) {
         if (g.groups && g.groups.length > 1) t += ' One Mk' + g.mk + ' pipe carries only ' + g.cap + ' m³/min, so split it into <b>' + g.groups.length + ' separate pipes</b>. Each pipe runs along its own machines with a junction into each one:' + groupList(g, s);
@@ -3008,6 +3058,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var dest = o.to.filter(function (x) { return x.rate > 1e-6; }).map(function (x) { return stepName(x.step) + ' ' + fmt(x.rate); });
       if (o.toOutput > 1e-6) dest.push('your final output ' + fmt(o.toOutput));
       if (o.toLeftover > 1e-4) dest.push('leftover ' + fmt(o.toLeftover));
+      if (o.toSelf > 1e-6) dest.unshift('back into these same machines ' + fmt(o.toSelf));
       if (dest.length) t += ' It goes to ' + dest.join(', ') + '.';
       if (dest.length > 1 && !o.fluid) t += ' Run it past those machines, or split it there.';
       out.push(t);
@@ -3025,7 +3076,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       else { var rpb = g.groups && g.groups[0] ? Math.max(1, Math.round(g.groups[0] / k)) : 1; c.groups = [k]; c.lines = 1; c._sub = rpb > 1 ? 'one belt feeds ' + rpb + ' rows' : 'one belt per row'; c.layouts = [{ type: 'manifold', m: k, splitters: k - 1 }]; }
       return c;
     });
-    s2.outputs = s.outputs.map(function (o) { var c = {}; Object.keys(o).forEach(function (key) { c[key] = o[key]; }); c.total = o.total * k / s.count; c.groups = [k]; c.lines = 1; return c; });
+    s2.outputs = s.outputs.map(function (o) { var c = {}; Object.keys(o).forEach(function (key) { c[key] = o[key]; }); var cs = s.clocks.reduce(function (a, b) { return a + b; }, 0), ck = s2.clocks.reduce(function (a, b) { return a + b; }, 0); c.total = cs ? o.total * ck / cs : o.total * k / s.count; c.groups = [k]; c.lines = 1; delete c.rates; return c; });
     return '<div class="rowcap"><b>One row shown.</b> Build <b>' + M.full + ' ' + plural(M.full, 'row') + '</b> exactly like this' + (M.rest ? ', plus 1 smaller row of ' + M.rest : '') + '.</div>' + stepDiagram(s2);
   }
   function stepDiagram(s) {
@@ -3090,6 +3141,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     ins.forEach(function (g, j) {
       var froms = g.from.filter(function (f) { return f.rate > 1e-6; }).map(function (f) { return 'step ' + (f.step + 1); });
       if (g.fromSupply > 1e-6) froms.unshift('what you have');
+      if (g.fromSelf > 1e-6) froms.unshift('its own output (' + fmt(g.fromSelf) + ' looped back)');
       boxes += card(x0, cardY[j], col(g.item), nm(g.item), fmt(g.total) + ' ' + unit(g.item) + (g.lines > 1 ? ' → ' + g.lines + (g.fluid ? ' pipes' : ' belts') : ''), g._sub ? g._sub : g.lines > 1 ? (g.fluid ? 'Mk' + g.mk + ' pipe carries ' + g.cap : 'Mk' + g.mk + ' belt carries ' + g.cap) : froms.length ? 'from ' + froms.join(' + ') : '');
     });
     bufIdx.forEach(function (j) {
@@ -3190,6 +3242,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var dest = o.to.filter(function (x) { return x.rate > 1e-6; }).map(function (x) { return 'step ' + (x.step + 1); });
       if (o.toOutput > 1e-6) dest.push('final output');
       if (o.toLeftover > 1e-4) dest.push('leftover');
+      if (o.toSelf > 1e-6) dest.unshift('back in');
       var rate = o.rates ? o.rates[q.gi] : o.total * (q.hi - q.lo) / n;
       boxes += card(cardOX, ey - CH / 2, c, nm(o.item), fmt(rate) + ' ' + unit(o.item) + (q.ng > 1 ? ' · ' + (o.fluid ? 'pipe ' : 'belt ') + (q.gi + 1) + ' of ' + q.ng : o.fluid ? '' : ' · Mk' + o.mk + ' belt'), dest.length ? 'to ' + dest.join(', ') : '');
     });
@@ -3537,7 +3590,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261124222822';
+  var BELTLINE_BUILD = '20261124223951';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
