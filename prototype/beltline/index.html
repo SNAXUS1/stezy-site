@@ -998,11 +998,13 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var lf = Math.max(1, Math.ceil(total / p.rate - 1e-9), Math.min(n, Math.ceil(n / fitO)));
       return { total: total, fluid: true, cap: p.rate, mk: p.mk, lines: lf, groups: balanced(n, Math.min(lf, n)) };
     }
-    var b = bestBelt(st), lines = Math.max(1, Math.ceil(total / b.rate - 1e-9));
-    var mergers = 0, per = Math.ceil(n / lines), left = n;
-    var groups = [];
-    for (var i = 0; i < lines; i++) { var g = Math.min(per, left); left -= g; groups.push(g); if (g > 1) mergers += g - 1; }
-    return { total: total, fluid: false, cap: b.rate, mk: b.mk, lines: lines, mergers: mergers, groups: groups };
+    // whole machines per belt: 9 machines making 240 each on a 270 belt is 9 belts, not 8
+    var b = bestBelt(st), perM = total / Math.max(1, n);
+    var fit = perM > b.rate + 1e-9 ? 1 : Math.max(1, Math.floor(b.rate / perM + 1e-9));
+    var groups = balanced(n, Math.max(1, Math.min(n, Math.ceil(n / fit)))), mergers = 0;
+    groups.forEach(function (g) { if (g > 1) mergers += g - 1; });
+    var lines = Math.max(groups.length, Math.ceil(total / b.rate - 1e-9));
+    return { total: total, fluid: false, cap: b.rate, mk: b.mk, lines: lines, mergers: mergers, groups: groups, overOne: perM > b.rate + 1e-9 };
   }
 
   /* ---------------- plan ---------------- */
@@ -3520,7 +3522,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261124204048';
+  var BELTLINE_BUILD = '20261124204416';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
