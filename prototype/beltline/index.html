@@ -2655,7 +2655,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function canShare() { try { return /^https?:$/.test(location.protocol) && window.top === window; } catch (e) { return false; } }
   function shareUrl() {
     var snap = snapshot(); delete snap.built; snap.example = false;
-    var payload = { v: 1, p: { tier: state.tier, belt: state.belt, pipe: state.pipe, miner: state.miner, maxClock: state.maxClock, alts: Object.keys(state.alts), mam: Object.keys(state.mam) }, f: snap };
+    var payload = { v: 1, p: { tier: state.tier, belt: state.belt, pipe: state.pipe, miner: state.miner, maxClock: state.maxClock, noClock: !!state.noClock, alts: Object.keys(state.alts), mam: Object.keys(state.mam) }, f: snap };
     return location.origin + location.pathname + '#p=' + b64e(JSON.stringify(payload));
   }
   function importShared() {
@@ -2664,7 +2664,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var data = JSON.parse(b64d(m[1])), f = data.f, fresh = !(state.savedAt > 0);
       history.replaceState(null, '', location.pathname);
       if (fresh && data.p) {
-        ['tier', 'belt', 'pipe', 'miner', 'maxClock'].forEach(function (k) { if (data.p[k] != null) state[k] = data.p[k]; });
+        ['tier', 'belt', 'pipe', 'miner', 'maxClock', 'noClock'].forEach(function (k) { if (data.p[k] != null) state[k] = data.p[k]; });
         state.alts = {}; (data.p.alts || []).forEach(function (id) { state.alts[id] = true; });
         state.mam = {}; (data.p.mam || []).forEach(function (id) { state.mam[id] = true; });
       }
@@ -3520,7 +3520,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261123034441';
+  var BELTLINE_BUILD = '20261124204048';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
