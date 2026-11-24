@@ -992,19 +992,31 @@ details.mats[open] .chev { transform: rotate(180deg); }
     });
   }
   function balanced(n, lines) { var base = Math.floor(n / lines), extra = n % lines, groups = []; for (var i = 0; i < lines; i++) groups.push(base + (i < extra ? 1 : 0)); return groups; }
-  function outputGuide(total, n, fluid, st) {
+  function outputGuide(total, n, fluid, st, per) {
     if (fluid) {
       var p = bestPipe(st), per = total / Math.max(1, n), fitO = per > p.rate ? 1 : Math.max(1, Math.floor(p.rate / per + 1e-9));
       var lf = Math.max(1, Math.ceil(total / p.rate - 1e-9), Math.min(n, Math.ceil(n / fitO)));
       return { total: total, fluid: true, cap: p.rate, mk: p.mk, lines: lf, groups: balanced(n, Math.min(lf, n)) };
     }
     // whole machines per belt: 9 machines making 240 each on a 270 belt is 9 belts, not 8
-    var b = bestBelt(st), perM = total / Math.max(1, n);
-    var fit = perM > b.rate + 1e-9 ? 1 : Math.max(1, Math.floor(b.rate / perM + 1e-9));
-    var groups = balanced(n, Math.max(1, Math.min(n, Math.ceil(n / fit)))), mergers = 0;
+    var b = bestBelt(st), perM = total / Math.max(1, n), groups, rates = null, mergers = 0;
+    var mr = per && per.length === n ? per : null;
+    var uneven = mr && mr.some(function (v) { return Math.abs(v - mr[0]) > 1e-6; });
+    if (uneven) {
+      // machines at different speeds (e.g. 8 full + 1 slower): pack them in order by what each really makes
+      groups = []; rates = []; var cur = 0, sum = 0;
+      mr.forEach(function (v) { if (cur > 0 && sum + v > b.rate + 1e-6) { groups.push(cur); rates.push(sum); cur = 0; sum = 0; } cur++; sum += v; });
+      if (cur) { groups.push(cur); rates.push(sum); }
+      perM = Math.max.apply(null, mr);
+    } else {
+      var fit = perM > b.rate + 1e-9 ? 1 : Math.max(1, Math.floor(b.rate / perM + 1e-9));
+      groups = balanced(n, Math.max(1, Math.min(n, Math.ceil(n / fit))));
+    }
     groups.forEach(function (g) { if (g > 1) mergers += g - 1; });
     var lines = Math.max(groups.length, Math.ceil(total / b.rate - 1e-9));
-    return { total: total, fluid: false, cap: b.rate, mk: b.mk, lines: lines, mergers: mergers, groups: groups, overOne: perM > b.rate + 1e-9 };
+    var res = { total: total, fluid: false, cap: b.rate, mk: b.mk, lines: lines, mergers: mergers, groups: groups, overOne: perM > b.rate + 1e-9 };
+    if (rates) res.rates = rates;
+    return res;
   }
 
   /* ---------------- plan ---------------- */
@@ -1196,7 +1208,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       if (r.gen && st.waterUnlimited && setup.n > 1) moduleFor(s, r, setup, st);
       s.outputs = r.out.filter(function (o) { return o[0] !== 'Power'; }).map(function (o) {
         var total = o[1] * s.x;
-        var g = outputGuide(total, setup.n, isFluid(o[0]), st);
+        var g = outputGuide(total, setup.n, isFluid(o[0]), st, setup.clocks.map(function (cl) { return o[1] * cl; }));
         g.item = o[0]; mergers += g.mergers || 0;
         var to = [];
         steps.forEach(function (p, pi) {
@@ -1277,6 +1289,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function fmt(n) { if (!isFinite(n)) return '∞'; var a = Math.abs(n); return a >= 1000 ? trim(n, 0) : a >= 100 ? trim(n, 1) : trim(n, 2); }
   function unit(id) { return id === 'Power' ? 'MW' : fl(id) ? 'm³/min' : '/min'; }
   function clockTxt(c) { return state.noClock ? '100' : trim(c * 100, 4); }
+  function fullRate(s) { var o = s.outputs[0], cs = s.clocks.reduce(function (a, c) { return a + c; }, 0); return o && cs ? o.total / cs : 0; }
   function clockShort(c) { return state.noClock ? '100' : trim(c * 100, 2); }
   function plural(n, a, b) { return n === 1 ? a : (b || a + 's'); }
   function mName(m) { return D.machines[m].name; }
@@ -2982,12 +2995,12 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var full = s.clocks.filter(function (c) { return Math.abs(c - s.clocks[0]) < 1e-9; }).length;
       out.push('Set ' + full + ' ' + mNames(r.m, full) + ' to <b>' + clockTxt(s.clocks[0]) + '%</b> and the last one to <b>' + clockTxt(s.clocks[s.clocks.length - 1]) + '%</b>.');
     }
-    function perMax(s, c) { var o = s.outputs[0]; return o ? '<b>' + fmt(o.total / s.count / c) + ' ' + unit(o.item) + '</b> (it gets ' + fmt(o.total / s.count) + ')' : 'more'; }
+    function perMax(s, c) { var o = s.outputs[0]; return o ? '<b>' + fmt(fullRate(s)) + ' ' + unit(o.item) + '</b> (it gets input for ' + fmt(fullRate(s) * c) + ')' : 'more'; }
     var lastC = s.clocks[s.clocks.length - 1];
     var allSame = s.clocks.every(function (c) { return Math.abs(c - s.clocks[0]) < 1e-9; });
     if (state.noClock && lastC < 0.999) out.push(n > 1 && allSame
       ? 'Each one can make up to ' + perMax(s, lastC) + ' at 100%, but it only gets input for about ' + trim(lastC * 100, 0) + '% of that, so it pauses now and then. That’s normal: you get exactly the amount the plan needs, and the spare speed is headroom.'
-      : (n === 1 ? 'It' : 'The last one') + ' only gets enough input for about ' + trim(lastC * 100, 0) + '% of the time, so it pauses now and then. That’s normal.');
+      : (n === 1 ? 'It' : 'The last one') + ' only gets enough input for about ' + trim(lastC * 100, 0) + '% of the time (' + fmt(fullRate(s) * lastC) + ' of its ' + fmt(fullRate(s)) + '/min), so it pauses now and then. That’s normal' + (n > 1 ? ': the others run full' : '') + '.');
     if (s.powerOut > 0) out.push('Connect ' + (n === 1 ? 'it' : 'all ' + n) + ' to your power grid: <b class="pw-tag">' + trim(s.powerOut, 0) + ' MW</b>.' + (r.in.some(function (o) { return o[0] === 'Water'; }) ? ' Each one also needs its water pipe.' : ''));
     s.outputs.forEach(function (o) {
       var t = n > 1 ? (o.fluid ? 'Join the outputs into ' : 'Merge the outputs (one merger under each machine after the first) onto ') + (o.lines > 1 ? '<b>' + o.lines + ' ' + (o.fluid ? 'pipes' : 'belts') + '</b>' : 'one ' + (o.fluid ? 'pipe' : 'Mk' + o.mk + ' belt')) + ': <b>' + fmt(o.total) + ' ' + unit(o.item) + ' ' + esc(nm(o.item)) + '</b>.'
@@ -3162,7 +3175,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       boxes += '<g><rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="' + (compact ? 7 : 10) + '" class="gm' + (s.amp ? ' amp' : '') + '"/>' +
         '<text x="' + (mL + (compact ? 12 : 16)) + '" y="' + ty + '" class="t1"' + (compact ? ' style="font-size:12.5px"' : '') + '>' + esc(clip(mShort(r.m), 16)) + ' ' + (mi + 1) + '</text>' +
         (s.amp && !compact ? '<text x="' + (mL + 16) + '" y="' + (t + 41) + '" class="t3">' + s.amp + ' somersloops</text>' : '') +
-        (!s.amp && !compact && state.noClock && s.clocks[mi] < 0.999 && s.outputs[0] && !s.outputs[0].fluid ? '<text x="' + (mL + 16) + '" y="' + (t + 44) + '" class="t3">makes ' + fmt(s.outputs[0].total / n) + ' of ' + fmt(s.outputs[0].total / n / s.clocks[mi]) + '/min · input-limited</text>' : '') +
+        (!s.amp && !compact && state.noClock && s.clocks[mi] < 0.999 && s.outputs[0] && !s.outputs[0].fluid ? '<text x="' + (mL + 16) + '" y="' + (t + 44) + '" class="t3">makes ' + fmt(fullRate(s) * s.clocks[mi]) + ' of ' + fmt(fullRate(s)) + '/min · input-limited</text>' : '') +
         (tags ? '<text x="' + (mR - (compact ? 62 : 72)) + '" y="' + ty + '" text-anchor="end" style="font:600 11px var(--mono);fill:var(--muted)">' + tags + '</text>' : '') +
         '<text x="' + (mR - (compact ? 10 : 14)) + '" y="' + (compact ? ty : t + 33) + '" class="tc2" text-anchor="end"' + (compact ? ' style="font-size:12.5px"' : '') + '>' + clockShort(s.clocks[mi]) + '%</text></g>';
     });
@@ -3177,7 +3190,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var dest = o.to.filter(function (x) { return x.rate > 1e-6; }).map(function (x) { return 'step ' + (x.step + 1); });
       if (o.toOutput > 1e-6) dest.push('final output');
       if (o.toLeftover > 1e-4) dest.push('leftover');
-      var rate = o.total * (q.hi - q.lo) / n;
+      var rate = o.rates ? o.rates[q.gi] : o.total * (q.hi - q.lo) / n;
       boxes += card(cardOX, ey - CH / 2, c, nm(o.item), fmt(rate) + ' ' + unit(o.item) + (q.ng > 1 ? ' · ' + (o.fluid ? 'pipe ' : 'belt ') + (q.gi + 1) + ' of ' + q.ng : o.fluid ? '' : ' · Mk' + o.mk + ' belt'), dest.length ? 'to ' + dest.join(', ') : '');
     });
     if (s.powerOut > 0) {
@@ -3524,7 +3537,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261124222551';
+  var BELTLINE_BUILD = '20261124222822';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
