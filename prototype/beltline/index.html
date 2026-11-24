@@ -2982,10 +2982,11 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var full = s.clocks.filter(function (c) { return Math.abs(c - s.clocks[0]) < 1e-9; }).length;
       out.push('Set ' + full + ' ' + mNames(r.m, full) + ' to <b>' + clockTxt(s.clocks[0]) + '%</b> and the last one to <b>' + clockTxt(s.clocks[s.clocks.length - 1]) + '%</b>.');
     }
+    function perMax(s, c) { var o = s.outputs[0]; return o ? '<b>' + fmt(o.total / s.count / c) + ' ' + unit(o.item) + '</b> (it gets ' + fmt(o.total / s.count) + ')' : 'more'; }
     var lastC = s.clocks[s.clocks.length - 1];
     var allSame = s.clocks.every(function (c) { return Math.abs(c - s.clocks[0]) < 1e-9; });
     if (state.noClock && lastC < 0.999) out.push(n > 1 && allSame
-      ? 'The balancer gives each one enough input for about ' + trim(lastC * 100, 0) + '% of the time, so they all pause now and then. That’s normal.'
+      ? 'Each one can make up to ' + perMax(s, lastC) + ' at 100%, but it only gets input for about ' + trim(lastC * 100, 0) + '% of that, so it pauses now and then. That’s normal: you get exactly the amount the plan needs, and the spare speed is headroom.'
       : (n === 1 ? 'It' : 'The last one') + ' only gets enough input for about ' + trim(lastC * 100, 0) + '% of the time, so it pauses now and then. That’s normal.');
     if (s.powerOut > 0) out.push('Connect ' + (n === 1 ? 'it' : 'all ' + n) + ' to your power grid: <b class="pw-tag">' + trim(s.powerOut, 0) + ' MW</b>.' + (r.in.some(function (o) { return o[0] === 'Water'; }) ? ' Each one also needs its water pipe.' : ''));
     s.outputs.forEach(function (o) {
@@ -3161,6 +3162,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       boxes += '<g><rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="' + (compact ? 7 : 10) + '" class="gm' + (s.amp ? ' amp' : '') + '"/>' +
         '<text x="' + (mL + (compact ? 12 : 16)) + '" y="' + ty + '" class="t1"' + (compact ? ' style="font-size:12.5px"' : '') + '>' + esc(clip(mShort(r.m), 16)) + ' ' + (mi + 1) + '</text>' +
         (s.amp && !compact ? '<text x="' + (mL + 16) + '" y="' + (t + 41) + '" class="t3">' + s.amp + ' somersloops</text>' : '') +
+        (!s.amp && !compact && state.noClock && s.clocks[mi] < 0.999 && s.outputs[0] && !s.outputs[0].fluid ? '<text x="' + (mL + 16) + '" y="' + (t + 44) + '" class="t3">makes ' + fmt(s.outputs[0].total / n) + ' of ' + fmt(s.outputs[0].total / n / s.clocks[mi]) + '/min · input-limited</text>' : '') +
         (tags ? '<text x="' + (mR - (compact ? 62 : 72)) + '" y="' + ty + '" text-anchor="end" style="font:600 11px var(--mono);fill:var(--muted)">' + tags + '</text>' : '') +
         '<text x="' + (mR - (compact ? 10 : 14)) + '" y="' + (compact ? ty : t + 33) + '" class="tc2" text-anchor="end"' + (compact ? ' style="font-size:12.5px"' : '') + '>' + clockShort(s.clocks[mi]) + '%</text></g>';
     });
@@ -3522,7 +3524,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261124204416';
+  var BELTLINE_BUILD = '20261124222551';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
