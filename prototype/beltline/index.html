@@ -382,6 +382,7 @@ button { cursor: pointer; }
   background: radial-gradient(circle at 1px 1px, rgba(255,255,255,.05) 1px, transparent 1.4px) 0 0 / 20px 20px, var(--bg); }
 .gdiag svg { display: block; height: auto; }
 .gdg .gl2 { font-size: 11px; font-weight: 700; fill: var(--fg); font-family: var(--mono); }
+.gdg .gnum { font-size: 10px; font-weight: 700; font-family: var(--mono); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 .gdg .gm { fill: var(--panel-2); stroke: var(--line-2); stroke-width: 1.4; }
 .gdg .gm.amp { stroke: #c4a6ff; }
 .gdg .cardbox { fill: var(--panel); stroke: var(--line-2); stroke-width: 1.2; }
@@ -3130,6 +3131,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
     var gh = compact ? 18 : 26;
     function sG(x, y, c, t) { var txt = t || 'S', w = Math.max(gh, txt.length * 8 + (compact ? 8 : 12)); return '<g><rect x="' + (x - w / 2) + '" y="' + (y - gh / 2) + '" width="' + w + '" height="' + gh + '" rx="' + (compact ? 5 : 7) + '" class="sp" style="stroke:' + c + ';stroke-width:' + (compact ? 1.8 : 2.2) + '"/><text x="' + x + '" y="' + (y + 4) + '" class="gl2" text-anchor="middle"' + (compact ? ' style="font-size:10.5px"' : '') + '>' + esc(txt) + '</text></g>'; }
     function mG(x, y) { var rr = compact ? 9 : 13; return '<g><circle cx="' + x + '" cy="' + y + '" r="' + rr + '" class="mg" style="stroke-width:2.2"/><text x="' + x + '" y="' + (y + 4) + '" class="gl2" text-anchor="middle"' + (compact ? ' style="font-size:10.5px"' : '') + '>M</text></g>'; }
+    // count numbers beside splitters / mergers, so a long row is easy to keep track of
+    function numG(x, y, k, c, right) { return '<text x="' + x + '" y="' + (y + 3.5) + '" class="gnum" text-anchor="' + (right ? 'start' : 'end') + '" style="fill:' + c + '">' + k + '</text>'; }
     function jG(x, y, c) { return '<circle cx="' + x + '" cy="' + y + '" r="' + (compact ? 5 : 6.5) + '" class="jn" style="fill:' + c + '"/>'; }
     function pill(x, y, c, t) { var w = t.length * 7.5 + 10; return '<g><rect x="' + (x - w / 2) + '" y="' + (y - 9) + '" width="' + w + '" height="18" rx="5" style="fill:' + c + '"/><text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" style="font:700 11px var(--mono);fill:#15171a">' + esc(t) + '</text></g>'; }
     function card(x, y, c, t1, t2, t3) {
@@ -3211,6 +3214,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
           var y = pin(v, q.j);
           paths += ln([[lx, y], [mL, y]], c, true);
           glyphs += g.fluid ? jG(lx, y, c) : sG(lx, y, c);
+          if (rows.length > 2) glyphs += numG(lx - (g.fluid ? 9 : gh / 2 + 4), y, vrows[v] - q.lo + 1, c, false);
         });
       }
     }
@@ -3238,7 +3242,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       if (collapsed) vrows.forEach(function (m, v) { if (m >= 0) rows.push(v); }); else for (var m = q.lo; m < q.hi; m++) rows.push(vOf(m));
       var firstY = pout(rows[0], q.j);
       paths += ln([[mR, firstY], [lx, firstY], [lx, ey], [cardOX, ey]], c, true);
-      rows.slice(1).forEach(function (v) { var y = pout(v, q.j); paths += ln([[mR, y], [lx, y]], c, false); glyphs += o.fluid ? jG(lx, y, c) : mG(lx, y); });
+      rows.slice(1).forEach(function (v) { var y = pout(v, q.j); paths += ln([[mR, y], [lx, y]], c, false); glyphs += o.fluid ? jG(lx, y, c) : mG(lx, y); if (rows.length > 2) glyphs += numG(lx + (o.fluid ? 9 : (compact ? 9 : 13) + 4), y, vrows[v] - q.lo, c, true); });
       var dest = o.to.filter(function (x) { return x.rate > 1e-6; }).map(function (x) { return 'step ' + (x.step + 1); });
       if (o.toOutput > 1e-6) dest.push('final output');
       if (o.toLeftover > 1e-4) dest.push('leftover');
@@ -3590,7 +3594,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261124223951';
+  var BELTLINE_BUILD = '20261125105951';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
