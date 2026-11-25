@@ -3434,7 +3434,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     function ln(pts, c, arrow) { var d = P(pts); return '<path d="' + d + '" class="halo" style="stroke-width:10"/><path d="' + d + '" class="ln" style="stroke:' + c + ';stroke-width:3"' + (arrow ? ' marker-end="' + marker(c) + '"' : '') + '/>'; }
     var gh = compact ? 18 : 26;
     function sG(x, y, c, t) { var txt = t || 'S', w = Math.max(gh, txt.length * 8 + (compact ? 8 : 12)); return '<g><rect x="' + (x - w / 2) + '" y="' + (y - gh / 2) + '" width="' + w + '" height="' + gh + '" rx="' + (compact ? 5 : 7) + '" class="sp" style="stroke:' + c + ';stroke-width:' + (compact ? 1.8 : 2.2) + '"/><text x="' + x + '" y="' + (y + 4) + '" class="gl2" text-anchor="middle"' + (compact ? ' style="font-size:10.5px"' : '') + '>' + esc(txt) + '</text></g>'; }
-    function mG(x, y) { var rr = compact ? 9 : 13; return '<g><circle cx="' + x + '" cy="' + y + '" r="' + rr + '" class="mg" style="stroke-width:2.2"/><text x="' + x + '" y="' + (y + 4) + '" class="gl2" text-anchor="middle"' + (compact ? ' style="font-size:10.5px"' : '') + '>M</text></g>'; }
+    function mG(x, y, mc) { var rr = compact ? 9 : 13; return '<g><circle cx="' + x + '" cy="' + y + '" r="' + rr + '" class="mg" style="stroke-width:2.2' + (mc ? ';stroke:' + mc : '') + '"/><text x="' + x + '" y="' + (y + 4) + '" class="gl2" text-anchor="middle"' + (compact ? ' style="font-size:10.5px"' : '') + '>M</text></g>'; }
     // count numbers beside splitters / mergers, so a long row is easy to keep track of
     function numG(x, y, k, c, right) { return '<text x="' + x + '" y="' + (y + 3.5) + '" class="gnum" text-anchor="' + (right ? 'start' : 'end') + '" style="fill:' + c + '">' + k + '</text>'; }
     function jG(x, y, c) { return '<circle cx="' + x + '" cy="' + y + '" r="' + (compact ? 5 : 6.5) + '" class="jn" style="fill:' + c + '"/>'; }
@@ -3578,9 +3578,9 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var o = q.o, c = col(o.item), lx = oX + qi * LANE, ey = exitY[qi];
       var rows = [];
       if (collapsed) vrows.forEach(function (m, v) { if (m >= 0) rows.push(v); }); else for (var m = q.lo; m < q.hi; m++) rows.push(vOf(m));
-      var firstY = pout(rows[0], q.j);
-      paths += ln([[mR, firstY], [lx, firstY], [lx, ey], [cardOX, ey]], c, true);
-      rows.slice(1).forEach(function (v) { var y = pout(v, q.j); paths += ln([[mR, y], [lx, y]], c, false); glyphs += o.fluid ? jG(lx, y, c) : mG(lx, y); if (rows.length > 2) glyphs += numG(lx + (o.fluid ? 9 : (compact ? 9 : 13) + 4), y, vrows[v] - q.lo, c, true); });
+      var firstY = pout(rows[0], q.j), oc = q.ng > 1 && !o.fluid ? gcol(q.gi) : c;   // each output belt in its own colour
+      paths += ln([[mR, firstY], [lx, firstY], [lx, ey], [cardOX, ey]], oc, true);
+      rows.slice(1).forEach(function (v) { var y = pout(v, q.j); paths += ln([[mR, y], [lx, y]], oc, false); glyphs += o.fluid ? jG(lx, y, c) : mG(lx, y, q.ng > 1 ? oc : null); if (rows.length > 2) glyphs += numG(lx + (o.fluid ? 9 : (compact ? 9 : 13) + 4), y, vrows[v] - q.lo, oc, true); });
       var dest = o.to.filter(function (x) { return x.rate > 1e-6; }).map(function (x) { return 'step ' + (x.step + 1); });
       var lk = o.links && o.links[q.gi];
       if (lk) dest = lk.rest ? [o.toOutput > 1e-6 ? 'final output' : 'leftover'] : lk.chain ? ['step ' + (lk.step + 1) + ' (merge in)'] : ['step ' + (lk.step + 1) + ' as its B' + (lk.belt + 1)];
@@ -3938,7 +3938,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261125131734';
+  var BELTLINE_BUILD = '20261125131835';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
