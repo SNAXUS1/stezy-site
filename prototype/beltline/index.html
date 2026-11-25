@@ -1440,6 +1440,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function unit(id) { return id === 'Power' ? 'MW' : fl(id) ? 'm³/min' : '/min'; }
   function clockTxt(c) { return state.noClock ? '100' : trim(c * 100, 4); }
   function gcol(i) { return GROUPC[i % GROUPC.length]; }
+  function inCol(g, i) { return g.links && g.links[i] ? gcol(g.links[i].belt) : gcol(i); }
   function chainSeg(g, mi) { var k = 0, start = 0; (g.chain ? g.chain.merges : []).forEach(function (mg, i) { if (mg.before <= mi) { k = i; start = mg.before; } }); return { k: k, start: start }; }
   function fullRate(s) { var o = s.outputs[0], cs = s.clocks.reduce(function (a, c) { return a + c; }, 0); return o && cs ? o.total / cs : 0; }
   function clockShort(c) { return state.noClock ? '100' : trim(c * 100, 2); }
@@ -3189,7 +3190,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   try { wideOn = localStorage.getItem('beltline-wide') === '1'; } catch (e) { wideOn = false; }
   function applyWide() { var L = document.querySelector('.layout'); if (L) L.classList.toggle('wide', wideOn); }
   var gColorBy = 'both';   // tint machines by output belt ('out'), input belt ('in') or both (split box)
-  try { gColorBy = localStorage.getItem('beltline-gcolor') || 'both'; } catch (e) { gColorBy = 'both'; }
+  try { gColorBy = localStorage.getItem('beltline-gcolor2') || 'both'; } catch (e) { gColorBy = 'both'; }
   var gZoom = 0;
   try { gZoom = +localStorage.getItem('beltline-gzoom') || 0; } catch (e) { gZoom = 0; }
   function gzStyle(W) { return gZoom ? 'width:' + Math.round(W * gZoom) + 'px;max-width:none' : 'width:100%;min-width:' + Math.round(W * 0.85) + 'px;max-width:' + Math.round(W) + 'px'; }
@@ -3272,7 +3273,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var lo = st; st += m;
       var rate = 0; for (var q = lo; q < st; q++) rate += g.per[q] || 0;
       var lk = g.links && g.links[i];
-      return '<span><i style="background:' + (g.fluid ? c : gcol(i)) + '">' + (g.fluid ? 'P' : 'B') + (i + 1) + '</i><b>' + word + (i + 1) + '</b> → ' + (m === 1 ? 'machine ' + (lo + 1) : 'machines ' + (lo + 1) + '–' + st) + ' · ' + fmt(rate) + ' ' + unit(g.item) + (lk ? ' <span class="muted">← step ' + (lk.step + 1) + ', its belt ' + (lk.belt + 1) + '</span>' : '') + '</span>';
+      return '<span><i style="background:' + (g.fluid ? c : inCol(g, i)) + '">' + (g.fluid ? 'P' : 'B') + (i + 1) + '</i><b>' + word + (i + 1) + '</b> → ' + (m === 1 ? 'machine ' + (lo + 1) : 'machines ' + (lo + 1) + '–' + st) + ' · ' + fmt(rate) + ' ' + unit(g.item) + (lk ? ' <span class="muted">← step ' + (lk.step + 1) + ', its belt ' + (lk.belt + 1) + '</span>' : '') + '</span>';
     }).join('') + '</span>';
   }
   // suggested rows: cut wherever an input belt or an output belt changes, so every row sits on one belt of each
@@ -3450,6 +3451,12 @@ details.mats[open] .chev { transform: rotate(180deg); }
       if (g.fromSupply > 1e-6) froms.unshift('what you have');
       if (g.fromSelf > 1e-6) froms.unshift('its own output (' + fmt(g.fromSelf) + ' looped back)');
       if (g.chain) { var np0 = g.chain.merges.reduce(function (a, mg) { return a + mg.from.length; }, 0); boxes += card(x0, cardY[j], col(g.item), nm(g.item), fmt(g.total) + ' ' + unit(g.item) + ' total', np0 + ' ' + mNames(res.steps[g.chain.from].recipe.m, np0) + ' merge in below'); return; }
+      if (!g.fluid && g.groups && g.groups.length > 1 && g.groups.length <= 4) {
+        var st1 = 0, per1 = g.groups.map(function (m) { var r1 = 0; for (var z = st1; z < st1 + m; z++) r1 += g.per[z] || 0; st1 += m; return r1; });
+        boxes += card(x0, cardY[j], col(g.item), nm(g.item), fmt(g.total) + ' ' + unit(g.item) + ' → ' + g.groups.length + ' belts', per1.map(function (r1, i) { return 'B' + (i + 1) + ' ' + fmt(r1); }).join(' · '),
+          g.links ? 'its belts ' + g.links.map(function (l) { return l.belt + 1; }).join(', ') + ' from step ' + (g.links[0].step + 1) : froms.length ? 'from ' + froms.join(' + ') : '');
+        return;
+      }
       boxes += card(x0, cardY[j], col(g.item), nm(g.item), fmt(g.total) + ' ' + unit(g.item) + (g.lines > 1 ? ' → ' + g.lines + (g.fluid ? ' pipes' : ' belts') : ''), g._sub ? g._sub : g.lines > 1 ? (g.fluid ? 'Mk' + g.mk + ' pipe carries ' + g.cap : 'Mk' + g.mk + ' belt carries ' + g.cap) : froms.length ? 'from ' + froms.join(' + ') : '');
     });
     bufIdx.forEach(function (j) {
@@ -3508,7 +3515,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
         var q = lanes[li], g = q.g, c = col(g.item), lx = laneX[li];
         var sp = Math.min(12, (CH - 18) / Math.max(1, q.ng - 1));
         var ey2 = cardY[q.j] + CH / 2 + (q.ng > 1 ? (q.gi - (q.ng - 1) / 2) * sp : 0);
-        if (q.ng > 1) glyphs += pill(lx, machTop - 14, q.g.fluid ? c : gcol(q.gi), feedTag(q));
+        if (q.ng > 1) glyphs += pill(lx, machTop - 14, q.g.fluid ? c : inCol(q.g, q.gi), feedTag(q));
         var Lq = laneLay(q);
         if (Lq) { drawBalancer(q, Lq, lx, ey2, c); continue; }
         var rows = [];
@@ -3520,6 +3527,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
           ms.forEach(function (mg, i) { var yEnd = i + 1 < ms.length ? ys[i + 1] : pin(lastV, q.j); paths += ln([[lx, ys[i]], [lx, yEnd]], gcol(i), false); });
           paths += ln([[lx, pin(lastV, q.j)], [mL, pin(lastV, q.j)]], gcol(chainSeg(g, vrows[lastV] != null ? vrows[lastV] : q.hi - 1).k), true);
         }
+        var lc = q.ng > 1 && !g.fluid ? inCol(g, q.gi) : c;   // each input belt in its own colour (matches its B1/B2 tag)
         var nProd = g.chain ? g.chain.merges.reduce(function (a, mg) { return a + mg.from.length; }, 0) : 0;
         var showProd = g.chain && !collapsed && lanes.length === 1 && nProd <= 12;   // few producers: draw each one where it joins the belt
         if (showProd) {
@@ -3536,7 +3544,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
             glyphs += '<circle cx="' + lx + '" cy="' + yv + '" r="4.5" style="fill:' + mc + ';stroke:var(--bg);stroke-width:1.5"/>';
           });
         } else if (g.chain && !collapsed) { paths += ln([[x0 + CW, ey2], [lx, ey2]], c, false); chainLane(ey2); }
-        else paths += ln([[x0 + CW, ey2], [lx, ey2], [lx, pin(lastV, q.j)], [mL, pin(lastV, q.j)]], c, true);
+        else paths += ln([[x0 + CW, ey2], [lx, ey2], [lx, pin(lastV, q.j)], [mL, pin(lastV, q.j)]], lc, true);
         if (g.chain && !collapsed && !showProd) g.chain.merges.forEach(function (mg) {
           if (mg.before === 0) return;
           var yv = pin(vOf(mg.before), q.j) - ROW / 2, pm2 = mShort(res.steps[g.chain.from].recipe.m);
@@ -3546,7 +3554,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
         });
         rows.slice(0, -1).forEach(function (v) {
           var y = pin(v, q.j);
-          var seg = g.chain ? chainSeg(g, vrows[v]) : null, sc = seg ? gcol(seg.k) : c;
+          var seg = g.chain ? chainSeg(g, vrows[v]) : null, sc = seg ? gcol(seg.k) : lc;
           paths += ln([[lx, y], [mL, y]], sc, true);
           glyphs += g.fluid ? jG(lx, y, c) : sG(lx, y, sc);
           if (rows.length > 2) glyphs += numG(lx - (g.fluid ? 9 : gh / 2 + 4), y, seg ? vrows[v] - seg.start + 1 : vrows[v] - q.lo + 1, sc, false);
@@ -3554,7 +3562,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       }
     }
     // machines
-    var gradDefs = {};
+    var gradDefs = {}, outQ0;
     vrows.forEach(function (mi, v) {
       var t = rowTopV(v);
       if (mi < 0) { boxes += '<text x="' + (mL + MW / 2) + '" y="' + (t + MH / 2 + 5) + '" text-anchor="middle" class="t2">⋮  ' + (n - 8) + ' more, built the same way</text>'; return; }
@@ -3566,20 +3574,22 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var limited = !s.amp && !compact && state.noClock && s.clocks[mi] < 0.999 && s.outputs[0] && !s.outputs[0].fluid;
       var ty = compact ? t + MH / 2 + 5 : t + (s.amp || limited ? 23 : 32);
       var inQ = lanes.filter(function (q) { return q.ng > 1 && !q.g.fluid && mi >= q.lo && mi < q.hi; }).sort(function (a, b) { return a.j - b.j; })[0];
-      if (!inQ) { var chq = lanes.filter(function (q) { return q.g.chain && mi >= q.lo && mi < q.hi; })[0]; if (chq) inQ = { gi: chainSeg(chq.g, mi).k, chain: true }; }
-      var outQ = olanes.filter(function (q) { return q.ng > 1 && !q.o.fluid && q.j === 0 && mi >= q.lo && mi < q.hi; })[0];
-      var stripe = function (x, gi, side) { var sw = compact ? 4 : 5; return '<rect x="' + (side ? x - sw - 3 : x + 3) + '" y="' + (t + 4) + '" width="' + sw + '" height="' + (MH - 8) + '" rx="2" style="fill:' + gcol(gi) + '"><title>' + (side ? 'Output belt B' : 'Input belt B') + (gi + 1) + '</title></rect>'; };
+      if (inQ) inQ = { gi: inQ.gi, col: inCol(inQ.g, inQ.gi) };
+      if (!inQ) { var chq = lanes.filter(function (q) { return q.g.chain && mi >= q.lo && mi < q.hi; })[0]; if (chq) { var sk = chainSeg(chq.g, mi).k; inQ = { gi: sk, col: gcol(sk), chain: true }; } }
+      if (outQ0 = olanes.filter(function (q) { return q.ng > 1 && !q.o.fluid && q.j === 0 && mi >= q.lo && mi < q.hi; })[0]) outQ0 = { gi: outQ0.gi, col: gcol(outQ0.gi) };
+      var outQ = outQ0 || null;
+      var stripe = function (x, Q, side) { var sw = compact ? 4 : 5; return '<rect x="' + (side ? x - sw - 3 : x + 3) + '" y="' + (t + 4) + '" width="' + sw + '" height="' + (MH - 8) + '" rx="2" style="fill:' + Q.col + '"><title>' + (side ? 'Output belt B' : 'Input belt B') + (Q.gi + 1) + '</title></rect>'; };
       var hasInQ = lanes.some(function (q) { return (q.ng > 1 && !q.g.fluid) || (q.g.chain && q.g.chain.merges.length > 1); }), hasOutQ = olanes.some(function (q) { return q.ng > 1 && !q.o.fluid && q.j === 0; });
       var cmode = gColorBy === 'both' && hasInQ && hasOutQ ? 'both' : gColorBy === 'in' && hasInQ ? 'in' : hasOutQ ? 'out' : 'in';
       if (cmode === 'in') outQ = null; else if (cmode === 'out') inQ = null;
       var tintQ = outQ || inQ;
       boxes += '<g><rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="' + (compact ? 7 : 10) + '" class="gm' + (s.amp ? ' amp' : '') + '"/>' +
         (cmode === 'both' && inQ && outQ ? (function () {   // left half = input belt colour, right half = output belt colour
-          var a = gcol(inQ.gi), b = gcol(outQ.gi), id = 'sp' + inQ.gi % GROUPC.length + '-' + outQ.gi % GROUPC.length;
+          var a = inQ.col, b = outQ.col, id = 'sp' + a.slice(1) + '-' + b.slice(1);
           gradDefs[id] = '<linearGradient id="' + id + '" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="' + a + '"/><stop offset=".5" stop-color="' + a + '"/><stop offset=".5" stop-color="' + b + '"/><stop offset="1" stop-color="' + b + '"/></linearGradient>';
           return '<rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="' + (compact ? 7 : 10) + '" style="fill:url(#' + id + ');fill-opacity:.2;stroke:url(#' + id + ');stroke-opacity:.6;stroke-width:1.2"/>';
-        })() : tintQ ? '<rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="' + (compact ? 7 : 10) + '" style="fill:' + gcol(tintQ.gi) + ';fill-opacity:.16;stroke:' + gcol(tintQ.gi) + ';stroke-opacity:.55;stroke-width:1.2"/>' : '') +
-        (inQ ? stripe(mL, inQ.gi, false) : '') + (outQ ? stripe(mR, outQ.gi, true) : '') +
+        })() : tintQ ? '<rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="' + (compact ? 7 : 10) + '" style="fill:' + tintQ.col + ';fill-opacity:.16;stroke:' + tintQ.col + ';stroke-opacity:.55;stroke-width:1.2"/>' : '') +
+        (inQ ? stripe(mL, inQ, false) : '') + (outQ ? stripe(mR, outQ, true) : '') +
         '<text x="' + (mL + (compact ? 12 : 16) + (inQ ? 4 : 0)) + '" y="' + ty + '" class="t1"' + (compact ? ' style="font-size:12.5px"' : '') + '>' + esc(clip(mShort(r.m), 16)) + ' ' + (mi + 1) + '</text>' +
         (s.amp && !compact ? '<text x="' + (mL + 16) + '" y="' + (t + 41) + '" class="t3">' + s.amp + ' somersloops</text>' : '') +
         (limited ? '<text x="' + (mL + 16 + (inQ ? 4 : 0)) + '" y="' + (t + 41) + '" class="t3">makes ' + fmt(fullRate(s) * s.clocks[mi]) + ' of ' + fmt(fullRate(s)) + '/min<title>Input-limited: it gets enough input for ' + fmt(fullRate(s) * s.clocks[mi]) + ' of the ' + fmt(fullRate(s)) + '/min it could make</title></text>' : '') +
@@ -3917,7 +3927,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
     else if (act === 'noclock') { state.noClock = v === '1'; changed(true); }
     else if (act === 'gz') { gzStep(v); }
-    else if (act === 'gcolor') { gColorBy = v === 'in' || v === 'both' ? v : 'out'; try { localStorage.setItem('beltline-gcolor', gColorBy); } catch (e) { } renderPlan(); }
+    else if (act === 'gcolor') { gColorBy = v === 'in' || v === 'both' ? v : 'out'; try { localStorage.setItem('beltline-gcolor2', gColorBy); } catch (e) { } renderPlan(); }
     else if (act === 'wide') { wideOn = !wideOn; try { localStorage.setItem('beltline-wide', wideOn ? '1' : '0'); } catch (e) { } applyWide(); vpUser = false; renderPlan(); }
     else if (act === 'splitter') openSplitter();
     else if (act === 'powfrom') { if (v) state.recipeChoice.Power = v; else delete state.recipeChoice.Power; changed(true); }
@@ -3951,7 +3961,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261125132854';
+  var BELTLINE_BUILD = '20261125135739';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
