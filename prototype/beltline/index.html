@@ -385,7 +385,12 @@ button { cursor: pointer; }
   background: radial-gradient(circle at 1px 1px, rgba(255,255,255,.05) 1px, transparent 1.4px) 0 0 / 20px 20px, var(--bg); }
 .gdiag svg { display: block; height: auto; }
 .gdwrap { display: flex; flex-direction: column; gap: 6px; }
-.gzoom { align-self: flex-end; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 9px; background: var(--panel); border: 1px solid var(--line); }
+.gdbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.gcolor { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 9px; background: var(--panel); border: 1px solid var(--line); }
+.gcolor .lab { font: 600 11px var(--mono); color: var(--faint); padding: 0 6px; letter-spacing: .04em; }
+.gcolor button { height: 26px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: 600 12.5px var(--body); cursor: pointer; }
+.gcolor button.on { background: var(--panel-2); color: var(--fg); }
+.gzoom { margin-left: auto; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 9px; background: var(--panel); border: 1px solid var(--line); }
 .gzoom button { min-width: 28px; height: 26px; padding: 0 7px; border: 0; border-radius: 6px; background: transparent; color: var(--fg); font: 600 13px var(--mono); cursor: pointer; }
 .gzoom button:hover { background: var(--panel-2); }
 .gzoom .pct { min-width: 44px; text-align: center; font: 600 11.5px var(--mono); color: var(--muted); }
@@ -1434,6 +1439,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function fmt(n) { if (!isFinite(n)) return '∞'; var a = Math.abs(n); return a >= 1000 ? trim(n, 0) : a >= 100 ? trim(n, 1) : trim(n, 2); }
   function unit(id) { return id === 'Power' ? 'MW' : fl(id) ? 'm³/min' : '/min'; }
   function clockTxt(c) { return state.noClock ? '100' : trim(c * 100, 4); }
+  var GROUPC = ['#6aa9ff', '#f2b05e', '#6fd39a', '#d39bff', '#ff8a8a', '#5fd4d4', '#e8d36a', '#ff9fd0'];
+  function gcol(i) { return GROUPC[i % GROUPC.length]; }
   function fullRate(s) { var o = s.outputs[0], cs = s.clocks.reduce(function (a, c) { return a + c; }, 0); return o && cs ? o.total / cs : 0; }
   function clockShort(c) { return state.noClock ? '100' : trim(c * 100, 2); }
   function plural(n, a, b) { return n === 1 ? a : (b || a + 's'); }
@@ -3159,6 +3166,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
   var wideOn = false;   // "Hide setup": the step guide gets the whole width while building
   try { wideOn = localStorage.getItem('beltline-wide') === '1'; } catch (e) { wideOn = false; }
   function applyWide() { var L = document.querySelector('.layout'); if (L) L.classList.toggle('wide', wideOn); }
+  var gColorBy = 'out';   // tint machines by their output belt ('out') or input belt ('in')
+  try { gColorBy = localStorage.getItem('beltline-gcolor') || 'out'; } catch (e) { gColorBy = 'out'; }
   var gZoom = 0;
   try { gZoom = +localStorage.getItem('beltline-gzoom') || 0; } catch (e) { gZoom = 0; }
   function gzStyle(W) { return gZoom ? 'width:' + Math.round(W * gZoom) + 'px;max-width:none' : 'width:100%;min-width:' + Math.round(W * 0.85) + 'px;max-width:' + Math.round(W) + 'px'; }
@@ -3176,6 +3185,13 @@ details.mats[open] .chev { transform: rotate(180deg); }
     try { localStorage.setItem('beltline-gzoom', String(gZoom)); } catch (e) { }
     gzApply();
   }
+  function gcBar(s) {
+    var hasIn = s.inputs.some(function (g) { return !g.fluid && g.groups && g.groups.length > 1; }), hasOut = s.outputs.some(function (o) { return !o.fluid && o.groups && o.groups.length > 1; });
+    if (!hasIn && !hasOut) return '<span></span>';
+    var b = function (v, t, on) { return '<button type="button" data-act="gcolor" data-v="' + v + '" aria-pressed="' + on + '"' + (on ? ' class="on"' : '') + '>' + t + '</button>'; };
+    var mode = gColorBy === 'both' && hasIn && hasOut ? 'both' : gColorBy === 'in' && hasIn ? 'in' : hasOut ? 'out' : 'in';
+    return '<div class="gcolor" role="group" aria-label="Colour machines by"><span class="lab">Colour by</span>' + (hasOut ? b('out', 'Output belts', mode === 'out') : '') + (hasIn ? b('in', 'Input belts', mode === 'in') : '') + (hasIn && hasOut ? b('both', 'Both', mode === 'both') : '') + '</div>';
+  }
   function gzBar() { return '<div class="gzoom" role="group" aria-label="Diagram zoom"><button type="button" data-act="gz" data-v="-" aria-label="Zoom out">−</button><span class="pct"></span><button type="button" data-act="gz" data-v="+" aria-label="Zoom in">+</button><button type="button" data-act="gz" data-v="fit" title="Fit to width (stays readable)">Fit</button></div>'; }
   function guideHtml() {
     var steps = res.steps; if (!steps.length) return '';
@@ -3189,7 +3205,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       '<button class="btn' + (done ? ' ok' : '') + '" type="button" data-act="built" data-v="' + esc(r.id) + '">' + (done ? 'Built ✓' : 'Mark as built') + '</button>' +
       '<button class="btn light" type="button" data-act="gnext"' + (idx === steps.length - 1 ? ' disabled' : '') + '>Next →</button></div>';
     setTimeout(gzApply, 0);
-    return '<div class="guide">' + chips + head + '<div class="gdwrap">' + gzBar() + '<div class="gdiag">' + stepDiagram(s) + '</div></div>' + balancerCloseups(s) + '<ol class="gsteps">' + guideText(s).map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ol>' + nav + '</div>';
+    return '<div class="guide">' + chips + head + '<div class="gdwrap"><div class="gdbar">' + gcBar(s) + gzBar() + '</div><div class="gdiag">' + stepDiagram(s) + '</div></div>' + balancerCloseups(s) + '<ol class="gsteps">' + guideText(s).map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ol>' + nav + '</div>';
   }
   function balancerCloseups(s) {
     var seen = {}, out = '';
@@ -3234,7 +3250,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var lo = st; st += m;
       var rate = 0; for (var q = lo; q < st; q++) rate += g.per[q] || 0;
       var lk = g.links && g.links[i];
-      return '<span><i style="background:' + c + '">' + (g.fluid ? 'P' : 'B') + (i + 1) + '</i><b>' + word + (i + 1) + '</b> → ' + (m === 1 ? 'machine ' + (lo + 1) : 'machines ' + (lo + 1) + '–' + st) + ' · ' + fmt(rate) + ' ' + unit(g.item) + (lk ? ' <span class="muted">← step ' + (lk.step + 1) + ', its belt ' + (lk.belt + 1) + '</span>' : '') + '</span>';
+      return '<span><i style="background:' + (g.fluid ? c : gcol(i)) + '">' + (g.fluid ? 'P' : 'B') + (i + 1) + '</i><b>' + word + (i + 1) + '</b> → ' + (m === 1 ? 'machine ' + (lo + 1) : 'machines ' + (lo + 1) + '–' + st) + ' · ' + fmt(rate) + ' ' + unit(g.item) + (lk ? ' <span class="muted">← step ' + (lk.step + 1) + ', its belt ' + (lk.belt + 1) + '</span>' : '') + '</span>';
     }).join('') + '</span>';
   }
   function guideText(s) {
@@ -3295,7 +3311,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
           '<span class="glist">' + o.groups.map(function (m, i) {
             var lo = st0; st0 += m; var lk = o.links[i];
             var to = lk.rest ? (o.toOutput > 1e-6 ? 'your final output' : o.toSelf > 1e-6 ? 'back into these machines' : 'leftover') : lk.chain ? stepName(lk.step) + ': merges into its belt (see that step)' : stepName(lk.step) + ', as its belt ' + (lk.belt + 1);
-            return '<span><i style="background:' + c + '">B' + (i + 1) + '</i><b>Belt ' + (i + 1) + '</b> ← ' + (m === 1 ? 'machine ' + (lo + 1) : 'machines ' + (lo + 1) + '–' + st0) + ' · ' + fmt(o.rates[i]) + ' ' + unit(o.item) + ' → ' + to + '</span>';
+            return '<span><i style="background:' + gcol(i) + '">B' + (i + 1) + '</i><b>Belt ' + (i + 1) + '</b> ← ' + (m === 1 ? 'machine ' + (lo + 1) : 'machines ' + (lo + 1) + '–' + st0) + ' · ' + fmt(o.rates[i]) + ' ' + unit(o.item) + ' → ' + to + '</span>';
           }).join('') + '</span>';
         if (o.links.some(function (l) { return !l.rest && !l.chain; })) t += 'Each belt goes straight into the next step: no splitting or merging in between.';
         out.push(t); return;
@@ -3443,7 +3459,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
         var q = lanes[li], g = q.g, c = col(g.item), lx = laneX[li];
         var sp = Math.min(12, (CH - 18) / Math.max(1, q.ng - 1));
         var ey2 = cardY[q.j] + CH / 2 + (q.ng > 1 ? (q.gi - (q.ng - 1) / 2) * sp : 0);
-        if (q.ng > 1) glyphs += pill(lx, machTop - 14, c, feedTag(q));
+        if (q.ng > 1) glyphs += pill(lx, machTop - 14, q.g.fluid ? c : gcol(q.gi), feedTag(q));
         var Lq = laneLay(q);
         if (Lq) { drawBalancer(q, Lq, lx, ey2, c); continue; }
         var rows = [];
@@ -3474,12 +3490,21 @@ details.mats[open] .chev { transform: rotate(180deg); }
       }
       var tags = multi ? lanes.filter(function (q) { return q.ng > 1 && mi >= q.lo && mi < q.hi; }).sort(function (a, b) { return a.j - b.j; }).map(feedTag).join(' ') : '';
       var ty = compact ? t + MH / 2 + 5 : t + (s.amp ? 23 : 32);
+      var inQ = lanes.filter(function (q) { return q.ng > 1 && !q.g.fluid && mi >= q.lo && mi < q.hi; }).sort(function (a, b) { return a.j - b.j; })[0];
+      var outQ = olanes.filter(function (q) { return q.ng > 1 && !q.o.fluid && q.j === 0 && mi >= q.lo && mi < q.hi; })[0];
+      var stripe = function (x, gi, side) { var sw = compact ? 4 : 5; return '<rect x="' + (side ? x - sw - 3 : x + 3) + '" y="' + (t + 4) + '" width="' + sw + '" height="' + (MH - 8) + '" rx="2" style="fill:' + gcol(gi) + '"><title>' + (side ? 'Output belt B' : 'Input belt B') + (gi + 1) + '</title></rect>'; };
+      var hasInQ = lanes.some(function (q) { return q.ng > 1 && !q.g.fluid; }), hasOutQ = olanes.some(function (q) { return q.ng > 1 && !q.o.fluid && q.j === 0; });
+      var cmode = gColorBy === 'both' && hasInQ && hasOutQ ? 'both' : gColorBy === 'in' && hasInQ ? 'in' : hasOutQ ? 'out' : 'in';
+      if (cmode === 'in') outQ = null; else if (cmode === 'out') inQ = null;
+      var tintQ = outQ || inQ;
       boxes += '<g><rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="' + (compact ? 7 : 10) + '" class="gm' + (s.amp ? ' amp' : '') + '"/>' +
-        '<text x="' + (mL + (compact ? 12 : 16)) + '" y="' + ty + '" class="t1"' + (compact ? ' style="font-size:12.5px"' : '') + '>' + esc(clip(mShort(r.m), 16)) + ' ' + (mi + 1) + '</text>' +
+        (tintQ ? '<rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="' + (compact ? 7 : 10) + '" style="fill:' + gcol(tintQ.gi) + ';fill-opacity:.16;stroke:' + gcol(tintQ.gi) + ';stroke-opacity:.55;stroke-width:1.2"/>' : '') +
+        (inQ ? stripe(mL, inQ.gi, false) : '') + (outQ ? stripe(mR, outQ.gi, true) : '') +
+        '<text x="' + (mL + (compact ? 12 : 16) + (inQ ? 4 : 0)) + '" y="' + ty + '" class="t1"' + (compact ? ' style="font-size:12.5px"' : '') + '>' + esc(clip(mShort(r.m), 16)) + ' ' + (mi + 1) + '</text>' +
         (s.amp && !compact ? '<text x="' + (mL + 16) + '" y="' + (t + 41) + '" class="t3">' + s.amp + ' somersloops</text>' : '') +
         (!s.amp && !compact && state.noClock && s.clocks[mi] < 0.999 && s.outputs[0] && !s.outputs[0].fluid ? '<text x="' + (mL + 16) + '" y="' + (t + 44) + '" class="t3">makes ' + fmt(fullRate(s) * s.clocks[mi]) + ' of ' + fmt(fullRate(s)) + '/min · input-limited</text>' : '') +
         (tags ? '<text x="' + (mR - (compact ? 62 : 72)) + '" y="' + ty + '" text-anchor="end" style="font:600 11px var(--mono);fill:var(--muted)">' + tags + '</text>' : '') +
-        '<text x="' + (mR - (compact ? 10 : 14)) + '" y="' + (compact ? ty : t + 33) + '" class="tc2" text-anchor="end"' + (compact ? ' style="font-size:12.5px"' : '') + '>' + clockShort(s.clocks[mi]) + '%</text></g>';
+        '<text x="' + (mR - (compact ? 10 : 14) - (outQ ? 6 : 0)) + '" y="' + (compact ? ty : t + 33) + '" class="tc2" text-anchor="end"' + (compact ? ' style="font-size:12.5px"' : '') + '>' + clockShort(s.clocks[mi]) + '%</text></g>';
     });
     // output belts
     olanes.forEach(function (q, qi) {
@@ -3496,6 +3521,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       if (!lk && o.toLeftover > 1e-4) dest.push('leftover');
       if (!lk && o.toSelf > 1e-6) dest.unshift('back in');
       var rate = o.rates ? o.rates[q.gi] : o.total * (q.hi - q.lo) / n;
+      if (q.ng > 1 && !o.fluid) glyphs += pill(cardOX + CW - 22, ey - CH / 2 + 14, gcol(q.gi), 'B' + (q.gi + 1));
       boxes += card(cardOX, ey - CH / 2, c, nm(o.item), fmt(rate) + ' ' + unit(o.item) + (q.ng > 1 ? ' · ' + (o.fluid ? 'pipe ' : 'belt ') + (q.gi + 1) + ' of ' + q.ng : o.fluid ? '' : ' · Mk' + o.mk + ' belt'), dest.length ? 'to ' + dest.join(', ') : '');
     });
     if (s.powerOut > 0) {
@@ -3811,6 +3837,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
     else if (act === 'noclock') { state.noClock = v === '1'; changed(true); }
     else if (act === 'gz') { gzStep(v); }
+    else if (act === 'gcolor') { gColorBy = v === 'in' || v === 'both' ? v : 'out'; try { localStorage.setItem('beltline-gcolor', gColorBy); } catch (e) { } renderPlan(); }
     else if (act === 'wide') { wideOn = !wideOn; try { localStorage.setItem('beltline-wide', wideOn ? '1' : '0'); } catch (e) { } applyWide(); vpUser = false; renderPlan(); }
     else if (act === 'splitter') openSplitter();
     else if (act === 'powfrom') { if (v) state.recipeChoice.Power = v; else delete state.recipeChoice.Power; changed(true); }
@@ -3844,7 +3871,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261125124122';
+  var BELTLINE_BUILD = '20261125125911';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
