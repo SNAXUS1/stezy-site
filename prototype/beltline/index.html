@@ -2729,18 +2729,21 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function findItem(name) {
     var k = normName(name), ids = Object.keys(D.items), hit = null;
     if (!k) return null;
-    ids.some(function (id) { if (normName(D.items[id].name) === k || id.toLowerCase() === k) { hit = id; return true; } return false; });
+    ids.some(function (id) { if (normName(D.items[id].name) === k || normName(id) === k) { hit = id; return true; } return false; });
     if (!hit && /s$/.test(k)) ids.some(function (id) { if (normName(D.items[id].name) === k.slice(0, -1)) { hit = id; return true; } return false; });
     return hit;
   }
   function findRecipe(name) {
-    var k = normName(name), list = D.recipes.filter(function (r) { return normName(r.name) === k || r.id.toLowerCase() === k; });
+    var k = normName(name), list = D.recipes.filter(function (r) { return normName(r.name) === k || normName(r.id) === k; });
     return list.filter(function (r) { return r.alt; })[0] || list[0] || null;
   }
   function findAlt(name) {
-    var k = normName(name), a = D.alts.filter(function (x) { return normName(x.name) === k || x.id.toLowerCase() === k; })[0];
+    var k = normName(name), a = D.alts.filter(function (x) { return normName(x.name) === k || normName(x.id) === k; })[0];
     if (a) return { alt: a.id };
-    var r = findRecipe(name); if (!r) return null;
+    return recipeUnlock(findRecipe(name));
+  }
+  function recipeUnlock(r) {
+    if (!r) return null;
     var u = (r.unlock || []).filter(function (x) { return x[0] === 'alt' || x[0] === 'mam'; })[0];
     return u ? (u[0] === 'alt' ? { alt: u[1] } : { mam: u[1] }) : { none: true };
   }
@@ -2778,7 +2781,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     list(q.alts).forEach(function (x) { var u = findAlt(x); if (!u) bad.push(x); else unlock(u); });
     list(q.use).forEach(function (x) {
       var r = findRecipe(x); if (!r) { bad.push(x); return; }
-      f.recipeChoice[r.out[0][0]] = r.id; unlock(findAlt(r.id));
+      f.recipeChoice[r.out[0][0]] = r.id; unlock(recipeUnlock(r));
     });
     f.name = 'Shared: ' + f.name;
     if (fresh && state.example) { loadSnap(f); syncName(); changed(true, true); } else addFactory(f);
@@ -3661,7 +3664,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261125110506';
+  var BELTLINE_BUILD = '20261125110654';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
