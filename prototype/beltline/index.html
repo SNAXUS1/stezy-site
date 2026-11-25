@@ -1028,6 +1028,91 @@ details.mats[open] .chev { transform: rotate(180deg); }
     return res;
   }
 
+  /* ---------- hand-off belts: a step's output belts line up with the next step's input belts ---------- */
+  // Direct: k "modules" per belt; a module = a producer machines feeding exactly b consumer machines
+  // (8 wire constructors = 240 wire = 6 stator assemblers). Chain: when one module is more than a belt,
+  // one belt runs past all consumers and each producer's output merges in just before it's needed.
+  function sameClock(s) { return s.clocks.every(function (c) { return Math.abs(c - s.clocks[0]) < 1e-9; }); }
+  function ratioAB(rp, rc) { for (var b = 1; b <= 64; b++) { var a = b * rc / rp; if (Math.abs(a - Math.round(a)) < 1e-6 && Math.round(a) >= 1) return { a: Math.round(a), b: b }; } return null; }
+  function linkBelts(steps, st) {
+    var fix = { splitters: 0, mergers: 0 }, cap = bestBelt(st).rate, eps = 1e-6;
+    steps.forEach(function (P, pi) {
+      P.outputs.forEach(function (o) {
+        if (o.fluid || !sameClock(P)) return;
+        var unitOut = P.recipe.out.filter(function (q) { return q[0] === o.item; })[0][1], rp = unitOut * P.clocks[0];
+        var dests = o.to.filter(function (t) { return t.rate > eps; });
+        if (!dests.length || rp > cap + eps) return;
+        var plans = [], used = 0, ok = true;
+        dests.forEach(function (d) {
+          if (!ok) return;
+          var C = steps[d.step], g = C.inputs.filter(function (x) { return x.item === o.item; })[0];
+          if (!g || g.fluid || g.tooMuchForOne || C.module || !sameClock(C) || g.fromSupply > eps || g.fromSelf > eps) { ok = false; return; }
+          if ((g.from || []).some(function (f) { return f.step !== pi && f.rate > eps; })) { ok = false; return; }
+          var rc = g.per[0], r = ratioAB(rp, rc);
+          if (!r || C.count % r.b) { ok = false; return; }
+          var M = C.count / r.b, k = Math.floor((cap + eps) / (r.a * rp));
+          if (k >= 1) {
+            var nb = Math.ceil(M / k), mods = [];
+            for (var z = 0; z < nb; z++) mods.push(Math.floor(M / nb) + (z < M % nb ? 1 : 0));
+            plans.push({ kind: 'direct', d: d, C: C, g: g, a: r.a, b: r.b, mods: mods, rc: rc });
+          } else plans.push({ kind: 'chain', d: d, C: C, g: g, nP: M * r.a, rc: rc });
+          used += M * r.a;
+        });
+        if (!ok || !plans.length || used > P.count) return;
+        var restN = P.count - used, restRate = restN * rp, restWant = (o.toOutput || 0) + (o.toLeftover || 0) + (o.toSelf || 0);
+        if (Math.abs(restRate - restWant) > 1e-3 * Math.max(1, restWant)) return;
+        var hasChain = plans.some(function (p) { return p.kind === 'chain'; });
+        if (hasChain && (plans.length > 1 || restN > 0)) return;   // a chain only when one step takes it all
+        var chain = null;
+        if (hasChain) {
+          var p0 = plans[0], L = 0, next = 0, merges = [], maxL = 0;
+          for (var m = 0; m < p0.C.count; m++) {
+            var add = [];
+            while (L < p0.rc - eps && next < p0.nP) { L += rp; add.push(next++); }
+            if (add.length) merges.push({ before: m, from: add, load: L });
+            maxL = Math.max(maxL, L);
+            if (L < p0.rc - eps) return;
+            L -= p0.rc;
+          }
+          if (next < p0.nP || L > 1e-3 || maxL > cap + eps) return;
+          chain = { merges: merges, max: maxL, from: pi };
+        }
+        var oGroups = [], oRates = [], oLinks = [];
+        plans.forEach(function (p) {
+          var gGroups = [], gLinks = [];
+          if (p.kind === 'direct') {
+            p.mods.forEach(function (mm) {
+              gLinks.push({ step: pi, belt: oGroups.length });
+              oLinks.push({ step: p.d.step, belt: gGroups.length });
+              oGroups.push(mm * p.a); oRates.push(mm * p.a * rp); gGroups.push(mm * p.b);
+            });
+          } else {
+            for (var q = 0; q < p.nP; q++) { oLinks.push({ step: p.d.step, chain: true }); oGroups.push(1); oRates.push(rp); }
+            gGroups = [p.C.count];
+            p.g.chain = chain;
+          }
+          var oldS = 0, oldM = 0;
+          (p.g.layouts || []).forEach(function (l) { oldS += l.splitters || 0; oldM += l.mergers || 0; });
+          p.g.groups = gGroups; p.g.lines = gGroups.length; p.g.links = gLinks.length ? gLinks : null;
+          p.g.layouts = gGroups.map(function (mc) { return p.kind === 'chain' ? { type: 'manifold', m: mc, splitters: mc - 1, rate: mc * p.rc } : groupLayout(mc, p.rc, bestBelt(st), st, p.C.even); });
+          var newS = 0, newM = 0;
+          p.g.layouts.forEach(function (l) { newS += l.splitters || 0; newM += l.mergers || 0; });
+          if (p.g.chain) newM += Math.max(0, p.g.chain.merges.length - 1);
+          fix.splitters += newS - oldS; fix.mergers += newM - oldM;
+        });
+        if (restN > 0) {
+          var fit = Math.max(1, Math.floor((cap + eps) / rp)), nr = Math.ceil(restN / fit);
+          for (var z2 = 0; z2 < nr; z2++) { var cnt = Math.floor(restN / nr) + (z2 < restN % nr ? 1 : 0); oGroups.push(cnt); oRates.push(cnt * rp); oLinks.push({ rest: true }); }
+        }
+        var oldOM = o.mergers || 0, newOM = 0;
+        oGroups.forEach(function (gg) { if (gg > 1) newOM += gg - 1; });
+        fix.mergers += newOM - oldOM;
+        o.groups = oGroups; o.rates = oRates; o.links = oLinks; o.lines = oGroups.length; o.mergers = newOM;
+      });
+    });
+    return fix;
+  }
+
   /* ---------------- plan ---------------- */
   function plan(st) {
     var want = (st.want || []).filter(function (w) { return w.item; });
@@ -1275,6 +1360,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
       });
     });
     // step index is final order; rewrite from/to references already use final indices since sort happened before
+    var linkFix = linkBelts(steps, st);
+    splitters += linkFix.splitters; mergers += linkFix.mergers;
 
     // water extractors
     var extraction = [], extractionPower = 0;
@@ -3084,7 +3171,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
     return '<span class="glist">' + g.groups.map(function (m, i) {
       var lo = st; st += m;
       var rate = 0; for (var q = lo; q < st; q++) rate += g.per[q] || 0;
-      return '<span><i style="background:' + c + '">' + (g.fluid ? 'P' : 'B') + (i + 1) + '</i><b>' + word + (i + 1) + '</b> → ' + (m === 1 ? 'machine ' + (lo + 1) : 'machines ' + (lo + 1) + '–' + st) + ' · ' + fmt(rate) + ' ' + unit(g.item) + '</span>';
+      var lk = g.links && g.links[i];
+      return '<span><i style="background:' + c + '">' + (g.fluid ? 'P' : 'B') + (i + 1) + '</i><b>' + word + (i + 1) + '</b> → ' + (m === 1 ? 'machine ' + (lo + 1) : 'machines ' + (lo + 1) + '–' + st) + ' · ' + fmt(rate) + ' ' + unit(g.item) + (lk ? ' <span class="muted">← step ' + (lk.step + 1) + ', its belt ' + (lk.belt + 1) + '</span>' : '') + '</span>';
     }).join('') + '</span>';
   }
   function guideText(s) {
@@ -3101,7 +3189,16 @@ details.mats[open] .chev { transform: rotate(180deg); }
         else if (n > 1) t += ' Run one pipe past all ' + n + ' machines and connect each one.';
       }
       else if (g.layout && g.layout.type === 'over') t += ' <span class="bad">One machine needs more than a Mk' + g.mk + ' belt carries: use a faster belt or a lower clock.</span>';
+      else if (g.chain) {
+        var cs0 = res.steps[g.chain.from], pm = mShort(cs0.recipe.m);
+        t += ' Run <b>one belt</b> past all ' + n + ' machines with a splitter in front of each. Each ' + esc(mName(cs0.recipe.m)) + ' from step ' + (g.chain.from + 1) + ' sends its own belt, and you <b>merge it in just before the machine shown</b>:' +
+          '<span class="glist">' + g.chain.merges.map(function (mg) {
+            return '<span><b>' + mg.from.map(function (x) { return esc(pm) + ' ' + (x + 1); }).join(' + ') + '</b> → ' + (mg.before === 0 ? 'starts the belt' : 'merge in before machine ' + (mg.before + 1)) + ' · belt then carries ' + fmt(mg.load) + '</span>';
+          }).join('') + '</span>' +
+          'The belt never carries more than ' + fmt(g.chain.max) + '/min, and every machine gets exactly what it needs.';
+      }
       else {
+        if (g.links && g.links.length) t += ' <b>These belts come straight from step ' + (g.links[0].step + 1) + '</b>, already the right size: no splitting or merging in between.';
         if (g.lines > 1) t += ' One Mk' + g.mk + ' belt carries only ' + g.cap + '/min, so use <b>' + g.lines + ' separate belts</b>, each feeding its own machines:' + groupList(g, s) + 'On each belt:';
         var Ls = (g.layouts || []).filter(function (l) { return l.m > 1; });
         if (n === 1) t += ' Belt goes straight in.';
@@ -3130,6 +3227,17 @@ details.mats[open] .chev { transform: rotate(180deg); }
       if (o.toOutput > 1e-6) dest.push('your final output ' + fmt(o.toOutput));
       if (o.toLeftover > 1e-4) dest.push('leftover ' + fmt(o.toLeftover));
       if (o.toSelf > 1e-6) dest.unshift('back into these same machines ' + fmt(o.toSelf));
+      if (o.links && o.links.length) {
+        var st0 = 0, c = col(o.item);
+        t = (n > 1 ? 'Merge the outputs onto <b>' + o.groups.length + ' belts</b>, each from its own machines (one merger under each machine after the first)' : 'Out comes') + ': <b>' + fmt(o.total) + ' ' + unit(o.item) + ' ' + esc(nm(o.item)) + '</b>. Where each belt goes:' +
+          '<span class="glist">' + o.groups.map(function (m, i) {
+            var lo = st0; st0 += m; var lk = o.links[i];
+            var to = lk.rest ? (o.toOutput > 1e-6 ? 'your final output' : o.toSelf > 1e-6 ? 'back into these machines' : 'leftover') : lk.chain ? stepName(lk.step) + ': merges into its belt (see that step)' : stepName(lk.step) + ', as its belt ' + (lk.belt + 1);
+            return '<span><i style="background:' + c + '">B' + (i + 1) + '</i><b>Belt ' + (i + 1) + '</b> ← ' + (m === 1 ? 'machine ' + (lo + 1) : 'machines ' + (lo + 1) + '–' + st0) + ' · ' + fmt(o.rates[i]) + ' ' + unit(o.item) + ' → ' + to + '</span>';
+          }).join('') + '</span>';
+        if (o.links.some(function (l) { return !l.rest && !l.chain; })) t += 'Each belt goes straight into the next step: no splitting or merging in between.';
+        out.push(t); return;
+      }
       if (dest.length) t += ' It goes to ' + dest.join(', ') + '.';
       if (dest.length > 1 && !o.fluid) t += ' Run it past those machines, or split it there.';
       out.push(t);
@@ -3280,6 +3388,12 @@ details.mats[open] .chev { transform: rotate(180deg); }
         if (collapsed) vrows.forEach(function (m, v) { if (m >= 0) rows.push(v); }); else for (var m = q.lo; m < q.hi; m++) rows.push(vOf(m));
         var lastV = rows[rows.length - 1];
         paths += ln([[x0 + CW, ey2], [lx, ey2], [lx, pin(lastV, q.j)], [mL, pin(lastV, q.j)]], c, true);
+        if (g.chain && !collapsed) g.chain.merges.forEach(function (mg) {
+          if (mg.before === 0) return;
+          var yv = pin(vOf(mg.before), q.j) - ROW / 2, pm2 = mShort(res.steps[g.chain.from].recipe.m);
+          paths += ln([[lx - 26, yv], [lx, yv]], c, false);
+          glyphs += mG(lx, yv) + numG(lx - 30, yv, mg.from.map(function (x) { return pm2 + ' ' + (x + 1); }).join('+'), c, false);
+        });
         rows.slice(0, -1).forEach(function (v) {
           var y = pin(v, q.j);
           paths += ln([[lx, y], [mL, y]], c, true);
@@ -3314,9 +3428,11 @@ details.mats[open] .chev { transform: rotate(180deg); }
       paths += ln([[mR, firstY], [lx, firstY], [lx, ey], [cardOX, ey]], c, true);
       rows.slice(1).forEach(function (v) { var y = pout(v, q.j); paths += ln([[mR, y], [lx, y]], c, false); glyphs += o.fluid ? jG(lx, y, c) : mG(lx, y); if (rows.length > 2) glyphs += numG(lx + (o.fluid ? 9 : (compact ? 9 : 13) + 4), y, vrows[v] - q.lo, c, true); });
       var dest = o.to.filter(function (x) { return x.rate > 1e-6; }).map(function (x) { return 'step ' + (x.step + 1); });
-      if (o.toOutput > 1e-6) dest.push('final output');
-      if (o.toLeftover > 1e-4) dest.push('leftover');
-      if (o.toSelf > 1e-6) dest.unshift('back in');
+      var lk = o.links && o.links[q.gi];
+      if (lk) dest = lk.rest ? [o.toOutput > 1e-6 ? 'final output' : 'leftover'] : lk.chain ? ['step ' + (lk.step + 1) + ' (merge in)'] : ['step ' + (lk.step + 1) + ' as its B' + (lk.belt + 1)];
+      else if (o.toOutput > 1e-6) dest.push('final output');
+      if (!lk && o.toLeftover > 1e-4) dest.push('leftover');
+      if (!lk && o.toSelf > 1e-6) dest.unshift('back in');
       var rate = o.rates ? o.rates[q.gi] : o.total * (q.hi - q.lo) / n;
       boxes += card(cardOX, ey - CH / 2, c, nm(o.item), fmt(rate) + ' ' + unit(o.item) + (q.ng > 1 ? ' · ' + (o.fluid ? 'pipe ' : 'belt ') + (q.gi + 1) + ' of ' + q.ng : o.fluid ? '' : ' · Mk' + o.mk + ' belt'), dest.length ? 'to ' + dest.join(', ') : '');
     });
@@ -3664,7 +3780,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261125110654';
+  var BELTLINE_BUILD = '20261125115832';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
