@@ -1441,6 +1441,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function clockTxt(c) { return state.noClock ? '100' : trim(c * 100, 4); }
   var GROUPC = ['#6aa9ff', '#f2b05e', '#6fd39a', '#d39bff', '#ff8a8a', '#5fd4d4', '#e8d36a', '#ff9fd0'];
   function gcol(i) { return GROUPC[i % GROUPC.length]; }
+  function chainSeg(g, mi) { var k = 0, start = 0; (g.chain ? g.chain.merges : []).forEach(function (mg, i) { if (mg.before <= mi) { k = i; start = mg.before; } }); return { k: k, start: start }; }
   function fullRate(s) { var o = s.outputs[0], cs = s.clocks.reduce(function (a, c) { return a + c; }, 0); return o && cs ? o.total / cs : 0; }
   function clockShort(c) { return state.noClock ? '100' : trim(c * 100, 2); }
   function plural(n, a, b) { return n === 1 ? a : (b || a + 's'); }
@@ -3207,7 +3208,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     gzApply();
   }
   function gcBar(s) {
-    var hasIn = s.inputs.some(function (g) { return !g.fluid && g.groups && g.groups.length > 1; }), hasOut = s.outputs.some(function (o) { return !o.fluid && o.groups && o.groups.length > 1; });
+    var hasIn = s.inputs.some(function (g) { return (!g.fluid && g.groups && g.groups.length > 1) || (g.chain && g.chain.merges.length > 1); }), hasOut = s.outputs.some(function (o) { return !o.fluid && o.groups && o.groups.length > 1; });
     if (!hasIn && !hasOut) return '<span></span>';
     var b = function (v, t, on) { return '<button type="button" data-act="gcolor" data-v="' + v + '" aria-pressed="' + on + '"' + (on ? ' class="on"' : '') + '>' + t + '</button>'; };
     var mode = gColorBy === 'both' && hasIn && hasOut ? 'both' : gColorBy === 'in' && hasIn ? 'in' : hasOut ? 'out' : 'in';
@@ -3316,8 +3317,9 @@ details.mats[open] .chev { transform: rotate(180deg); }
       else if (g.chain) {
         var cs0 = res.steps[g.chain.from], pm = mShort(cs0.recipe.m);
         t += ' Run <b>one belt</b> past all ' + n + ' machines with a splitter in front of each. Each ' + esc(mName(cs0.recipe.m)) + ' from step ' + (g.chain.from + 1) + ' sends its own belt, and you <b>merge it in just before the machine shown</b>:' +
-          '<span class="glist">' + g.chain.merges.map(function (mg) {
-            return '<span><b>' + mg.from.map(function (x) { return esc(pm) + ' ' + (x + 1); }).join(' + ') + '</b> → ' + (mg.before === 0 ? 'starts the belt' : 'merge in before machine ' + (mg.before + 1)) + ' · belt then carries ' + fmt(mg.load) + '</span>';
+          '<span class="glist">' + g.chain.merges.map(function (mg, i) {
+            var end = i + 1 < g.chain.merges.length ? g.chain.merges[i + 1].before : n;
+            return '<span><i style="background:' + gcol(i) + '">' + (i + 1) + '</i><b>' + mg.from.map(function (x) { return esc(pm) + ' ' + (x + 1); }).join(' + ') + '</b> → ' + (mg.before === 0 ? 'starts the belt' : 'merge in before machine ' + (mg.before + 1)) + ' · then feeds machines ' + (mg.before + 1) + '–' + end + ' (count 1–' + (end - mg.before) + ') · belt carries ' + fmt(mg.load) + '</span>';
           }).join('') + '</span>' +
           'The belt never carries more than ' + fmt(g.chain.max) + '/min, and every machine gets exactly what it needs.';
       }
@@ -3515,14 +3517,16 @@ details.mats[open] .chev { transform: rotate(180deg); }
         if (g.chain && !collapsed) g.chain.merges.forEach(function (mg) {
           if (mg.before === 0) return;
           var yv = pin(vOf(mg.before), q.j) - ROW / 2, pm2 = mShort(res.steps[g.chain.from].recipe.m);
-          paths += ln([[lx - 34, yv], [lx - 5, yv]], c, true);
-          glyphs += '<circle cx="' + lx + '" cy="' + yv + '" r="4.5" style="fill:' + c + ';stroke:var(--bg);stroke-width:1.5"/>' + numG(lx - 38, yv, 'merge ' + mg.from.map(function (x) { return pm2 + ' ' + (x + 1); }).join('+'), c, false);
+          var mc = gcol(g.chain.merges.indexOf(mg));
+          paths += ln([[lx - 34, yv], [lx - 5, yv]], mc, true);
+          glyphs += '<circle cx="' + lx + '" cy="' + yv + '" r="4.5" style="fill:' + mc + ';stroke:var(--bg);stroke-width:1.5"/>' + numG(lx - 38, yv, 'merge ' + mg.from.map(function (x) { return pm2 + ' ' + (x + 1); }).join('+'), mc, false);
         });
         rows.slice(0, -1).forEach(function (v) {
           var y = pin(v, q.j);
           paths += ln([[lx, y], [mL, y]], c, true);
-          glyphs += g.fluid ? jG(lx, y, c) : sG(lx, y, c);
-          if (rows.length > 2) glyphs += numG(lx - (g.fluid ? 9 : gh / 2 + 4), y, vrows[v] - q.lo + 1, c, false);
+          var seg = g.chain ? chainSeg(g, vrows[v]) : null, sc = seg ? gcol(seg.k) : c;
+          glyphs += g.fluid ? jG(lx, y, c) : sG(lx, y, sc);
+          if (rows.length > 2) glyphs += numG(lx - (g.fluid ? 9 : gh / 2 + 4), y, seg ? vrows[v] - seg.start + 1 : vrows[v] - q.lo + 1, sc, false);
         });
       }
     }
@@ -3537,9 +3541,10 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var tags = multi ? lanes.filter(function (q) { return q.ng > 1 && mi >= q.lo && mi < q.hi; }).sort(function (a, b) { return a.j - b.j; }).map(feedTag).join(' ') : '';
       var ty = compact ? t + MH / 2 + 5 : t + (s.amp ? 23 : 32);
       var inQ = lanes.filter(function (q) { return q.ng > 1 && !q.g.fluid && mi >= q.lo && mi < q.hi; }).sort(function (a, b) { return a.j - b.j; })[0];
+      if (!inQ) { var chq = lanes.filter(function (q) { return q.g.chain && mi >= q.lo && mi < q.hi; })[0]; if (chq) inQ = { gi: chainSeg(chq.g, mi).k, chain: true }; }
       var outQ = olanes.filter(function (q) { return q.ng > 1 && !q.o.fluid && q.j === 0 && mi >= q.lo && mi < q.hi; })[0];
       var stripe = function (x, gi, side) { var sw = compact ? 4 : 5; return '<rect x="' + (side ? x - sw - 3 : x + 3) + '" y="' + (t + 4) + '" width="' + sw + '" height="' + (MH - 8) + '" rx="2" style="fill:' + gcol(gi) + '"><title>' + (side ? 'Output belt B' : 'Input belt B') + (gi + 1) + '</title></rect>'; };
-      var hasInQ = lanes.some(function (q) { return q.ng > 1 && !q.g.fluid; }), hasOutQ = olanes.some(function (q) { return q.ng > 1 && !q.o.fluid && q.j === 0; });
+      var hasInQ = lanes.some(function (q) { return (q.ng > 1 && !q.g.fluid) || (q.g.chain && q.g.chain.merges.length > 1); }), hasOutQ = olanes.some(function (q) { return q.ng > 1 && !q.o.fluid && q.j === 0; });
       var cmode = gColorBy === 'both' && hasInQ && hasOutQ ? 'both' : gColorBy === 'in' && hasInQ ? 'in' : hasOutQ ? 'out' : 'in';
       if (cmode === 'in') outQ = null; else if (cmode === 'out') inQ = null;
       var tintQ = outQ || inQ;
@@ -3917,7 +3922,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261125130403';
+  var BELTLINE_BUILD = '20261125131347';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
