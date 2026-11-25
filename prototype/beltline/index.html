@@ -2434,15 +2434,36 @@ details.mats[open] .chev { transform: rotate(180deg); }
 
   /* ---------------- graph + layout ---------------- */
   var GAPX = 150, GAPY = 26, PAD = 28, TOP = 58;
-  var SOLID_COLS = ['#f0a447', '#e6e1d3', '#a9d16f', '#ee8fd2', '#f27c68', '#c4a6ff', '#e9d35b', '#cfa57c', '#9cc9a8', '#ffb07a', '#d3d8e0', '#f5c2a0'];
-  var FLUID_COLS = ['#5cb5e8', '#8fa9ff', '#5fd6ea', '#a7cdf2'];
+  var SOLID_COLS = ['#ff9f43', '#ff6fb5', '#7bd88f', '#b48cff', '#ffd84d', '#4dd8e6', '#ff5f5f', '#e8e4d8', '#b8875e', '#8c9eff', '#c2f06a', '#ff9de2'];
+  var FLUID_COLS = ['#4f9dff', '#2fd1b3', '#a79bff', '#c4e8ff', '#3d6bff'];
   var ALL_COLS = SOLID_COLS.concat(FLUID_COLS).concat(['#f2d85a']);
   var colorMap = {};
+  // parts that meet in one step get colours as far apart as possible (no yellow next to lime)
+  function hexRgb(h) { var n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+  function colDist(a, b) { var A = hexRgb(a), B = hexRgb(b), rm = (A[0] + B[0]) / 2, dr = A[0] - B[0], dg = A[1] - B[1], db = A[2] - B[2]; return Math.sqrt((2 + rm / 256) * dr * dr + 4 * dg * dg + (2 + (255 - rm) / 256) * db * db); }
   function buildColors() {
-    colorMap = {}; var si = 0, fi = 0;
-    function add(id) { if (colorMap[id]) return; colorMap[id] = fl(id) ? FLUID_COLS[fi++ % FLUID_COLS.length] : SOLID_COLS[si++ % SOLID_COLS.length]; }
-    res.supply.forEach(function (s) { add(s.item); });
-    res.steps.forEach(function (s) { s.inputs.forEach(function (g) { add(g.item); }); s.outputs.forEach(function (o) { add(o.item); }); });
+    colorMap = {};
+    var order = [], seen = {}, near = {};
+    function push(id) { if (!seen[id]) { seen[id] = true; order.push(id); } }
+    function link(a, b) { if (a === b) return; (near[a] = near[a] || {})[b] = true; (near[b] = near[b] || {})[a] = true; }
+    res.supply.forEach(function (s) { push(s.item); });
+    res.steps.forEach(function (s) {
+      var ids = s.inputs.map(function (g) { return g.item; }).concat(s.outputs.map(function (o) { return o.item; }));
+      ids.forEach(push); ids.forEach(function (a) { ids.forEach(function (b) { link(a, b); }); });
+    });
+    var used = {};
+    order.forEach(function (id) {
+      var pal = fl(id) ? FLUID_COLS : SOLID_COLS, free = pal.filter(function (c) { return !used[c]; }), cands = free.length ? free : pal;
+      var nb = Object.keys(near[id] || {}).filter(function (x) { return colorMap[x]; }).map(function (x) { return colorMap[x]; });
+      var best = cands[0], bestS = -1;
+      var all = Object.keys(used);
+      cands.forEach(function (c) {
+        var sc = nb.length ? Math.min.apply(null, nb.map(function (x) { return colDist(c, x); })) : 2000;   // apart from parts in the same step
+        sc += 1.0 * (all.length ? Math.min.apply(null, all.map(function (x) { return colDist(c, x); })) : 0);   // and from every colour already on the map
+        if (sc > bestS + 1e-9) { bestS = sc; best = c; }
+      });
+      colorMap[id] = best; used[best] = true;
+    });
   }
   function col(id) { if (id === 'Power') return '#f2d85a'; return colorMap[id] || (fl(id) ? FLUID_COLS[0] : SOLID_COLS[0]); }
   function capOf(id) { if (id === 'Power') return Infinity; return fl(id) ? (D.pipes.filter(function (p) { return p.mk === state.pipe; })[0] || D.pipes[0]).rate : beltOf(state.belt).rate; }
@@ -3253,8 +3274,33 @@ details.mats[open] .chev { transform: rotate(180deg); }
       return '<span><i style="background:' + (g.fluid ? c : gcol(i)) + '">' + (g.fluid ? 'P' : 'B') + (i + 1) + '</i><b>' + word + (i + 1) + '</b> → ' + (m === 1 ? 'machine ' + (lo + 1) : 'machines ' + (lo + 1) + '–' + st) + ' · ' + fmt(rate) + ' ' + unit(g.item) + (lk ? ' <span class="muted">← step ' + (lk.step + 1) + ', its belt ' + (lk.belt + 1) + '</span>' : '') + '</span>';
     }).join('') + '</span>';
   }
+  // suggested rows: cut wherever an input belt or an output belt changes, so every row sits on one belt of each
+  function rowPlan(s) {
+    if (s.module || s.count < 4) return null;
+    function ok(g) { return !g.fluid && g.groups && g.groups.length > 1 && g.groups.some(function (m) { return m > 1; }); }
+    function rowsOf(list) {
+      var cuts = {}; list.forEach(function (g) { var acc = 0; g.groups.forEach(function (m) { acc += m; if (acc < s.count) cuts[acc] = true; }); });
+      var pts = Object.keys(cuts).map(Number).sort(function (a, b) { return a - b; }), rows = [], last = 0;
+      pts.concat([s.count]).forEach(function (c) { rows.push(c - last); last = c; });
+      return rows;
+    }
+    var ins = s.inputs.filter(ok), outs = s.outputs.filter(ok);
+    if (!ins.length && !outs.length) return null;
+    var both = rowsOf(ins.concat(outs));
+    if (Math.min.apply(null, both) >= 2) { both.on = ins.length && outs.length ? 'both' : outs.length ? 'out' : 'in'; return both; }
+    if (outs.length) { var o = rowsOf(outs); if (Math.min.apply(null, o) >= 2) { o.on = 'out'; return o; } }
+    if (ins.length) { var i2 = rowsOf(ins); if (Math.min.apply(null, i2) >= 2) { i2.on = 'in'; return i2; } }
+    return null;
+  }
+  function rowWords(s) {
+    var rows = rowPlan(s); if (!rows || rows.length < 2) return '';
+    var same = rows.every(function (x) { return x === rows[0]; }), mnr = mNames(s.recipe.m, 2).toLowerCase();
+    return '<b>Suggested layout: ' + rows.length + ' rows' + (same ? ' of ' + rows[0] + ' ' + mnr : '') + '</b>' + (same ? '' : ' (' + rows.join(' · ') + ' ' + mnr + ')') +
+      '. Every row then sits on ' + (rows.on === 'both' ? 'one input belt and one output belt' : rows.on === 'out' ? 'one output belt' : 'one input belt') + ', so you can count each row on its own. Rows follow the machine numbers in the picture.';
+  }
   function guideText(s) {
     var r = s.recipe, mn = mName(r.m), out = [], n = s.count;
+    var rw = rowWords(s); if (rw) out.push(rw);
     if (s.module) out.push(moduleWords(s));
     if (s.recipe.gen && s.inputs.some(function (g) { return g.fluid; })) out.push('<b>BUF</b> in the picture is a fluid buffer: put it on the main line right after the extractors (or on the fuel line), before it splits into pipes. A Fluid Buffer holds 400 m³, an Industrial one 2400 m³. If the line goes uphill, add a pump after it.');
     s.inputs.forEach(function (g) {
@@ -3871,7 +3917,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261125125911';
+  var BELTLINE_BUILD = '20261125130403';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
