@@ -3449,6 +3449,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var froms = g.from.filter(function (f) { return f.rate > 1e-6; }).map(function (f) { return 'step ' + (f.step + 1); });
       if (g.fromSupply > 1e-6) froms.unshift('what you have');
       if (g.fromSelf > 1e-6) froms.unshift('its own output (' + fmt(g.fromSelf) + ' looped back)');
+      if (g.chain) { var np0 = g.chain.merges.reduce(function (a, mg) { return a + mg.from.length; }, 0); boxes += card(x0, cardY[j], col(g.item), nm(g.item), fmt(g.total) + ' ' + unit(g.item) + ' total', np0 + ' ' + mNames(res.steps[g.chain.from].recipe.m, np0) + ' merge in below'); return; }
       boxes += card(x0, cardY[j], col(g.item), nm(g.item), fmt(g.total) + ' ' + unit(g.item) + (g.lines > 1 ? ' → ' + g.lines + (g.fluid ? ' pipes' : ' belts') : ''), g._sub ? g._sub : g.lines > 1 ? (g.fluid ? 'Mk' + g.mk + ' pipe carries ' + g.cap : 'Mk' + g.mk + ' belt carries ' + g.cap) : froms.length ? 'from ' + froms.join(' + ') : '');
     });
     bufIdx.forEach(function (j) {
@@ -3513,8 +3514,23 @@ details.mats[open] .chev { transform: rotate(180deg); }
         var rows = [];
         if (collapsed) vrows.forEach(function (m, v) { if (m >= 0) rows.push(v); }); else for (var m = q.lo; m < q.hi; m++) rows.push(vOf(m));
         var lastV = rows[rows.length - 1];
-        paths += ln([[x0 + CW, ey2], [lx, ey2], [lx, pin(lastV, q.j)], [mL, pin(lastV, q.j)]], c, true);
-        if (g.chain && !collapsed) g.chain.merges.forEach(function (mg) {
+        var nProd = g.chain ? g.chain.merges.reduce(function (a, mg) { return a + mg.from.length; }, 0) : 0;
+        var showProd = g.chain && !collapsed && lanes.length === 1 && nProd <= 12;   // few producers: draw each one where it joins the belt
+        if (showProd) {
+          var rp = g.total / nProd, pmn = mShort(res.steps[g.chain.from].recipe.m), BW = compact ? 112 : 126, bh = Math.min(compact ? 22 : 30, ROW - 8);
+          var topY = pin(rows[0], q.j) - ROW / 2;
+          paths += '<path d="M' + (x0 + CW) + ' ' + ey2 + ' H' + (lx - BW / 2 - 40) + ' V' + (topY - bh / 2 - 4) + '" style="fill:none;stroke:' + c + ';stroke-width:1.3;stroke-dasharray:3 4;opacity:.7"/>';
+          paths += ln([[lx, topY], [lx, pin(lastV, q.j)], [mL, pin(lastV, q.j)]], c, true);
+          g.chain.merges.forEach(function (mg, i) {
+            var yv = mg.before === 0 ? topY : pin(vOf(mg.before), q.j) - ROW / 2, mc = gcol(i), bx = lx - 40 - BW;
+            paths += ln([[bx + BW, yv], [lx - 5, yv]], mc, true);
+            boxes += '<g><rect x="' + bx + '" y="' + (yv - bh / 2) + '" width="' + BW + '" height="' + bh + '" rx="6" class="gm" style="stroke:' + mc + '"/>' +
+              '<text x="' + (bx + 9) + '" y="' + (yv + 4) + '" class="t2" style="font-size:' + (compact ? 11.5 : 12.5) + 'px">' + esc(mg.from.map(function (x) { return pmn + ' ' + (x + 1); }).join(' + ')) + '</text>' +
+              '<text x="' + (bx + BW - 8) + '" y="' + (yv + 4) + '" text-anchor="end" style="font:600 11px var(--mono);fill:' + mc + '">' + fmt(rp * mg.from.length) + '</text></g>';
+            glyphs += '<circle cx="' + lx + '" cy="' + yv + '" r="4.5" style="fill:' + mc + ';stroke:var(--bg);stroke-width:1.5"/>';
+          });
+        } else paths += ln([[x0 + CW, ey2], [lx, ey2], [lx, pin(lastV, q.j)], [mL, pin(lastV, q.j)]], c, true);
+        if (g.chain && !collapsed && !showProd) g.chain.merges.forEach(function (mg) {
           if (mg.before === 0) return;
           var yv = pin(vOf(mg.before), q.j) - ROW / 2, pm2 = mShort(res.steps[g.chain.from].recipe.m);
           var mc = gcol(g.chain.merges.indexOf(mg));
@@ -3922,7 +3938,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261125131347';
+  var BELTLINE_BUILD = '20261125131734';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
