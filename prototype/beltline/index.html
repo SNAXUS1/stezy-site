@@ -2741,6 +2741,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       glyphs += '<g class="edge' + grpCls(list) + '">' + glyph(mx, p.y, fl(e.item) ? 'j' : 'M', c, nb > 1 ? 'M×' + nb : null) + '</g>';
       list.forEach(function (x) { x.mx = mx; x.my = p.y; });
     });
+    var labs = [];
     G.edges.forEach(function (e) {
       var a = outPort(G.byId[e.from], e.item), b = inPort(G.byId[e.to], e.item);
       var x1 = e.sx != null ? e.sx : a.x, y1 = e.sx != null ? e.sy : a.y;
@@ -2755,8 +2756,32 @@ details.mats[open] .chev { transform: rotate(180deg); }
       var myp = u * u * u * y1 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y2;
       var name = clip(nm(e.item), 15), extra = nb > 1 ? ' · ' + nb + (fl(e.item) ? ' pipes' : ' belts') : '';
       var tw = (fmt(e.rate).length + 1 + name.length + extra.length) * 6.3 + 14;
-      labels += '<g class="' + cls + '"><rect class="lbl-bg" x="' + (mxp - tw / 2).toFixed(1) + '" y="' + (myp - 9).toFixed(1) + '" width="' + tw.toFixed(1) + '" height="18" rx="9" style="stroke:' + c + '"/>' +
-        '<text class="lbl" x="' + mxp.toFixed(1) + '" y="' + (myp + 3.6).toFixed(1) + '" text-anchor="middle"><tspan class="r">' + fmt(e.rate) + '</tspan><tspan class="i"> ' + esc(name) + '</tspan>' + (extra ? '<tspan class="w">' + esc(extra) + '</tspan>' : '') + '</text></g>';
+      // keep the label in the open space between the two boxes: shorten it if it won't fit, then slide it inside the gap
+      var gapL = x1 + (e.sx != null ? 20 : 6), gapR = x2 - (e.mx != null ? 20 : 6);
+      // an edge that passes behind a whole column: put its label in the open gap just before its target,
+      // where edges to different targets have already spread apart
+      var prevEnd = (G.colsInfo || []).filter(function (ci) { return ci.x + ci.w < x2 - 1; }).map(function (ci) { return ci.x + ci.w; }).sort(function (p1, p2) { return p2 - p1; })[0];
+      if (prevEnd != null && x1 < prevEnd - 1) { gapL = prevEnd + 8; mxp = (gapL + gapR) / 2; }
+      var room = gapR - gapL;
+      if (tw > room && name) { name = ''; tw = (fmt(e.rate).length + extra.length) * 6.3 + 14; }
+      if (tw > room && extra) { extra = ' ×' + nb; tw = (fmt(e.rate).length + extra.length) * 6.3 + 14; }
+      if (room > tw) mxp = Math.max(gapL + tw / 2, Math.min(gapR - tw / 2, mxp));
+      // sit the label on its own line at that x, so labels of edges leaving one splitter don't stack
+      for (var bt = 0, bestD = 1e9; bt <= 60; bt++) {
+        var tt = bt / 60, uu = 1 - tt, bx = uu * uu * uu * x1 + 3 * uu * uu * tt * (x1 + dx) + 3 * uu * tt * tt * (x2 - dx) + tt * tt * tt * x2;
+        if (Math.abs(bx - mxp) < bestD) { bestD = Math.abs(bx - mxp); myp = uu * uu * uu * y1 + 3 * uu * uu * tt * y1 + 3 * uu * tt * tt * y2 + tt * tt * tt * y2; }
+      }
+      labs.push({ x: mxp, y: myp, w: tw, cls: cls, c: c, inner: '<tspan class="r">' + fmt(e.rate) + '</tspan>' + (name ? '<tspan class="i"> ' + esc(name) + '</tspan>' : '') + (extra ? '<tspan class="w">' + esc(extra) + '</tspan>' : '') });
+    });
+    // labels that would sit on each other: push the lower one down a little until they're clear
+    labs.sort(function (a, b) { return a.y - b.y; });
+    for (var pass = 0; pass < 4; pass++) for (var li = 0; li < labs.length; li++) for (var lj = li + 1; lj < labs.length; lj++) {
+      var A = labs[li], B = labs[lj];
+      if (Math.abs(A.x - B.x) < (A.w + B.w) / 2 + 4 && Math.abs(A.y - B.y) < 21) B.y = A.y + 21;
+    }
+    labs.forEach(function (L) {
+      labels += '<g class="' + L.cls + '"><rect class="lbl-bg" x="' + (L.x - L.w / 2).toFixed(1) + '" y="' + (L.y - 9).toFixed(1) + '" width="' + L.w.toFixed(1) + '" height="18" rx="9" style="stroke:' + L.c + '"/>' +
+        '<text class="lbl" x="' + L.x.toFixed(1) + '" y="' + (L.y + 3.6).toFixed(1) + '" text-anchor="middle">' + L.inner + '</text></g>';
     });
     return out + stems + glyphs + labels;
   }
@@ -2864,7 +2889,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       f.have.push({ id: uid(), item: id, kind: 'rate', purity: 'normal', mk: state.miner, count: 1, clock: 100, rate: num });
     });
     if (!f.want.length) return 'That plan link has nothing to make' + (bad.length ? ' (couldn’t find: ' + bad.join(', ') + ')' : '') + '.';
-    if (!f.have.length) f.have = [{ id: uid(), item: null, kind: 'node', purity: 'normal', mk: state.miner, count: 1, clock: 100, rate: 60 }];
+    if (!f.have.length) { f.have = [{ id: uid(), item: null, kind: 'node', purity: 'normal', mk: state.miner, count: 1, clock: 100, rate: 60 }]; f.limitToHave = false; }   // nothing listed: plan from unlimited ore
     else f.limitToHave = q.limit !== 'no' && q.limit !== 'off';
     if (q.split) f.balance = /bal/i.test(q.split) ? 'balanced' : 'manifold';
     if (fresh) {
@@ -3819,7 +3844,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261125121214';
+  var BELTLINE_BUILD = '20261125124122';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
