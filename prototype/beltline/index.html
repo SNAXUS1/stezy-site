@@ -1439,7 +1439,6 @@ details.mats[open] .chev { transform: rotate(180deg); }
   function fmt(n) { if (!isFinite(n)) return '∞'; var a = Math.abs(n); return a >= 1000 ? trim(n, 0) : a >= 100 ? trim(n, 1) : trim(n, 2); }
   function unit(id) { return id === 'Power' ? 'MW' : fl(id) ? 'm³/min' : '/min'; }
   function clockTxt(c) { return state.noClock ? '100' : trim(c * 100, 4); }
-  var GROUPC = ['#6aa9ff', '#f2b05e', '#6fd39a', '#d39bff', '#ff8a8a', '#5fd4d4', '#e8d36a', '#ff9fd0'];
   function gcol(i) { return GROUPC[i % GROUPC.length]; }
   function chainSeg(g, mi) { var k = 0, start = 0; (g.chain ? g.chain.merges : []).forEach(function (mg, i) { if (mg.before <= mi) { k = i; start = mg.before; } }); return { k: k, start: start }; }
   function fullRate(s) { var o = s.outputs[0], cs = s.clocks.reduce(function (a, c) { return a + c; }, 0); return o && cs ? o.total / cs : 0; }
@@ -2437,7 +2436,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
   var GAPX = 150, GAPY = 26, PAD = 28, TOP = 58;
   var SOLID_COLS = ['#ff9f43', '#ff6fb5', '#7bd88f', '#b48cff', '#ffd84d', '#4dd8e6', '#ff5f5f', '#e8e4d8', '#b8875e', '#8c9eff', '#c2f06a', '#ff9de2'];
   var FLUID_COLS = ['#4f9dff', '#2fd1b3', '#a79bff', '#c4e8ff', '#3d6bff'];
-  var ALL_COLS = SOLID_COLS.concat(FLUID_COLS).concat(['#f2d85a']);
+  var GROUPC = ['#6aa9ff', '#f2b05e', '#6fd39a', '#d39bff', '#ff8a8a', '#5fd4d4', '#e8d36a', '#ff9fd0'];
+  var ALL_COLS = SOLID_COLS.concat(FLUID_COLS).concat(['#f2d85a']).concat(GROUPC);   // every colour a line can have, so each gets a matching arrowhead
   var colorMap = {};
   // parts that meet in one step get colours as far apart as possible (no yellow next to lime)
   function hexRgb(h) { var n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
@@ -3188,8 +3188,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
   var wideOn = false;   // "Hide setup": the step guide gets the whole width while building
   try { wideOn = localStorage.getItem('beltline-wide') === '1'; } catch (e) { wideOn = false; }
   function applyWide() { var L = document.querySelector('.layout'); if (L) L.classList.toggle('wide', wideOn); }
-  var gColorBy = 'out';   // tint machines by their output belt ('out') or input belt ('in')
-  try { gColorBy = localStorage.getItem('beltline-gcolor') || 'out'; } catch (e) { gColorBy = 'out'; }
+  var gColorBy = 'both';   // tint machines by output belt ('out'), input belt ('in') or both (split box)
+  try { gColorBy = localStorage.getItem('beltline-gcolor') || 'both'; } catch (e) { gColorBy = 'both'; }
   var gZoom = 0;
   try { gZoom = +localStorage.getItem('beltline-gzoom') || 0; } catch (e) { gZoom = 0; }
   function gzStyle(W) { return gZoom ? 'width:' + Math.round(W * gZoom) + 'px;max-width:none' : 'width:100%;min-width:' + Math.round(W * 0.85) + 'px;max-width:' + Math.round(W) + 'px'; }
@@ -3554,6 +3554,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       }
     }
     // machines
+    var gradDefs = {};
     vrows.forEach(function (mi, v) {
       var t = rowTopV(v);
       if (mi < 0) { boxes += '<text x="' + (mL + MW / 2) + '" y="' + (t + MH / 2 + 5) + '" text-anchor="middle" class="t2">⋮  ' + (n - 8) + ' more, built the same way</text>'; return; }
@@ -3562,7 +3563,8 @@ details.mats[open] .chev { transform: rotate(180deg); }
         if (brk) boxes += '<path d="M' + (mL - 8) + ' ' + (t - (ROW - MH) / 2) + ' H' + (mR + 8) + '" style="stroke:var(--line-2);stroke-width:1;stroke-dasharray:3 4;fill:none"/>';
       }
       var tags = multi ? lanes.filter(function (q) { return q.ng > 1 && mi >= q.lo && mi < q.hi; }).sort(function (a, b) { return a.j - b.j; }).map(feedTag).join(' ') : '';
-      var ty = compact ? t + MH / 2 + 5 : t + (s.amp ? 23 : 32);
+      var limited = !s.amp && !compact && state.noClock && s.clocks[mi] < 0.999 && s.outputs[0] && !s.outputs[0].fluid;
+      var ty = compact ? t + MH / 2 + 5 : t + (s.amp || limited ? 23 : 32);
       var inQ = lanes.filter(function (q) { return q.ng > 1 && !q.g.fluid && mi >= q.lo && mi < q.hi; }).sort(function (a, b) { return a.j - b.j; })[0];
       if (!inQ) { var chq = lanes.filter(function (q) { return q.g.chain && mi >= q.lo && mi < q.hi; })[0]; if (chq) inQ = { gi: chainSeg(chq.g, mi).k, chain: true }; }
       var outQ = olanes.filter(function (q) { return q.ng > 1 && !q.o.fluid && q.j === 0 && mi >= q.lo && mi < q.hi; })[0];
@@ -3572,11 +3574,15 @@ details.mats[open] .chev { transform: rotate(180deg); }
       if (cmode === 'in') outQ = null; else if (cmode === 'out') inQ = null;
       var tintQ = outQ || inQ;
       boxes += '<g><rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="' + (compact ? 7 : 10) + '" class="gm' + (s.amp ? ' amp' : '') + '"/>' +
-        (tintQ ? '<rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="' + (compact ? 7 : 10) + '" style="fill:' + gcol(tintQ.gi) + ';fill-opacity:.16;stroke:' + gcol(tintQ.gi) + ';stroke-opacity:.55;stroke-width:1.2"/>' : '') +
+        (cmode === 'both' && inQ && outQ ? (function () {   // left half = input belt colour, right half = output belt colour
+          var a = gcol(inQ.gi), b = gcol(outQ.gi), id = 'sp' + inQ.gi % GROUPC.length + '-' + outQ.gi % GROUPC.length;
+          gradDefs[id] = '<linearGradient id="' + id + '" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="' + a + '"/><stop offset=".5" stop-color="' + a + '"/><stop offset=".5" stop-color="' + b + '"/><stop offset="1" stop-color="' + b + '"/></linearGradient>';
+          return '<rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="' + (compact ? 7 : 10) + '" style="fill:url(#' + id + ');fill-opacity:.2;stroke:url(#' + id + ');stroke-opacity:.6;stroke-width:1.2"/>';
+        })() : tintQ ? '<rect x="' + mL + '" y="' + t + '" width="' + MW + '" height="' + MH + '" rx="' + (compact ? 7 : 10) + '" style="fill:' + gcol(tintQ.gi) + ';fill-opacity:.16;stroke:' + gcol(tintQ.gi) + ';stroke-opacity:.55;stroke-width:1.2"/>' : '') +
         (inQ ? stripe(mL, inQ.gi, false) : '') + (outQ ? stripe(mR, outQ.gi, true) : '') +
         '<text x="' + (mL + (compact ? 12 : 16) + (inQ ? 4 : 0)) + '" y="' + ty + '" class="t1"' + (compact ? ' style="font-size:12.5px"' : '') + '>' + esc(clip(mShort(r.m), 16)) + ' ' + (mi + 1) + '</text>' +
         (s.amp && !compact ? '<text x="' + (mL + 16) + '" y="' + (t + 41) + '" class="t3">' + s.amp + ' somersloops</text>' : '') +
-        (!s.amp && !compact && state.noClock && s.clocks[mi] < 0.999 && s.outputs[0] && !s.outputs[0].fluid ? '<text x="' + (mL + 16) + '" y="' + (t + 44) + '" class="t3">makes ' + fmt(fullRate(s) * s.clocks[mi]) + ' of ' + fmt(fullRate(s)) + '/min · input-limited</text>' : '') +
+        (limited ? '<text x="' + (mL + 16 + (inQ ? 4 : 0)) + '" y="' + (t + 41) + '" class="t3">makes ' + fmt(fullRate(s) * s.clocks[mi]) + ' of ' + fmt(fullRate(s)) + '/min<title>Input-limited: it gets enough input for ' + fmt(fullRate(s) * s.clocks[mi]) + ' of the ' + fmt(fullRate(s)) + '/min it could make</title></text>' : '') +
         (tags ? '<text x="' + (mR - (compact ? 62 : 72)) + '" y="' + ty + '" text-anchor="end" style="font:600 11px var(--mono);fill:var(--muted)">' + tags + '</text>' : '') +
         '<text x="' + (mR - (compact ? 10 : 14) - (outQ ? 6 : 0)) + '" y="' + (compact ? ty : t + 33) + '" class="tc2" text-anchor="end"' + (compact ? ' style="font-size:12.5px"' : '') + '>' + clockShort(s.clocks[mi]) + '%</text></g>';
     });
@@ -3606,7 +3612,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
       boxes += card(cardOX, pcy, '#f2d85a', 'Power', '+' + trim(s.powerOut, 0) + ' MW', 'to your power grid');
     }
     var defs = '<defs>' + ALL_COLS.map(function (c, ix) { return '<marker id="ah-' + ix + '" viewBox="0 0 10 10" refX="8.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M0,0.5 L10,5 L0,9.5 z" style="fill:' + c + '"/></marker>'; }).join('') + '</defs>';
-    return '<svg class="dg gdg" data-w="' + Math.round(W) + '" viewBox="0 0 ' + Math.round(W) + ' ' + Math.round(H) + '" style="' + gzStyle(W) + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="How to wire this step">' + defs + paths + boxes + glyphs + '</svg>';
+    return '<svg class="dg gdg" data-w="' + Math.round(W) + '" viewBox="0 0 ' + Math.round(W) + ' ' + Math.round(H) + '" style="' + gzStyle(W) + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="How to wire this step">' + defs + (Object.keys(gradDefs).length ? '<defs>' + Object.keys(gradDefs).map(function (k) { return gradDefs[k]; }).join('') + '</defs>' : '') + paths + boxes + glyphs + '</svg>';
   }
 
   /* ---------------- inspector ---------------- */
@@ -3945,7 +3951,7 @@ details.mats[open] .chev { transform: rotate(180deg); }
     }
   });
   window.addEventListener('resize', function () { closePop(); if (!vpUser) refit(); });
-  var BELTLINE_BUILD = '20261125132333';
+  var BELTLINE_BUILD = '20261125132854';
   function checkForUpdate() {
     if (!/^\d+$/.test(BELTLINE_BUILD) || !/^https?:$/.test(location.protocol) || document.querySelector('.upd')) return;
     fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
